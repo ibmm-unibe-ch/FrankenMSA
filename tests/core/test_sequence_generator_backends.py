@@ -1,14 +1,12 @@
 def test_import():
     from frankenfold.core import sequence_generators
 
-    assert sequence_generators.backend_dir_exists
-    assert sequence_generators.get_backend_dir
-
-    assert len(sequence_generators.AVAILABLE_BACKENDS) > 0
-    assert "ProteinMPNN" in sequence_generators.AVAILABLE_BACKENDS
+    assert hasattr(sequence_generators, "SequenceGenerator")
 
 
 def test_setup_protein_mpnn():
-    from frankenfold.core.sequence_generators import set_backend
+    from frankenfold.core.sequence_generators import ProteinMPNN
 
-    set_backend("ProteinMPNN")
+    generator = ProteinMPNN()
+
+    assert generator.model is not None
