@@ -12,7 +12,7 @@ from . import msa_base
 REMOTE_URL = "https://api.colabfold.com"
 
 
-class MMSeqs2Colab(msa_base.MSABackend):
+class MMSeqs2Colab(msa_base.MSABackendFactory):
     def __init__(self, user_agent: str):
         logger.critical("THIS IS NOT YET FULLY IMPLEMENTED")
         super().__init__()
@@ -25,6 +25,81 @@ class MMSeqs2Colab(msa_base.MSABackend):
         self.status = None
         self.extracted_files = None
         self._download_location = None
+
+    def align(
+        self,
+        sequences: list,
+        env: bool = True,
+        filter: bool = True,
+        pairing: str = None,
+        save_to: str = None,
+        retries: int = 3,
+        timeout: int = 10,
+    ):
+        """
+        Align a list of sequences using the MMseqs2 Colab API.
+
+        Parameters
+        ----------
+        sequences : list
+            List of sequences to align.
+        env : bool, optional
+            Use the environment-specific model, by default True
+        filter : bool, optional
+            Filter sequences, by default False
+        pairing : str, optional
+            Pair sequences, by default "greedy". Can be "greedy" or "complete"
+        save_to : str, optional
+            Destination directory, by default None (subfolder with job-id in current working directory)
+        retries : int, optional
+            Number of retries for API calls, by default 3
+        timeout : int, optional
+            Timeout for API calls (in seconds), by default 10
+        """
+        self.submit(
+            sequences=sequences,
+            env=env,
+            filter=filter,
+            pairing=pairing,
+            retries=retries,
+            timeout=timeout,
+        )
+        self.wait()
+        self.fetch_data(dest=save_to)
+        final = self.make_msa()
+        self.msa = final
+        return final
+
+    def make_msa(self) -> msa_base.MSA:
+        final = msa_base.MSA()
+        final.raw = self.raw_data
+
+        final.alignment = msa_base.A3MAlignment.from_string(
+            self.raw_data.a3m_raw_data[0]
+        )
+        if len(self.raw_data.a3m_raw_data) > 1:
+            for a3m in self.raw_data.a3m_raw_data[1:]:
+                final.alignment.concat(msa_base.A3MAlignment.from_string(a3m))
+
+        final.metadata = msa_base.M8Metadata.from_file(self.raw_data.m8_raw_data)
+        if self.uses_templates:
+            final.templates = msa_base.TemplateData()
+            for i, files in self.raw_data.template_raw_data.items():
+                final.templates.add(
+                    i,
+                    structure_files=[
+                        i
+                        for i in files.values()
+                        if i.endswith(".cif") or i.endswith(".pdb")
+                    ],
+                    index_files=[
+                        i
+                        for i in files.values()
+                        if i.endswith(".ffindex") or i.endswith(".ffdata")
+                    ],
+                )
+
+        return final
 
     @property
     def files_to_extract(self):
@@ -114,6 +189,8 @@ class MMSeqs2Colab(msa_base.MSABackend):
         timeout : int, optional
             Timeout for API calls (in seconds), by default 10
         """
+        if isinstance(sequences, str):
+            sequences = [sequences]
         query = ""
         sequences = set(i.upper().strip() for i in sequences)
         self._sequence_indices = [101 + idx for idx, i in enumerate(sequences)]
@@ -152,7 +229,7 @@ class MMSeqs2Colab(msa_base.MSABackend):
 
         self.job_id = out["id"]
         self.status = out["status"]
-        self.msa = None
+        self.raw_data = None
 
     def wait(self, max_wait: int = None, retry_interval: int = 3):
         """
@@ -191,7 +268,7 @@ class MMSeqs2Colab(msa_base.MSABackend):
         self.status = out["status"]
         return self.status
 
-    def get_result(self, dest: str = None, retries: int = 3, timeout: int = 3):
+    def fetch_data(self, dest: str = None, retries: int = 3, timeout: int = 3):
         """
         Get the result of the submitted job.
 
@@ -208,7 +285,7 @@ class MMSeqs2Colab(msa_base.MSABackend):
         if status in ("PENDING", "RUNNING"):
             return None
         elif status == "ERROR":
-            raise Exception("Job failed.")
+            raise Exception("Job failed. Make sure the input sequences are valid.")
 
         url = f"{REMOTE_URL}/result/download/{self.job_id}"
         dest = os.path.join(os.getcwd(), self.job_id) if dest is None else dest
@@ -233,22 +310,21 @@ class MMSeqs2Colab(msa_base.MSABackend):
                 raise FileNotFoundError(f"Could not extract {i}")
         self.extracted_files = files
 
-
-        self.msa = msa_base.MSAResult()
-        self.msa.m8_data = self.extracted_files["pdb70.m8"]
+        self.raw_data = msa_base.MSARawData(self.__class__.__name__)
+        self.raw_data.m8_raw_data = self.extracted_files["pdb70.m8"]
         self.uses_templates = self.use_templates
         self.uses_pairing = self.pairing is not None
 
         if self.use_templates:
             self._query_templates()
 
-        self._extract_a3m() 
+        self._extract_a3m()
 
-        return self.msa
+        return self.raw_data
 
     def _query_templates(self):
         templates = {}
-        for line in open(self.msa.m8_data):
+        for line in open(self.raw_data.m8_raw_data):
             if line.startswith("#"):
                 continue
             p = line.rstrip().split()
@@ -281,25 +357,24 @@ class MMSeqs2Colab(msa_base.MSABackend):
                 os.symlink(files["pdb70_a3m.ffindex"], f"{subdir}/pdb70_cs219.ffindex")
                 open(f"{subdir}/pdb70_cs219.ffdata", "w").close()
 
-        self.msa.template_data = template_files
-
+        self.raw_data.template_raw_data = template_files
 
     def _extract_a3m(self):
-        a3m_files = (j for i, j in self.extracted_files.items() if i.endswith(".a3m")) 
+        a3m_files = (j for i, j in self.extracted_files.items() if i.endswith(".a3m"))
         a3m_lines = {}
         for a3m_file in a3m_files:
             update_M, M = True, None
-            for line in open(a3m_file,"r"):
+            for line in open(a3m_file, "r"):
                 if len(line) > 0:
                     if "\x00" in line:
-                        line = line.replace("\x00","")
+                        line = line.replace("\x00", "")
                         update_M = True
                 if line.startswith(">") and update_M:
                     M = int(line[1:].rstrip())
                     update_M = False
-                    if M not in a3m_lines: 
+                    if M not in a3m_lines:
                         a3m_lines[M] = []
                 a3m_lines[M].append(line)
 
         a3m_lines = ["".join(a3m_lines[i]) for i in self._sequence_indices]
-        self.msa.a3m_data = a3m_lines
+        self.raw_data.a3m_raw_data = a3m_lines
