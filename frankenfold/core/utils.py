@@ -1,26 +1,11 @@
 """
 General utility functions.
 """
-import hashlib
+
 import tempfile
 
-def get_hash(x):
-    """
-    Get the SHA1 hash of a string
 
-    Parameters
-    ----------
-    x : str
-        The string to hash
-        
-    Returns
-    -------
-    str
-        The SHA1 hash of the string
-    """
-    return hashlib.sha1(x.encode()).hexdigest()
-
-def tmpfile(data: str, suffix: str=".tmp", dir: str=".") -> str:
+def tmpfile(data: str, suffix: str = ".tmp", dir: str = ".") -> str:
     """
     Write data to a temporary file
 
@@ -38,6 +23,8 @@ def tmpfile(data: str, suffix: str=".tmp", dir: str=".") -> str:
     str
         The temporary file path
     """
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, dir=dir, suffix=suffix) as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, dir=dir, suffix=suffix
+    ) as f:
         f.write(data)
         return f.name
