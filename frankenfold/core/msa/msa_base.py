@@ -84,7 +84,9 @@ class MSA:
         return new
 
     @classmethod
-    def from_sequences(cls, sequences: List[str]):
+    def from_sequences(
+        cls, sequences: List[str], extra: dict = None, headers_key: str = None
+    ):
         """
         Create an MSA object from a list of sequences.
 
@@ -92,6 +94,10 @@ class MSA:
         ----------
         sequences : List[str]
             List of sequences
+        extra : dict, optional
+            Extra metadata. This should be a dictionary where values are array-like and have the same length as the sequences list.
+        headers_key : str, optional
+            Key in the extra metadata dictionary that contains the headers for the sequences (if any), by default None.
 
         Returns
         -------
@@ -99,9 +105,7 @@ class MSA:
             MSA object.
         """
         msa = cls()
-        msa.alignment = A3MAlignment(
-            pd.DataFrame({"header": range(len(sequences)), "sequence": sequences})
-        )
+        msa.alignment = A3MAlignment.from_sequences(sequences, extra, headers_key)
         return msa
 
     def save(self, filename: str):
@@ -315,16 +319,26 @@ class A3MAlignment:
         """
         if extra is not None:
             if headers_key is not None:
-                headers = extra[headers_key]
+                _headers = extra[headers_key]
             else:
-                headers = range(len(sequences))
+                _headers = [str(i) for i in range(len(sequences))]
+            headers = []
+            for i in range(len(sequences)):
+                header = [_headers[i]]
+                for key, value in extra.items():
+                    if key != headers_key:
+                        header.append(str(value[i]))
+                headers.append("\t".join(header))
             df = pd.DataFrame({"header": headers, "sequence": sequences})
             for key, value in extra.items():
                 if key != headers_key:
                     df[key] = value
+            new = cls(df)
+            new.extra_df = pd.DataFrame(extra)
+            return new
         else:
             df = pd.DataFrame({"header": range(len(sequences)), "sequence": sequences})
-        return cls(df)
+            return cls(df)
 
     def make_extra_df(self, columns: list) -> pd.DataFrame:
         """
