@@ -45,6 +45,25 @@ class ProteinMPNN(backend.SequenceGenerator):
         self.pssm = {}
         self.pssm_settings()
 
+    @classmethod
+    def from_directory(cls, directory: str):
+        """
+        Create a ProteinMPNN sequence generator backend from a local directory that was already downloaded.
+
+        Parameters
+        ----------
+        directory : str
+            The path to the local directory containing the ProteinMPNN model
+
+        Returns
+        -------
+        ProteinMPNN
+            The ProteinMPNN sequence generator backend
+        """
+        generator = cls()
+        generator.local_path = directory
+        return generator
+
     def pssm_settings(
         self, pssm_threshold=0, pssm_multi=0, pssm_log_odds_flag=0, pssm_bias_flag=0
     ):

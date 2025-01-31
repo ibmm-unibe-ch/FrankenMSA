@@ -3,6 +3,8 @@ Main API functions
 """
 
 from .msa import *
+from .sequence_generators.api import *
+
 from pathlib import Path
 
 
