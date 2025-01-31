@@ -14,7 +14,6 @@ REMOTE_URL = "https://api.colabfold.com"
 
 class MMSeqs2Colab(msa_base.MSABackendFactory):
     def __init__(self, user_agent: str):
-        logger.critical("THIS IS NOT YET FULLY IMPLEMENTED")
         super().__init__()
         self.user_agent = user_agent
         self.pairing = None
