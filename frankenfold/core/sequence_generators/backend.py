@@ -45,6 +45,10 @@ class SequenceGenerator:
         self._is_loaded = False
         self.needs_init = True
 
+        self.pip_requirements = []
+        self.conda_requirements = []
+        self.conda_channels = []
+
     @property
     def device(self):
         """
@@ -59,20 +63,24 @@ class SequenceGenerator:
         """
         Initialize the backend. This will download the backend (if necessary) and load the model
         """
+        nsteps = 4
         if not self.needs_init:
             return
         if self._is_loaded:
             print("Backend already loaded")
             return
-        print("[1/3] Initializing backend")
+        print(f"[1/{nsteps}] Initializing backend")
         self._vet_backend()
-        print("[1/3] Backend validated")
-        print("[2/3] Downloading backend")
+        print(f"[1/{nsteps}] Backend validated")
+        print(f"[2/{nsteps}] Downloading backend")
         self.download()
-        print("[2/3] Download complete")
-        print("[3/3] Loading backend")
+        print(f"[2/{nsteps}] Download complete")
+        print(f"[3/{nsteps}] Installing dependencies")
+        self.install_dependencies()
+        print(f"[3/{nsteps}] Dependencies installed")
+        print(f"[4/{nsteps}] Loading backend")
         self.load()
-        print("[3/3] Backend loaded")
+        print(f"[4/{nsteps}] Backend loaded")
 
     def download(self, force: bool = False):
         """
@@ -138,16 +146,44 @@ class SequenceGenerator:
         else:
             raise AttributeError("Local path not set")
 
-    def setup_model(self) -> "torch.Model":
+    def setup_model(self):
         """
         Setup the model.
 
         Returns
         -------
-        torch.Model
-            The model object
+        torch.Model or some other model object
         """
         raise NotImplementedError()
+
+    def install_dependencies(self):
+        """
+        Install any dependencies for the backend
+        """
+        if len(self.pip_requirements) > 0:
+            import subprocess
+            from importlib.metadata import version
+
+            for req in self.pip_requirements:
+                try:
+                    version(req)
+                except:
+                    subprocess.run(["pip", "install", req], check=True)
+        if len(self.conda_requirements) > 0:
+            import subprocess
+            from importlib.metadata import version
+
+            if len(self.conda_channels) > 0:
+                channels = " ".join([f"-c {i}" for i in self.conda_channels])
+            else:
+                channels = ""
+            for req in self.conda_requirements:
+                try:
+                    version(req)
+                except:
+                    subprocess.run(
+                        f"conda install {channels} {req} -y", shell=True, check=True
+                    )
 
     def import_module(self):
         """

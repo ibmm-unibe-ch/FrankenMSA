@@ -45,6 +45,8 @@ class ProteinMPNN(backend.SequenceGenerator):
         self.pssm = {}
         self.pssm_settings()
 
+        self.pip_requirements = ["torch"]
+
     @classmethod
     def from_directory(cls, directory: str):
         """
@@ -150,7 +152,7 @@ class ProteinMPNN(backend.SequenceGenerator):
         inputs = _prepare_model_input(
             pdbfile=pdbfile, n=n, chains=chains, copies=copies
         )
-        self._out = ModelOutputs()
+        self._out = TempOutputs()
         self._out.extra = {
             "protein_name": [],
             "batch": [],
@@ -164,41 +166,7 @@ class ProteinMPNN(backend.SequenceGenerator):
         else:
             clone_factory = lambda protein: [protein]
 
-        if inputs.tied_positions is not None:
-            _sampler = self.model.tied_sample
-
-            def _sampler_arguments(features, inputs):
-                kwargs = features._asdict()
-                kwargs["S_true"] = kwargs.pop("S")
-                kwargs["chain_M_pos"] = kwargs.pop("chain_mask_pos")
-                kwargs["bias_by_res"] = kwargs.pop("bias_by_res_all")
-                kwargs["omit_AAs_np"] = inputs.omit
-                kwargs["bias_AAs_np"] = inputs.bias
-                for i in list(kwargs.keys()):
-                    if i not in _sampler_kwargs_keys:
-                        kwargs.pop(i, None)
-                kwargs.update(self.pssm)
-                kwargs.pop("pssm_threshold")
-                return kwargs
-
-        else:
-            _sampler = self.model.sample
-
-            def _sampler_arguments(features, inputs):
-                kwargs = features._asdict()
-                kwargs["S_true"] = kwargs.pop("S")
-                kwargs["chain_M_pos"] = kwargs.pop("chain_mask_pos")
-                kwargs["bias_by_res"] = kwargs.pop("bias_by_res_all")
-                kwargs["omit_AAs_np"] = inputs.omit
-                kwargs["bias_AAs_np"] = inputs.bias
-                for i in list(kwargs.keys()):
-                    if i not in _sampler_kwargs_keys:
-                        kwargs.pop(i, None)
-                kwargs.update(self.pssm)
-                kwargs.pop("pssm_threshold")
-                for i in ("tied_pos", "tied_beta"):
-                    kwargs.pop(i, None)
-                return kwargs
+        _sampler, _sampler_arguments = self._prepare_sampler(inputs)
 
         # encode the protein inputs
         for idx, protein in enumerate(inputs.dataset):
@@ -315,8 +283,47 @@ class ProteinMPNN(backend.SequenceGenerator):
         self._out.scores = scores
         return scores
 
+    def _prepare_sampler(self, inputs):
+        if inputs.tied_positions is not None:
+            _sampler = self.model.tied_sample
 
-class ModelOutputs:
+            def _sampler_arguments(features, inputs):
+                kwargs = features._asdict()
+                kwargs["S_true"] = kwargs.pop("S")
+                kwargs["chain_M_pos"] = kwargs.pop("chain_mask_pos")
+                kwargs["bias_by_res"] = kwargs.pop("bias_by_res_all")
+                kwargs["omit_AAs_np"] = inputs.omit
+                kwargs["bias_AAs_np"] = inputs.bias
+                for i in list(kwargs.keys()):
+                    if i not in _sampler_kwargs_keys:
+                        kwargs.pop(i, None)
+                kwargs.update(self.pssm)
+                kwargs.pop("pssm_threshold")
+                return kwargs
+
+        else:
+            _sampler = self.model.sample
+
+            def _sampler_arguments(features, inputs):
+                kwargs = features._asdict()
+                kwargs["S_true"] = kwargs.pop("S")
+                kwargs["chain_M_pos"] = kwargs.pop("chain_mask_pos")
+                kwargs["bias_by_res"] = kwargs.pop("bias_by_res_all")
+                kwargs["omit_AAs_np"] = inputs.omit
+                kwargs["bias_AAs_np"] = inputs.bias
+                for i in list(kwargs.keys()):
+                    if i not in _sampler_kwargs_keys:
+                        kwargs.pop(i, None)
+                kwargs.update(self.pssm)
+                kwargs.pop("pssm_threshold")
+                for i in ("tied_pos", "tied_beta"):
+                    kwargs.pop(i, None)
+                return kwargs
+
+        return _sampler, _sampler_arguments
+
+
+class TempOutputs:
     def __init__(self):
         self.log_probabilities = None
         self.loss_mask = None
