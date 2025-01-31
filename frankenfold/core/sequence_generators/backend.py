@@ -4,6 +4,7 @@ Backends for generating protein sequences
 
 from pathlib import Path
 import sys
+from typing import List, Dict, Tuple
 
 
 class BackendNotSetError(Exception):
@@ -42,14 +43,36 @@ class SequenceGenerator:
         self.model = None
         self.src = None
         self._is_loaded = False
+        self.needs_init = True
+
+    @property
+    def device(self):
+        """
+        Get the device of the model
+        """
+        if self.model is not None:
+            return next(self.model.parameters()).device
+        else:
+            raise BackendNotSetError("Backend not loaded")
 
     def init(self):
         """
         Initialize the backend. This will download the backend (if necessary) and load the model
         """
+        if not self.needs_init:
+            return
+        if self._is_loaded:
+            print("Backend already loaded")
+            return
+        print("[1/3] Initializing backend")
         self._vet_backend()
+        print("[1/3] Backend validated")
+        print("[2/3] Downloading backend")
         self.download()
+        print("[2/3] Download complete")
+        print("[3/3] Loading backend")
         self.load()
+        print("[3/3] Backend loaded")
 
     def download(self, force: bool = False):
         """
@@ -89,11 +112,19 @@ class SequenceGenerator:
         self.model = model
         self._is_loaded = True
 
-    def generate(self, *args, **kwargs):
+    def generate(self, *args, **kwargs) -> Tuple[List[str], Dict]:
         """
-        Generate a sequence
+        Generate sequences using the model
+
+        Returns
+        -------
+        list
+            A list of generated sequences
+        dict
+            A dictionary of additional information
         """
         raise NotImplementedError()
+        return [], {}
 
     def add_to_path(self):
         """
