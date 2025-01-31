@@ -19,6 +19,7 @@ N_ALPHABET = 21
 The number of letters in the amino acid alphabet.
 """
 
+
 class ProteinMPNN(backend.SequenceGenerator):
     """
     The ProteinMPNN sequence generator backend.
@@ -41,13 +42,12 @@ class ProteinMPNN(backend.SequenceGenerator):
         )
 
         self.local_path = "ProteinMPNN"
+        self.pssm = {}
         self.pssm_settings()
 
-    def pssm_settings(self, 
-        pssm_threshold = 0,
-        pssm_multi = 0,
-        pssm_log_odds_flag = 0,
-        pssm_bias_flag = 0):
+    def pssm_settings(
+        self, pssm_threshold=0, pssm_multi=0, pssm_log_odds_flag=0, pssm_bias_flag=0
+    ):
         """
         Set the PSSM settings for the model.
 
@@ -76,6 +76,10 @@ class ProteinMPNN(backend.SequenceGenerator):
         torch.Model
             The ProteinMPNN model
         """
+        global torch
+        global np
+        global protein_mpnn_utils
+        global pdbio
 
         import torch
         import numpy as np
@@ -120,10 +124,21 @@ class ProteinMPNN(backend.SequenceGenerator):
         -------
         list
             List of generated sequences
+        dict
+            Dictionary of additional information about the sequences
         """
         device = self.device
-        inputs = _prepare_model_input(pdbfile, n, chains, copies)
+        inputs = _prepare_model_input(
+            pdbfile=pdbfile, n=n, chains=chains, copies=copies
+        )
         self._out = ModelOutputs()
+        self._out.extra = {
+            "protein_name": [],
+            "batch": [],
+            "copy": [],
+            "sequence_recovery_rate": [],
+            "score": [],
+        }
 
         if copies > 1:
             clone_factory = lambda protein: [deepcopy(protein) for _ in range(copies)]
@@ -132,23 +147,36 @@ class ProteinMPNN(backend.SequenceGenerator):
 
         if inputs.tied_positions is not None:
             _sampler = self.model.tied_sample
-            def _sampler_arguments(features):
+
+            def _sampler_arguments(features, inputs):
                 kwargs = features._asdict()
-                kwargs["S_True"] = kwargs.pop("S")
-                for i in kwargs.keys():
+                kwargs["S_true"] = kwargs.pop("S")
+                kwargs["chain_M_pos"] = kwargs.pop("chain_mask_pos")
+                kwargs["bias_by_res"] = kwargs.pop("bias_by_res_all")
+                kwargs["omit_AAs_np"] = inputs.omit
+                kwargs["bias_AAs_np"] = inputs.bias
+                for i in list(kwargs.keys()):
                     if i not in _sampler_kwargs_keys:
                         kwargs.pop(i, None)
                 kwargs.update(self.pssm)
+                kwargs.pop("pssm_threshold")
                 return kwargs
+
         else:
             _sampler = self.model.sample
-            def _sampler_arguments(features):
+
+            def _sampler_arguments(features, inputs):
                 kwargs = features._asdict()
-                kwargs["S_True"] = kwargs.pop("S")
-                for i in kwargs.keys():
+                kwargs["S_true"] = kwargs.pop("S")
+                kwargs["chain_M_pos"] = kwargs.pop("chain_mask_pos")
+                kwargs["bias_by_res"] = kwargs.pop("bias_by_res_all")
+                kwargs["omit_AAs_np"] = inputs.omit
+                kwargs["bias_AAs_np"] = inputs.bias
+                for i in list(kwargs.keys()):
                     if i not in _sampler_kwargs_keys:
                         kwargs.pop(i, None)
                 kwargs.update(self.pssm)
+                kwargs.pop("pssm_threshold")
                 for i in ("tied_pos", "tied_beta"):
                     kwargs.pop(i, None)
                 return kwargs
@@ -161,31 +189,47 @@ class ProteinMPNN(backend.SequenceGenerator):
             self._out.pssm_log_odds_mask = (
                 features.pssm_log_odds_all > self.pssm["pssm_threshold"]
             ).float()
-            self._out.loss_mask = features.mask * features.chain_mask * features.chain_mask_pos
-            sampler_kwargs = _sampler_arguments(features)
+            self._out.loss_mask = (
+                features.mask * features.chain_mask * features.chain_mask_pos
+            )
+            sampler_kwargs = _sampler_arguments(features, inputs)
 
             # for each batch first generate model scores for sequence recovery
             for batch in range(inputs.n_batches):
 
                 random_prompt = torch.randn(features.chain_mask.shape, device=device)
-                sample_dict = _sampler(randn=random_prompt, temperature=temperature, **sampler_kwargs)
-                scores = self._generate_scores(sample_dict["S"], features, random_prompt, use_decoding_order=True, decoding_order=sample_dict["decoding_order"])
+                kwargs = dict(
+                    randn=random_prompt,
+                    temperature=temperature,
+                    **sampler_kwargs,
+                )
+                sample_dict = _sampler(**kwargs)
+                scores = self._generate_scores(
+                    sample_dict["S"],
+                    features,
+                    random_prompt,
+                    use_decoding_order=True,
+                    decoding_order=sample_dict["decoding_order"],
+                )
 
                 # now generate the sequences
                 for cdx in range(copies):
-                    seq, sequence_recovery_rate = self._generate_sequence(features, sample_dict, cdx,)
-
-                    header_data = (
-                    f"{self._out.protein_name}:{batch}:{cdx}",
-                    str(format(sequence_recovery_rate.item(),"0.4f")),
-                    str(format(scores[cdx].item(),"0.4f")),
+                    seq, sequence_recovery_rate = self._generate_sequence(
+                        features,
+                        sample_dict,
+                        cdx,
                     )
-                    header = f">{'\t'.join(header_data)}"
-                    final = header + "\n" + seq
-                    self._out.sequences.append(final)
 
-        sequences = self._out.sequences                    
-        return sequences
+                    self._out.extra["protein_name"].append(self._out.protein_name)
+                    self._out.extra["batch"].append(batch)
+                    self._out.extra["copy"].append(cdx)
+                    self._out.extra["sequence_recovery_rate"].append(
+                        sequence_recovery_rate.item()
+                    )
+                    self._out.extra["score"].append(scores[cdx].item())
+                    self._out.sequences.append(seq)
+
+        return self._out.sequences, self._out.extra
 
     def _generate_sequence(self, features, sample_dict, cdx):
         _features = _slice_namespace(features, cdx)
@@ -193,20 +237,20 @@ class ProteinMPNN(backend.SequenceGenerator):
         sample_s = sample_dict["S"][cdx]
         onehot_feature_s = torch.nn.functional.one_hot(_features.S, 21)
         onehot_sample_s = torch.nn.functional.one_hot(sample_s, 21)
-                    
-        loss_mask = self._out.loss_mask[cdx]    
+
+        loss_mask = self._out.loss_mask[cdx]
 
         upper = torch.sum(
-                        torch.sum(onehot_feature_s * onehot_sample_s, axis=-1) * loss_mask,
-                    )
+            torch.sum(onehot_feature_s * onehot_sample_s, axis=-1) * loss_mask,
+        )
         lower = torch.sum(loss_mask)
         sequence_recovery_rate = upper / lower
 
         seq_initial = protein_mpnn_utils._S_to_seq(sample_s, _features.chain_mask)
-       
+
         start = 0
         end = 0
-        list_of_AAs = [None]*len(_features.masked_list_list)
+        list_of_AAs = [None] * len(_features.masked_list_list)
         for mdx, mask_l in enumerate(_features.masked_chain_length_list_list):
             end += mask_l
             list_of_AAs[mdx] = seq_initial[start:end]
@@ -215,7 +259,9 @@ class ProteinMPNN(backend.SequenceGenerator):
         seq_initial = list(np.array(list_of_AAs)[sorted_indices])
 
         l0 = 0
-        for mc_length in np.array(_features.masked_chain_length_list_list)[sorted_indices][:-1]:
+        for mc_length in np.array(_features.masked_chain_length_list_list)[
+            sorted_indices
+        ][:-1]:
             l0 += mc_length
             seq_initial.insert(l0, "/")
             l0 += 1
@@ -223,12 +269,18 @@ class ProteinMPNN(backend.SequenceGenerator):
         seq_final = "".join(seq_initial)
         return seq_final, sequence_recovery_rate
 
-
-    def _generate_scores(self, S_sample, features, random_prompt, use_decoding_order=False, decoding_order=None):
+    def _generate_scores(
+        self,
+        S_sample,
+        features,
+        random_prompt,
+        use_decoding_order=False,
+        decoding_order=None,
+    ):
         # run the model to get the log probabilities
         log_probs = self.model(
             features.X,
-            S_sample, #features.S,
+            S_sample,  # features.S,
             features.mask,
             features.chain_mask * features.chain_mask_pos,
             features.residue_idx,
@@ -236,12 +288,11 @@ class ProteinMPNN(backend.SequenceGenerator):
             random_prompt,
             use_input_decoding_order=use_decoding_order,
             decoding_order=decoding_order,
-
         )
         self._out.log_probabilities = log_probs
 
         # then calculate the scores based on the log probabilities
-        scores = protein_mpnn_utils._scores(S_sample, log_probs, features.mask_for_loss)
+        scores = protein_mpnn_utils._scores(S_sample, log_probs, self._out.loss_mask)
         self._out.scores = scores
         return scores
 
@@ -251,6 +302,7 @@ class ModelOutputs:
         self.log_probabilities = None
         self.loss_mask = None
         self.sequences = []
+        self.extra = {}
         self.protein_name = None
         self.scores = None
 
@@ -294,35 +346,39 @@ featurize_namespace = namedtuple(
 )
 
 
-_sampler_kwargs_keys = ("X",
-"randn",
-"S_true",
-"chain_mask",
-"chain_encoding_all",
-"residue_idx",
-"mask",
-"temperature",
-"omit_AAs_np",
-"bias_AAs_np",
-"chain_M_pos",
-"omit_AA_mask",
-"pssm_coef",
-"pssm_bias",
-"pssm_multi",
-"pssm_log_odds_flag",
-"pssm_log_odds_mask",
-"pssm_bias_flag",
-"tied_pos",
-"tied_beta",
-"bias_by_res",)
+_sampler_kwargs_keys = (
+    "X",
+    "randn",
+    "S_true",
+    "chain_mask",
+    "chain_encoding_all",
+    "residue_idx",
+    "mask",
+    "temperature",
+    "omit_AAs_np",
+    "bias_AAs_np",
+    "chain_M_pos",
+    "omit_AA_mask",
+    "pssm_coef",
+    "pssm_bias",
+    "pssm_multi",
+    "pssm_log_odds_flag",
+    "pssm_log_odds_mask",
+    "pssm_bias_flag",
+    "tied_pos",
+    "tied_beta",
+    "bias_by_res",
+)
 """
 Those are the keys that are passed to the sampler function (with tied - since that's the 'bigger' one)
 """
+
 
 def _slice_namespace(namespace, index: int):
     out_class = type(namespace)
     out = out_class(*[i[index] for i in namespace])
     return out
+
 
 def _prepare_model_input(
     pdbfile: str,
@@ -365,7 +421,7 @@ def _prepare_model_input(
     omit_array[-1] = 1.0
 
     pdb_dict_list = protein_mpnn_utils.parse_PDB(pdbfile, input_chain_list=chains)
-    dataset = protein_mpnn_utils.StuctureDatasetPDB(
+    dataset = protein_mpnn_utils.StructureDatasetPDB(
         pdb_dict_list, truncate=None, max_length=MAX_LENGTH
     )
 
