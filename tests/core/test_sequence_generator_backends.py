@@ -38,3 +38,16 @@ def test_protein_mpnn_generate():
     assert all(isinstance(seq, str) for seq in sequences)
     assert len(extra["score"]) == n
     assert len(extra.keys()) == 5
+
+
+def test_functional_api():
+
+    import frankenfold as ff
+
+    pdb = "tests/data/test_1.pdb"
+    n = 3
+    sequences, extra = ff.inverse_fold(pdb, n)
+    assert len(sequences) == n
+    assert all(isinstance(seq, str) for seq in sequences)
+    assert len(extra["score"]) == n
+    assert len(extra.keys()) == 5

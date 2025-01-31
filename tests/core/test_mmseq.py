@@ -28,6 +28,29 @@ def test_mmseqs2colab():
     assert result.template_raw_data is not None
 
 
+def test_run_mmseqs2colab():
+    import frankenfold.core as ff
+
+    test_seq = (
+        "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG"
+    )
+    mmseqs = ff.MMSeqs2Colab(user_agent="frankenfold/noah.kleinschmidt@unibe.ch")
+    msa = mmseqs.align(test_seq)
+    assert msa.metadata is not None
+    assert msa.alignment is not None
+
+    a3m = msa.alignment
+
+    lenght_before = len(a3m)
+    msa.drop_insertions()
+    lenght_after = len(a3m)
+    assert lenght_after <= lenght_before
+    msa.to_depth(128)
+    assert len(a3m) == 128
+
+    msa.export("tests/test_msa")
+
+
 def test_mmseqs2colab_align_method():
 
     from frankenfold.core.msa import MMSeqs2Colab
