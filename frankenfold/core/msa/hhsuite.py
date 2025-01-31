@@ -8,6 +8,26 @@ import subprocess
 HHFILTER_PATH = "hhfilter"
 
 
+def has_hhsuite() -> bool:
+    """
+    Check if HH-suite is installed.
+
+    Returns
+    -------
+    bool
+        True if HH-suite is installed, False otherwise.
+    """
+    try:
+        out = subprocess.run(
+            [HHFILTER_PATH, "-h"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        if out.returncode != 0:
+            return False
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def hhfilter(
     input_file: str,
     diff: int,
