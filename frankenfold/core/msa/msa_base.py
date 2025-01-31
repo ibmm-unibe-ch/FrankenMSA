@@ -214,7 +214,7 @@ class A3MAlignment:
         data = self.df["header"].apply(lambda x: x.split("\t"))
         max_length = data.apply(len).max()
         return data.apply(lambda x: x + [""] * (max_length - len(x))).to_numpy()
-    
+
     @property
     def headers(self) -> np.ndarray:
         return self.df["header"].to_numpy()
@@ -241,6 +241,91 @@ class A3MAlignment:
             self.df["sequence"].apply(lambda x: any(i.islower() for i in x)).to_numpy()
         )
 
+    @classmethod
+    def from_file(cls, filename: str):
+        """
+        Create an A3MAlignment object from an A3M file.
+
+        Parameters
+        ----------
+        filename : str
+            File name.
+
+        Returns
+        -------
+        A3MAlignment
+            A3MAlignment object.
+        """
+        headers = []
+        sequences = []
+        with open(filename, "r") as f:
+            for line in f:
+                if line.startswith(">"):
+                    headers.append(line[1:].strip())
+                else:
+                    sequences.append(line.strip())
+        df = pd.DataFrame({"header": headers, "sequence": sequences})
+        return cls(df)
+
+    @classmethod
+    def from_string(cls, string: str):
+        """
+        Create an A3MAlignment object from a A3M / multiple sequence alignment string in Fasta format.
+
+        Parameters
+        ----------
+        string : str
+            A3M / multiple sequence alignment string in Fasta format.
+
+        Returns
+        -------
+        A3MAlignment
+            A3MAlignment object.
+        """
+        headers = []
+        sequences = []
+        for line in string.split("\n"):
+            if line.startswith(">"):
+                headers.append(line[1:].strip())
+            else:
+                sequences.append(line.strip())
+        df = pd.DataFrame({"header": headers, "sequence": sequences[:-1]})
+        return cls(df)
+
+    @classmethod
+    def from_sequences(
+        cls, sequences: List[str], extra: dict = None, headers_key: str = None
+    ):
+        """
+        Create an A3MAlignment object from a list of sequences.
+
+        Parameters
+        ----------
+        sequences : List[str]
+            List of sequences.
+        extra : dict, optional
+            Extra metadata. This should be a dictionary where values are array-like and have the same length as the sequences list.
+        headers_key : str, optional
+            Key in the extra metadata dictionary that contains the headers for the sequences (if any), by default None.
+
+        Returns
+        -------
+        A3MAlignment
+            A3MAlignment object.
+        """
+        if extra is not None:
+            if headers_key is not None:
+                headers = extra[headers_key]
+            else:
+                headers = range(len(sequences))
+            df = pd.DataFrame({"header": headers, "sequence": sequences})
+            for key, value in extra.items():
+                if key != headers_key:
+                    df[key] = value
+        else:
+            df = pd.DataFrame({"header": range(len(sequences)), "sequence": sequences})
+        return cls(df)
+
     def make_extra_df(self, columns: list) -> pd.DataFrame:
         """
         Create a DataFrame from the extra metadata in the headers.
@@ -259,17 +344,14 @@ class A3MAlignment:
         extra_df = pd.DataFrame(extra.tolist(), columns=columns)
         self.extra_df = extra_df
         return extra_df
-    
+
     def update_headers_from_extra(self):
         """
         Update the headers from the extra metadata DataFrame.
         """
         if self.extra_df is None:
             raise ValueError("Extra metadata DataFrame not found.")
-        self.df["header"] = self.extra_df.apply(
-            lambda x: "\t".join(x), axis=1
-        )
-        
+        self.df["header"] = self.extra_df.apply(lambda x: "\t".join(x), axis=1)
 
     def drop_insertions(self):
         """
@@ -441,31 +523,6 @@ class A3MAlignment:
                 row = self.df.iloc[i]
                 f.write(f">{row['header']}\n")
                 f.write(f"{row['sequence']}\n")
-
-    @classmethod
-    def from_file(cls, filename: str):
-        headers = []
-        sequences = []
-        with open(filename, "r") as f:
-            for line in f:
-                if line.startswith(">"):
-                    headers.append(line[1:].strip())
-                else:
-                    sequences.append(line.strip())
-        df = pd.DataFrame({"header": headers, "sequence": sequences})
-        return cls(df)
-
-    @classmethod
-    def from_string(cls, string: str):
-        headers = []
-        sequences = []
-        for line in string.split("\n"):
-            if line.startswith(">"):
-                headers.append(line[1:].strip())
-            else:
-                sequences.append(line.strip())
-        df = pd.DataFrame({"header": headers, "sequence": sequences[:-1]})
-        return cls(df)
 
     def concat(self, other: "A3MAlignment"):
         """
