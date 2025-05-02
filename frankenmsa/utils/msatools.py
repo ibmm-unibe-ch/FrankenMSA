@@ -5,6 +5,12 @@ General funcionality for MSA manipulation.
 import pandas as pd
 from typing import Optional, Union
 
+__all__ = [
+    "unify_length",
+    "crop_to_depth",
+    "drop_duplicates",
+]
+
 
 def unify_length(df: pd.DataFrame, sequence_length: int = None):
     """

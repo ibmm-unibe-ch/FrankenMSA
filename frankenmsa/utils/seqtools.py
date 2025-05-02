@@ -7,6 +7,13 @@ from collections import Counter
 from typing import List, Union, Iterable
 import numpy as np
 
+
+__all__ = [
+    "is_valid_peptide_sequence",
+    "vet_sequence",
+    "consensus_sequence",
+]
+
 amino_acids_1letter = set("ACDEFGHIKLMNPQRSTVWY")
 """
 Amino acids in one-letter code.
