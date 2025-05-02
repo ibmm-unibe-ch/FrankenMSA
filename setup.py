@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="frankenfold",
-    version="0.1.0",
-    description="Frankenfold is a package for protein design and folding",
+    name="frankenmsa",
+    version="0.1.2",
+    description="FrankenMSA is a package for protein design and folding",
     author="Jannik Gut, Noah Kleinschmidt, Thommas Lemmin",
     author_email="jannik.gut@unibe.ch, noah.kleinschmidt@unibe.ch, thommas.lemmin@unibe.ch",
-    url="https://github.com/ibmm-unibe-ch/frankenfold-ui",
+    url="https://github.com/ibmm-unibe-ch/frankenmsa",
     packages=find_packages(),
     install_requires=[
         # Add your project dependencies here
@@ -14,6 +14,9 @@ setup(
         "pathlib",
         "pandas",
         "loguru",
+        "requests",
+        "scikit-learn",
+        "scipy",
     ],
     extras_require={
         "filter": [

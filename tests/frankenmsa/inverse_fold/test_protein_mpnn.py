@@ -1,15 +1,11 @@
-def test_import():
-    from frankenfold.core import sequence_generators
+import pandas as pd
+import numpy as np
+from pathlib import Path
 
-    assert hasattr(sequence_generators, "SequenceGenerator")
+PARENT = Path(__file__).parent
+FILES = PARENT.parents[1] / "files"
 
-
-def test_setup_protein_mpnn():
-    from frankenfold.core.sequence_generators import ProteinMPNN
-
-    generator = ProteinMPNN()
-
-    assert generator.model is not None
+TEST_PDB1 = FILES / "1E4Q.pdb"
 
 
 def test_protein_mpnn_generate():
@@ -21,7 +17,8 @@ def test_protein_mpnn_generate():
         device = "cuda:0"
     else:
         device = "cpu"
-    from frankenfold.core.sequence_generators import ProteinMPNN
+
+    from frankenmsa.inverse_fold import ProteinMPNN
 
     generator = ProteinMPNN()
     generator.init()
@@ -31,9 +28,8 @@ def test_protein_mpnn_generate():
     assert generator._is_loaded
     assert generator.device is not None
 
-    pdb = "tests/data/test_1.pdb"
     n = 10
-    sequences, extra = generator.generate(pdb, n)
+    sequences, extra = generator.generate(TEST_PDB1, n)
     assert len(sequences) == n
     assert all(isinstance(seq, str) for seq in sequences)
     assert len(extra["score"]) == n
@@ -42,11 +38,10 @@ def test_protein_mpnn_generate():
 
 def test_functional_api():
 
-    import frankenfold as ff
+    import frankenmsa.inverse_fold as ff
 
-    pdb = "tests/data/test_1.pdb"
     n = 3
-    sequences, extra = ff.inverse_fold(pdb, n)
+    sequences, extra = ff.inverse_fold(TEST_PDB1, n)
     assert len(sequences) == n
     assert all(isinstance(seq, str) for seq in sequences)
     assert len(extra["score"]) == n
