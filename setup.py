@@ -1,5 +1,26 @@
 from setuptools import setup, find_packages
 
+extras_require = {
+    "cluster": [
+        "afcluster>=0.1.2",
+    ],
+    "filter": [
+        "hh-suite",
+    ],
+    "torch": [
+        "torch",
+    ],
+    "docs": [
+        "sphinx",
+        "sphinx_rtd_theme",
+    ],
+}
+extras_require["all"] = []
+for k, v in extras_require.items():
+    if k not in ("all", "docs"):
+        extras_require["all"].extend(v)
+
+
 setup(
     name="frankenmsa",
     version="0.1.2",
@@ -18,18 +39,7 @@ setup(
         "scikit-learn",
         "scipy",
     ],
-    extras_require={
-        "filter": [
-            "hh-suite",
-        ],
-        "torch": [
-            "torch",
-        ],
-        "docs": [
-            "sphinx",
-            "sphinx_rtd_theme",
-        ],
-    },
+    extras_require=extras_require,
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
