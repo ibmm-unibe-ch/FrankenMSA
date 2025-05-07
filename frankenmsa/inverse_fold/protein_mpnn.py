@@ -9,7 +9,7 @@ import frankenfold.core.sequence_generators.backend as backend
 from collections import namedtuple
 from copy import deepcopy
 import os
-
+import pandas as pd
 
 MAX_LENGTH = 20000
 """
@@ -49,10 +49,22 @@ class ProteinMPNN(backend.SequenceGenerator):
             augment_eps=0.0,
         )
 
+        name = "ProteinMPNN"
+        self.module = "protein_mpnn_utils"
         if os.environ.get("ProteinMPNN_DIR") is not None:
-            self.local_path = os.environ.get("ProteinMPNN")
+            self.local_path = Path(os.environ.get("ProteinMPNN_DIR"))
+            if self.local_path.name == self.module:
+                self.local_path = self.local_path.parent
+
+        elif (Path.cwd() / name).exists():
+            self.local_path = Path.cwd()
+        elif (Path.home() / name).exists():
+            self.local_path = Path.home()
+        elif (Path(__file__).parent / name).exists():
+            self.local_path = Path(__file__).parent
         else:
-            self.local_path = "ProteinMPNN"
+            self.local_path = Path.cwd()
+
         self.pssm = {}
         self.pssm_settings()
 
@@ -74,6 +86,8 @@ class ProteinMPNN(backend.SequenceGenerator):
             The ProteinMPNN sequence generator backend
         """
         generator = cls()
+        if Path(directory).name == generator.module:
+            directory = Path(directory).parent
         generator.local_path = directory
         return generator
 
@@ -154,8 +168,8 @@ class ProteinMPNN(backend.SequenceGenerator):
 
         Returns
         -------
-        list
-            List of generated sequences
+        pd.DataFrame
+            The generated sequences
         dict
             Dictionary of additional information about the sequences
         """
@@ -227,7 +241,14 @@ class ProteinMPNN(backend.SequenceGenerator):
                     self._out.extra["score"].append(scores[cdx].item())
                     self._out.sequences.append(seq)
 
-        return self._out.sequences, self._out.extra
+        final = {
+            "header": [f"seq{i}" for i in range(len(self._out.sequences))],
+            "sequence": self._out.sequences,
+            "recovery_rate": self._out.extra["sequence_recovery_rate"],
+            "score": self._out.extra["score"],
+        }
+        final = pd.DataFrame(final)
+        return final, {}
 
     def _generate_sequence(self, features, sample_dict, cdx):
         _features = _slice_namespace(features, cdx)

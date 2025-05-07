@@ -5,6 +5,7 @@ Backends for generating protein sequences
 from pathlib import Path
 import sys
 from typing import List, Dict, Tuple
+import pandas as pd
 
 
 class BackendNotSetError(Exception):
@@ -41,6 +42,7 @@ class SequenceGenerator:
         self.setup_parameters = None
         self.local_path = None
         self.model = None
+        self.module = None
         self.src = None
         self._is_loaded = False
         self.needs_init = True
@@ -110,7 +112,7 @@ class SequenceGenerator:
             raise AttributeError("Local path not set")
         elif not Path(self.local_path).exists():
             raise FileNotFoundError(f"Backend not downloaded: {self.local_path}")
-        self.add_to_path()
+        # self.add_to_path()
         self.import_module()
         model = self.setup_model()
         if model is None:
@@ -120,19 +122,18 @@ class SequenceGenerator:
         self.model = model
         self._is_loaded = True
 
-    def generate(self, *args, **kwargs) -> Tuple[List[str], Dict]:
+    def generate(self, *args, **kwargs) -> Tuple[pd.DataFrame, Dict]:
         """
         Generate sequences using the model
 
         Returns
         -------
-        list
-            A list of generated sequences
+        pd.DataFrame
+            A dataframe containing the generated sequences. This will contain a "sequence" column.
         dict
             A dictionary of additional information
         """
         raise NotImplementedError()
-        return [], {}
 
     def add_to_path(self):
         """
@@ -142,6 +143,8 @@ class SequenceGenerator:
             path = Path(self.local_path).absolute()
             if not path.exists():
                 raise FileNotFoundError(f"Backend not downloaded: {self.local_path}")
+            if self.module == path.name:
+                path = path.parent
             sys.path.append(str(path))
         else:
             raise AttributeError("Local path not set")
@@ -191,11 +194,16 @@ class SequenceGenerator:
         The module will be stored in the `src` attribute. Depending on the respective backend, this attribute will be useful or not.
         """
         if self.local_path is not None:
-            sys.path.append(str(Path(self.local_path).absolute()))
+            path = Path(self.local_path).absolute()
+            if not path.exists():
+                raise FileNotFoundError(f"Backend not downloaded: {self.local_path}")
+            if self.module == path.name:
+                path = path.parent
+            sys.path.append(str(path))
         else:
             raise AttributeError("Local path not set")
 
-        module = __import__(self.name, globals(), locals(), [], 0)
+        module = __import__(self.module or self.name, globals(), locals(), [], 0)
         self.src = module
         return module
 

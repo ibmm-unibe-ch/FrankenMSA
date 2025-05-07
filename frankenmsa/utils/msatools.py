@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-def unify_length(df: pd.DataFrame, sequence_length: int = None):
+def unify_length(df: pd.DataFrame, sequence_length: int = "first"):
     """
     Unify the length of sequences in a DataFrame by cropping or padding with gaps.
 
@@ -22,7 +22,9 @@ def unify_length(df: pd.DataFrame, sequence_length: int = None):
         DataFrame containing sequences. Must contain a column named "sequence".
     sequence_length: int, optional
         The length to which all sequences should be unified.
-        If None, the length of the first sequence in the DataFrame is used.
+        If "first", the length of the first sequence in the DataFrame is used.
+        If "max", the length of the longest sequence in the DataFrame is used.
+        If "min", the length of the shortest sequence in the DataFrame is used.
 
     Returns
     -------
@@ -32,8 +34,14 @@ def unify_length(df: pd.DataFrame, sequence_length: int = None):
     if "sequence" not in df.columns:
         raise ValueError("DataFrame must contain a 'sequence' column.")
 
-    if sequence_length is None:
+    if sequence_length == "first":
         sequence_length = len(df["sequence"].iloc[0])
+    elif sequence_length == "max":
+        sequence_length = df["sequence"].str.len().max()
+    elif sequence_length == "min":
+        sequence_length = df["sequence"].str.len().min()
+    elif not isinstance(sequence_length, int):
+        raise ValueError("sequence_length must be 'first', 'max', 'min' or an integer.")
 
     df["sequence"] = df["sequence"].str.ljust(sequence_length, "-")
     df["sequence"] = df["sequence"].str.slice(0, sequence_length)
