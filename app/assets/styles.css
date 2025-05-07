@@ -1,0 +1,15 @@
+.header {
+    background-color: #2C2C2C; /* Anthracite color */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Distribute children evenly across the available width */
+}
+
+.header-icon {
+    display: inline-block;
+    align-items: center;
+    margin: 0.5%; 
+    min-width: 50px; /* Minimum width for the icon */
+    width: 4%;
+}
