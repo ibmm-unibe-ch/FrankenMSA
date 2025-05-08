@@ -1,7 +1,7 @@
 import dash
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-
+from dash import callback, Input, Output, State
 
 app = Dash(
     use_pages=True,
@@ -62,6 +62,11 @@ def make_header():
         "icon_visual_white_transparent", "/visualize", "Visualize the MSA"
     )
 
+    unibe_icon = icon_link(
+        "unibe_white_transparent",
+        "https://www.unibe.ch",
+        "Developed by the friendly folks at the Institute of Biochemistry and Molecular Medicine of the University of Bern, Switzerland",
+    )
     header = html.Div(
         [
             home_icon,
@@ -72,6 +77,7 @@ def make_header():
             inverse_fold_icon,
             cluster_icon,
             visualize_icon,
+            unibe_icon,
         ],
         className="header",
     )
@@ -83,6 +89,8 @@ app.layout = html.Div(
     [
         make_header(),
         dash.page_container,
+        # empty stuff for the state
+        dcc.Store(id="main-msa", data=None, storage_type="session"),
     ],
 )
 
