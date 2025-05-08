@@ -41,6 +41,7 @@ def layout():
     Output("main-msa", "data"),
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
+    prevent_initial_call=True,
 )
 def upload_file(contents, filename):
     if contents is not None:
@@ -99,4 +100,4 @@ def upload_file(contents, filename):
         )
         return success_message, msa.to_dict()
 
-    return None, None
+    return dash.no_update, dash.no_update

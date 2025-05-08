@@ -3,11 +3,14 @@ from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 
+
 app = Dash(
     use_pages=True,
     suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
+    prevent_initial_callbacks=True,
 )
+app.config["prevent_initial_callbacks"] = True
 
 
 def icon_link(icon, href, tooltip_text):

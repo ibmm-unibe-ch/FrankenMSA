@@ -63,6 +63,18 @@
     margin-left: auto;
 }
 
+.shaded-bordered {
+    line-height: 60px;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 5px;
+    text-align: center;
+    border-color: #f0f0f0;
+    color: #f0f0f0;
+    font-weight: bold;
+    margin: 10px;
+    background-color: #f0f0f048;
+}
 
 .upload-component {
     width: 100%;
@@ -111,4 +123,26 @@
 .button-component:hover {
     background-color: #f0f0f0; /* Change background color on hover */
     color: #000; /* Change text color on hover */
+}
+
+.sidebar {
+    background-color: #2C2C2C; /* Anthracite color */
+    color: white;
+    font-weight: bold;
+
+    width: 150px;
+    height: 100%; /* Full height */
+    position: absolute; /* Position relative to the parent container */
+    
+    /*top: 0; /* Align to the top of the parent container */
+    left: 0; /* Align to the left of the parent container */
+    padding: 20px; 
+    padding-top: 5%;
+
+}
+
+.main-next-to-sidebar {
+    margin-left: 150px; /* Leave space for the sidebar */
+    padding: 20px;
+    padding-top: 5%;
 }
