@@ -101,8 +101,58 @@ def write_a3m(df: pd.DataFrame, filename: str) -> None:
             f.write(format_entry(index, row))
 
 
+def encode_a3m(df: pd.DataFrame) -> str:
+    """
+    Encode a DataFrame to an A3M string.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to encode to the A3M string.
+
+    Returns
+    -------
+    str
+        The A3M string.
+    """
+
+    return "".join(
+        [f">{row['header']}\n{row['sequence']}\n" for _, row in df.iterrows()]
+    )
+
+
+def decode_a3m(a3m_str: str) -> pd.DataFrame:
+    """
+    Decode an A3M string to a DataFrame.
+
+    Parameters
+    ----------
+    a3m_str : str
+        The A3M string to decode to the DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        The DataFrame.
+    """
+
+    lines = a3m_str.strip().split("\n")
+    headers = []
+    sequences = []
+
+    for line in lines:
+        if line.startswith(">"):
+            headers.append(line[1:])
+        else:
+            sequences.append(line)
+
+    return pd.DataFrame({"header": headers, "sequence": sequences})
+
+
 __all__ = [
     "read_a3m",
     "iter_a3m",
     "write_a3m",
+    "encode_a3m",
+    "decode_a3m",
 ]

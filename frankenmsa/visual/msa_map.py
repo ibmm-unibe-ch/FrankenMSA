@@ -110,7 +110,7 @@ def _plotly_visualise_msa(df: pd.DataFrame) -> AlignmentChart:
         showid=True,
         showconservation=True,
         showconsensus=False,
-        showgap=False,
+        showgap=True,
     )
 
     return chart
