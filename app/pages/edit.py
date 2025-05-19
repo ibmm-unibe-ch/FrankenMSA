@@ -896,7 +896,6 @@ def sort_by_identity(n_clicks, sort_order, main_msa, msa_data):
 
         print("Sorting MSA by identity with the following parameters:")
         print(f"sort_order: {sort_order}")
-        print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
@@ -928,12 +927,11 @@ def sort_by_gaps(n_clicks, sort_order, main_msa, msa_data):
 
         print("Sorting MSA by gaps with the following parameters:")
         print(f"sort_order: {sort_order}")
-        print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
         sorted_msa = sort_gaps(msa, ascending=(sort_order == "asc"))
-        sorted_msa.to_dict()
+        msa_data[main_msa] = sorted_msa.to_dict()
         return msa_data
     else:
         print("No button click detected.")
