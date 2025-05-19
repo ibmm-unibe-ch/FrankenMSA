@@ -76,6 +76,18 @@
     background-color: #f0f0f048;
 }
 
+.shaded-bordered h1, h2 {
+    line-height: 50px;
+    margin-bottom: 20px;
+}
+
+.shaded-bordered p {
+    margin: 0; /* Remove default margin */
+    padding: 10px; /* Remove default padding */
+    line-height: normal;
+    margin-bottom: 10px;
+}
+
 .upload-component {
     width: 100%;
     height: 60px;
@@ -99,15 +111,20 @@
     line-height: 60px;
     text-align: center;
     margin: 10px;
-    background-color: #f0f0f048; /* Light background for the dropdown area */
+    color:#009d76;
     cursor: pointer; /* Change cursor to pointer on hover */
     transition: background-color 0.3s; /* Smooth transition for background color */
+}
+
+.dropdown-component option {
+    
+    background-color: #f0f0f048; /* Light background for the dropdown area */
 }
 
 .button-component {
     /* width: 100%; */
     height: 60px;
-    line-height: 60px;
+    line-height: normal;
     border-width: 1px;
     border-style: solid;
     border-radius: 5px;

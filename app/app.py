@@ -37,16 +37,18 @@ def icon_link(icon, href, tooltip_text):
 
 def make_header():
     home_icon = icon_link("icon_main_white_transparent", "/", "Go to the home page")
-    upload_icon = icon_link(
-        "icon_upload_white_transparent", "/upload", "Upload an existing MSA File"
-    )
-    download_icon = icon_link(
-        "icon_download_white_transparent", "/download", "Download the generated MSA"
+    files_icon = icon_link(
+        "icon_files_white_transparent", "/file", "Upload and download MSA files"
     )
     edit_icon = icon_link(
         "icon_edit_white_transparent",
         "/edit",
         "Perform basic operations to edit the MSA",
+    )
+    combine_icon = icon_link(
+        "icon_combine_white_transparent",
+        "/combine",
+        "Combine multiple MSAs into a single MSA",
     )
     align_icon = icon_link(
         "icon_align_white_transparent",
@@ -55,7 +57,7 @@ def make_header():
     )
     inverse_fold_icon = icon_link(
         "icon_inverse_fold_white_transparent",
-        "/inverse_fold",
+        "/inversefold",
         "Perform inverse folding to generate sequences from a given protein structure",
     )
     cluster_icon = icon_link(
@@ -73,9 +75,9 @@ def make_header():
     header = html.Div(
         [
             home_icon,
-            upload_icon,
-            download_icon,
+            files_icon,
             edit_icon,
+            combine_icon,
             align_icon,
             inverse_fold_icon,
             cluster_icon,
@@ -94,6 +96,7 @@ app.layout = html.Div(
         dash.page_container,
         # empty stuff for the state
         dcc.Store(id="main-msa", data=None, storage_type="session"),
+        dcc.Store(id="msa-data", data={}, storage_type="session"),
     ],
 )
 
