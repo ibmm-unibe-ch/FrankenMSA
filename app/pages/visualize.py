@@ -25,55 +25,31 @@ def no_msa_yet():
 
 def layout():
 
-    visualise_aignment_checkbox = dcc.Checklist(
+    visualise_aignment_checkbox = dbc.Checkbox(
         id="visualise-alignment",
-        options=[
-            {
-                "label": "Visualise Alignment",
-                "value": True,
-            }
-        ],
-        value=[True],
-        inline=True,
+        label="Visualise Alignment",
+        value=True,
         persistence=True,
         persistence_type="session",
     )
-    visualise_gaps_checkbox = dcc.Checklist(
+    visualise_gaps_checkbox = dbc.Checkbox(
         id="visualise-gaps",
-        options=[
-            {
-                "label": "Visualise Gaps",
-                "value": True,
-            }
-        ],
-        value=[False],
-        inline=True,
+        label="Visualise Gaps",
+        value=False,
         persistence=True,
         persistence_type="session",
     )
-    visualise_conservation_checkbox = dcc.Checklist(
+    visualise_conservation_checkbox = dbc.Checkbox(
         id="visualise-conservation",
-        options=[
-            {
-                "label": "Visualise Conservation",
-                "value": True,
-            }
-        ],
-        value=[False],
-        inline=True,
+        label="Visualise Conservation",
+        value=False,
         persistence=True,
         persistence_type="session",
     )
-    visualise_identity_checkbox = dcc.Checklist(
+    visualise_identity_checkbox = dbc.Checkbox(
         id="visualise-identity",
-        options=[
-            {
-                "label": "Visualise Identity",
-                "value": True,
-            }
-        ],
-        value=[False],
-        inline=True,
+        label="Visualise Identity",
+        value=False,
         persistence=True,
         persistence_type="session",
     )
@@ -89,7 +65,7 @@ def layout():
     )
     return html.Div(
         [
-            html.H1("Visualise the MSA", style={"padding-bottom": "20px"}),
+            # html.H1("Visualise the MSA", style={"padding-bottom": "20px"}),
             visualise_controls,
             dcc.Loading(
                 id="loading",
@@ -133,8 +109,7 @@ def update_visual_gaps(visualise_gaps, main, data):
     if not data:
         return no_msa_yet()
 
-    print(visualise_gaps)
-    if visualise_gaps[-1] == True:
+    if visualise_gaps == True:
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         gaps = show_gaps(msa)
@@ -153,7 +128,7 @@ def update_visual_conservation(visualise_conservation, main, data):
     if not data:
         return no_msa_yet()
 
-    if visualise_conservation[-1] == True:
+    if visualise_conservation == True:
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         conservation = show_conservation(msa)
@@ -172,7 +147,7 @@ def update_visual_identity(visualise_identity, main, data):
     if not data:
         return no_msa_yet()
 
-    if visualise_identity[-1] == True:
+    if visualise_identity == True:
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         identity = show_query_identity(msa)
@@ -191,7 +166,7 @@ def update_visual_alignment(visualise_alignment, main, data):
     if not data:
         return no_msa_yet()
 
-    if visualise_alignment[-1] == True:
+    if visualise_alignment == True:
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         alignment = show_alignment(msa)
