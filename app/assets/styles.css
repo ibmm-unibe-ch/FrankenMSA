@@ -89,7 +89,7 @@
 }
 
 .upload-component {
-    width: 100%;
+    /* width: 100%; */
     height: 60px;
     line-height: 60px;
     border-width: 1px;
@@ -108,7 +108,6 @@
 .dropdown-component {
     width: 100%;
     height: 60px;
-    line-height: 60px;
     text-align: center;
     margin: 10px;
     color:#009d76;
@@ -162,4 +161,21 @@
     margin-left: 150px; /* Leave space for the sidebar */
     padding: 20px;
     padding-top: 5%;
+}
+
+input, textarea {
+    /* line-height: 60px; */
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 5px;
+    text-align: center;
+    border-color: #f0f0f0;
+    color: #565656;
+    font-weight: bold;
+    margin: 10px;
+    background-color: #f0f0f0; /* Light background for the input area */
+}
+
+textarea {
+    text-align: left;
 }
