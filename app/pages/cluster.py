@@ -30,7 +30,7 @@ def layout():
             ),
             html.Div(
                 id="cluster-save-container",
-                className="shaded-bordered",
+                # className="shaded-bordered",
             ),
         ],
         className="gradient-background",
