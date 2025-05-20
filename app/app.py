@@ -138,6 +138,7 @@ app.layout = html.Div(
         # empty stuff for the state
         dcc.Store(id="main-msa", data=None, storage_type="session"),
         dcc.Store(id="msa-data", data={}, storage_type="session"),
+        dcc.Store(id="afcluster-last-settings", data={}, storage_type="memory"),
     ],
 )
 

@@ -81,7 +81,7 @@
     margin-bottom: 20px;
 }
 
-.shaded-bordered p {
+.shaded-bordered p, label {
     margin: 0; /* Remove default margin */
     padding: 10px; /* Remove default padding */
     line-height: normal;
