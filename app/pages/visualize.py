@@ -3,6 +3,11 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 from frankenmsa.visual import visualise_msa
+import plotly.graph_objects as go
+import plotly.express as px
+import numpy as np
+import pandas as pd
+
 
 dash.register_page(
     __name__,
@@ -19,54 +24,309 @@ def no_msa_yet():
 
 
 def layout():
+
+    visualise_aignment_checkbox = dcc.Checklist(
+        id="visualise-alignment",
+        options=[
+            {
+                "label": "Visualise Alignment",
+                "value": True,
+            }
+        ],
+        value=[True],
+        inline=True,
+        persistence=True,
+        persistence_type="session",
+    )
+    visualise_gaps_checkbox = dcc.Checklist(
+        id="visualise-gaps",
+        options=[
+            {
+                "label": "Visualise Gaps",
+                "value": True,
+            }
+        ],
+        value=[False],
+        inline=True,
+        persistence=True,
+        persistence_type="session",
+    )
+    visualise_conservation_checkbox = dcc.Checklist(
+        id="visualise-conservation",
+        options=[
+            {
+                "label": "Visualise Conservation",
+                "value": True,
+            }
+        ],
+        value=[False],
+        inline=True,
+        persistence=True,
+        persistence_type="session",
+    )
+    visualise_identity_checkbox = dcc.Checklist(
+        id="visualise-identity",
+        options=[
+            {
+                "label": "Visualise Identity",
+                "value": True,
+            }
+        ],
+        value=[False],
+        inline=True,
+        persistence=True,
+        persistence_type="session",
+    )
+
+    visualise_controls = dbc.Row(
+        [
+            dbc.Col(visualise_aignment_checkbox),
+            dbc.Col(visualise_gaps_checkbox),
+            dbc.Col(visualise_conservation_checkbox),
+            dbc.Col(visualise_identity_checkbox),
+        ],
+        className="shaded-bordered",
+    )
     return html.Div(
         [
             html.H1("Visualise the MSA", style={"padding-bottom": "20px"}),
+            visualise_controls,
             dcc.Loading(
                 id="loading",
                 type="circle",
                 children=[
                     html.Div(
+                        [
+                            dbc.Row(id="visual-gaps-container"),
+                            dbc.Row(id="visual-conservation-container"),
+                            dbc.Row(id="visual-identity-container"),
+                            dbc.Row(id="visual-alignment-container"),
+                        ],
                         id="plotly-visualisation",
                         className="shaded-bordered",
                         style={
                             "height": "100%",
                             "width": "100%",
                             "overflow": "hidden",
-                            "background-color": "transparent",
+                            # "background-color": "transparent",
+                            # "display": "flex",
+                            # "flex-direction": "column",
+                            # "justify-content": "center",
+                            # "align-items": "stretch",
                         },
                     ),
                 ],
             ),
         ],
         className="gradient-background",
+        style={"width": "100%"},
     )
 
 
 @callback(
-    Output("plotly-visualisation", "children"),
+    Output("visual-gaps-container", "children"),
+    Input("visualise-gaps", "value"),
     Input("main-msa", "data"),
-    Input("msa-data", "data"),
+    State("msa-data", "data"),
 )
-def update_plotly_visualisation(main, data):
+def update_visual_gaps(visualise_gaps, main, data):
     if not data:
         return no_msa_yet()
 
-    import pandas as pd
+    print(visualise_gaps)
+    if visualise_gaps[-1] == True:
+        msa = data[main]
+        msa = pd.DataFrame.from_dict(msa)
+        gaps = show_gaps(msa)
+        return gaps
+    else:
+        return html.Div()
 
-    msa = data[main]
-    msa = pd.DataFrame.from_dict(msa)
 
-    plotly_component = visualise_msa(msa, backend="plotly")
+@callback(
+    Output("visual-conservation-container", "children"),
+    Input("visualise-conservation", "value"),
+    Input("main-msa", "data"),
+    State("msa-data", "data"),
+)
+def update_visual_conservation(visualise_conservation, main, data):
+    if not data:
+        return no_msa_yet()
 
-    if len(msa) > 150:
-        plotly_component = html.Div(
-            [
-                plotly_component,
-                html.P(
-                    "Note: The MSA is too large to visualize fully, it was subsampled evenly to 150 entries.",
-                    style={"color": "red"},
-                ),
-            ],
-        )
-    return plotly_component
+    if visualise_conservation[-1] == True:
+        msa = data[main]
+        msa = pd.DataFrame.from_dict(msa)
+        conservation = show_conservation(msa)
+        return conservation
+    else:
+        return html.Div()
+
+
+@callback(
+    Output("visual-identity-container", "children"),
+    Input("visualise-identity", "value"),
+    Input("main-msa", "data"),
+    State("msa-data", "data"),
+)
+def update_visual_identity(visualise_identity, main, data):
+    if not data:
+        return no_msa_yet()
+
+    if visualise_identity[-1] == True:
+        msa = data[main]
+        msa = pd.DataFrame.from_dict(msa)
+        identity = show_query_identity(msa)
+        return identity
+    else:
+        return html.Div()
+
+
+@callback(
+    Output("visual-alignment-container", "children"),
+    Input("visualise-alignment", "value"),
+    Input("main-msa", "data"),
+    State("msa-data", "data"),
+)
+def update_visual_alignment(visualise_alignment, main, data):
+    if not data:
+        return no_msa_yet()
+
+    if visualise_alignment[-1] == True:
+        msa = data[main]
+        msa = pd.DataFrame.from_dict(msa)
+        alignment = show_alignment(msa)
+        return alignment
+    else:
+        return html.Div()
+
+
+# @callback(
+#     Output("plotly-visualisation", "children"),
+#     Input("main-msa", "data"),
+#     Input("msa-data", "data"),
+# )
+# def update_plotly_visualisation(main, data):
+#     if not data:
+#         return no_msa_yet()
+
+#     import pandas as pd
+
+#     msa = data[main]
+#     msa = pd.DataFrame.from_dict(msa)
+
+#     alignment = show_alignment(msa)
+#     gaps = show_gaps(msa)
+#     conservation = show_conservation(msa)
+#     identity = show_query_identity(msa)
+
+#     plotly_component = html.Div([gaps, conservation, identity, alignment])
+#     if len(msa) > 150:
+#         plotly_component = html.Div(
+#             [
+#                 plotly_component,
+#                 html.P(
+#                     "Note: The MSA is too large to visualize fully, it was subsampled evenly to 150 entries.",
+#                     style={"color": "red"},
+#                 ),
+#             ],
+#         )
+#     return plotly_component
+
+
+def show_alignment(msa):
+    from frankenmsa.visual import visualise_msa
+
+    return visualise_msa(msa, backend="plotly")
+
+
+def show_gaps(msa):
+    from frankenmsa.utils import unify_length
+
+    _df = unify_length(msa, "max")
+
+    count_gaps = np.zeros(len(_df["sequence"][0]))
+    for seq in _df["sequence"]:
+        count_gaps += np.array([1 if aa == "-" else 0 for aa in seq])
+    # count_gaps /= count_gaps.sum()
+    count_gaps = pd.Series(count_gaps, name="gap_count")
+    gaps_figure = px.line(
+        count_gaps,
+        x=count_gaps.index,
+        y=count_gaps.values,
+        title="Gaps per Position",
+        labels={"x": "Position", "y": "Gap Count"},
+        color_discrete_sequence=["#00BC74"],
+        template="plotly_white",
+    )
+    return dash.dcc.Graph(
+        id="gap-count-figure",
+        figure=gaps_figure,
+        config={"displayModeBar": False},
+        style={"width": "100%"},
+    )
+
+
+def show_conservation(msa):
+    from frankenmsa.utils import unify_length
+
+    _df = unify_length(msa, "max")
+
+    count_conservation = np.zeros(len(_df["sequence"][0]))
+    for i in range(len(_df["sequence"][0])):
+        aas_at_i = _df["sequence"].str.get(i)
+        aas_at_i_counts = aas_at_i.value_counts()
+        most_common_aa = aas_at_i_counts.idxmax()
+        conservation = aas_at_i_counts[most_common_aa] / len(aas_at_i)
+        count_conservation[i] = conservation
+
+    count_conservation = pd.Series(count_conservation, name="conservation")
+    conservation_figure = px.line(
+        count_conservation,
+        x=count_conservation.index,
+        y=count_conservation.values,
+        title="Conservation per Position",
+        labels={"x": "Position", "y": "Conservation"},
+        color_discrete_sequence=["#00BC74"],
+        template="plotly_white",
+    )
+    return dash.dcc.Graph(
+        id="conservation-figure",
+        figure=conservation_figure,
+        config={"displayModeBar": False},
+        style={"width": "100%"},
+    )
+
+
+def show_query_identity(msa):
+    from frankenmsa.utils import unify_length
+
+    _df = unify_length(msa, "max")
+
+    count_identity = np.zeros(len(_df["sequence"][0]))
+    query, _df = _df.iloc[0], _df.iloc[1:]
+    query = query["sequence"]
+    for i in range(len(_df["sequence"][0])):
+        aas_at_i = _df["sequence"].str.get(i)
+        aas_at_i_counts = aas_at_i.value_counts()
+        aa_in_query_at_i = query[i]
+        if not aa_in_query_at_i in aas_at_i_counts:
+            count_identity[i] = 0
+        else:
+            count_identity[i] = aas_at_i_counts[aa_in_query_at_i] / len(aas_at_i)
+
+    count_identity = pd.Series(count_identity, name="identity")
+    identity_figure = px.line(
+        count_identity,
+        x=count_identity.index,
+        y=count_identity.values,
+        title="Identity to Query per Position",
+        labels={"x": "Position", "y": "Identity"},
+        color_discrete_sequence=["#00BC74"],
+        template="plotly_white",
+    )
+    return dash.dcc.Graph(
+        id="identity-figure",
+        figure=identity_figure,
+        config={"displayModeBar": False},
+        style={"width": "100%"},
+    )
