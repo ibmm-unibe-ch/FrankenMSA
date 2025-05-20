@@ -16,15 +16,6 @@ def make_siderbar():
         [
             dbc.Nav(
                 [
-                    dbc.Tooltip(
-                        "Select the MSA to edit",
-                        target="select-main-msa",
-                    ),
-                    dbc.Select(
-                        id="select-main-msa",
-                        persistence=True,
-                        persistence_type="session",
-                    ),
                     dbc.NavLink("Filter", id="edit-filter", active="exact"),
                     dbc.NavLink("Sort", id="edit-sort", active="exact"),
                     dbc.NavLink("Slice & Crop", id="edit-crop", active="exact"),
@@ -109,40 +100,16 @@ def clear_msa_data(n_clicks, main_msa, msa_data):
 def delete_msa_data(n_clicks, msa_name, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         print(f"Deleting MSA data: {msa_name}")
-        del msa_data[msa_name]
+        msa_data.pop(msa_name, None)
         if main_msa == msa_name:
-            main_msa = None
+            if len(msa_data):
+                main_msa = next(iter((msa_data.keys())))
+            else:
+                main_msa = None
+        print("main is now: ", main_msa)
         return msa_data, main_msa
     else:
         return dash.no_update, dash.no_update
-
-
-@callback(
-    Output("select-main-msa", "options"),
-    Output("select-main-msa", "value"),
-    Input("msa-data", "data"),
-    Input("main-msa", "data"),
-)
-def update_select_main_msa_options(msa_data, main_msa_data):
-    if msa_data is None:
-        return [], dash.no_update
-
-    # Create options for the dropdown
-    options = [{"label": col, "value": col} for col in list(msa_data.keys())]
-    return options, main_msa_data
-
-
-@callback(
-    Output("main-msa", "data", allow_duplicate=True),
-    Input("select-main-msa", "value"),
-    prevent_initial_call=True,
-)
-def select_new_main_msa(new_main_msa):
-    if new_main_msa is not None:
-        print(f"Selected new main MSA: {new_main_msa}")
-        return new_main_msa
-    else:
-        return dash.no_update
 
 
 @callback(

@@ -72,6 +72,18 @@ def make_header():
         "https://www.unibe.ch",
         "Developed by the friendly folks at the Institute of Biochemistry and Molecular Medicine of the University of Bern, Switzerland",
     )
+
+    select_main_msa_tooltip = dbc.Tooltip(
+        "Select the MSA to work with",
+        target="select-main-msa",
+    )
+    select_main_msa = dbc.Select(
+        id="select-main-msa",
+        persistence=True,
+        persistence_type="session",
+        style={"width": "20%"},
+    )
+
     header = html.Div(
         [
             home_icon,
@@ -82,12 +94,41 @@ def make_header():
             inverse_fold_icon,
             cluster_icon,
             visualize_icon,
+            select_main_msa,
             unibe_icon,
+            select_main_msa_tooltip,
         ],
         className="header",
     )
 
     return header
+
+
+@callback(
+    Output("select-main-msa", "options"),
+    Output("select-main-msa", "value"),
+    Input("msa-data", "data"),
+    Input("main-msa", "data"),
+)
+def update_select_main_msa_options(msa_data, main_msa_data):
+    if msa_data is None:
+        return [], dash.no_update
+
+    # Create options for the dropdown
+    options = [{"label": col, "value": col} for col in list(msa_data.keys())]
+    return options, main_msa_data
+
+
+@callback(
+    Output("main-msa", "data", allow_duplicate=True),
+    Input("select-main-msa", "value"),
+    prevent_initial_call=True,
+)
+def select_new_main_msa(new_main_msa):
+    if new_main_msa is not None:
+        return new_main_msa
+    else:
+        return dash.no_update
 
 
 app.layout = html.Div(
