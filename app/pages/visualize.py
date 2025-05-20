@@ -62,6 +62,7 @@ def layout():
             dbc.Col(visualise_identity_checkbox),
         ],
         className="shaded-bordered",
+        style={"width": "100%"},
     )
     return html.Div(
         [
@@ -106,10 +107,10 @@ def layout():
     State("msa-data", "data"),
 )
 def update_visual_gaps(visualise_gaps, main, data):
-    if not data:
-        return no_msa_yet()
 
     if visualise_gaps == True:
+        if not data:
+            return no_msa_yet()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         gaps = show_gaps(msa)
@@ -125,10 +126,9 @@ def update_visual_gaps(visualise_gaps, main, data):
     State("msa-data", "data"),
 )
 def update_visual_conservation(visualise_conservation, main, data):
-    if not data:
-        return no_msa_yet()
-
     if visualise_conservation == True:
+        if not data:
+            return no_msa_yet()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         conservation = show_conservation(msa)
@@ -144,10 +144,9 @@ def update_visual_conservation(visualise_conservation, main, data):
     State("msa-data", "data"),
 )
 def update_visual_identity(visualise_identity, main, data):
-    if not data:
-        return no_msa_yet()
-
     if visualise_identity == True:
+        if not data:
+            return no_msa_yet()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         identity = show_query_identity(msa)
@@ -163,10 +162,9 @@ def update_visual_identity(visualise_identity, main, data):
     State("msa-data", "data"),
 )
 def update_visual_alignment(visualise_alignment, main, data):
-    if not data:
-        return no_msa_yet()
-
     if visualise_alignment == True:
+        if not data:
+            return no_msa_yet()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         alignment = show_alignment(msa)

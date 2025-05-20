@@ -853,7 +853,7 @@ def sort_special_layout():
 )
 def sort_by_identity(n_clicks, sort_order, main_msa, msa_data):
     if (n_clicks or 0) > 0:
-        if not msa_data:
+        if not msa_data or not main_msa:
             # print("No MSA data available to sort by identity.")
             return None
 
@@ -957,7 +957,7 @@ def sort_by_column_layout():
     State("msa-data", "data"),
 )
 def update_sort_by_options(main_msa, msa_data):
-    if msa_data is None:
+    if msa_data is None or not main_msa:
         return []
 
     # Convert the MSA data to a DataFrame

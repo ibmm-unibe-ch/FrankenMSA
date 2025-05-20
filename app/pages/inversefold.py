@@ -28,7 +28,7 @@ def proteinmpnn_layout():
         className="upload-component",
         multiple=False,  # Allow only a single file to be uploaded
         style={
-            "width": "80%",
+            "width": "100%",
         },
     )
 
@@ -99,6 +99,10 @@ def proteinmpnn_layout():
         style={
             "align-items": "center",
             "justify-content": "center",
+            "align-content": "center",
+            "flex-direction": "column",
+            "display": "flex",
+            "width": "100%",
         },
     )
 
