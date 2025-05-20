@@ -2,7 +2,6 @@ import dash
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
-import dash_tabulator
 from pandas import DataFrame
 
 dash.register_page(
