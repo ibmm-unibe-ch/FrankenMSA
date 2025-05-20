@@ -83,7 +83,7 @@ def afcluster_controls(_):
         persistence_type="session",
     )
     epsilon_tooltip = dbc.Tooltip(
-        "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood.",
+        "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood. The range slider below can be used to set this value as well.",
         target="epsilon",
         placement="bottom",
     )
@@ -91,32 +91,17 @@ def afcluster_controls(_):
         "Epsilon",
         id="epsilon-label",
     )
-    search_epsilon_button = html.Button(
-        "Search for best epsilon",
-        id="search-epsilon",
-        className="button-component",
-        n_clicks=0,
-    )
-    search_epsilon_tooltip = dbc.Tooltip(
-        "Search for the best epsilon value for DBSCAN to maximize the number of clusters. This will take longer to run.",
-        target="search-epsilon",
-        placement="bottom",
-    )
-    search_epsilon_value_range_slider = dcc.RangeSlider(
+    search_epsilon_value_range_slider = dcc.Slider(
         id="search-epsilon-value-range",
         min=1,
         max=100,
         step=0.5,
-        value=[3, 20],
+        value=3,
         marks={i: str(i) for i in range(1, 101, 10)},
         persistence=True,
         persistence_type="session",
     )
-    search_epsilon_value_range_tooltip = dbc.Tooltip(
-        "Range of epsilon values to search for the best value. A gridsearch is performed to find the best value.",
-        target="search-epsilon-value-range",
-        placement="bottom",
-    )
+
     search_epsilon_value_range_label = html.Label(
         "Epsilon value range",
         id="search-epsilon-value-range-label",
@@ -134,14 +119,9 @@ def afcluster_controls(_):
         persistence_type="session",
     )
     search_epsilon_value_range_start_tooltip = dbc.Tooltip(
-        "Start value of the epsilon range to search for the best value. A gridsearch is performed to find the best value.",
+        "Start value of the epsilon range slider.",
         target="search-epsilon-value-range-start",
         placement="bottom",
-    )
-    search_epsilon_value_range_start_label = html.Label(
-        "Epsilon value start",
-        id="search-epsilon-value-range-start-label",
-        style={"margin-left": "10px"},
     )
     search_epsilon_value_range_end_input = dcc.Input(
         id="search-epsilon-value-range-end",
@@ -155,37 +135,11 @@ def afcluster_controls(_):
         persistence_type="session",
     )
     search_epsilon_value_range_end_tooltip = dbc.Tooltip(
-        "End value of the epsilon range to search for the best value. A gridsearch is performed to find the best value.",
+        "End value of the epsilon range slider.",
         target="search-epsilon-value-range-end",
         placement="bottom",
     )
-    search_epsilon_value_range_end_label = html.Label(
-        "Epsilon value end",
-        id="search-epsilon-value-range-end-label",
-        style={"margin-left": "10px"},
-    )
 
-    search_epsilon_value_step_input = dcc.Input(
-        id="search-epsilon-value-step",
-        type="number",
-        placeholder="Epsilon value step",
-        value=0.5,
-        min=0.01,
-        max=10,
-        step=0.01,
-        persistence=True,
-        persistence_type="session",
-    )
-    search_epsilon_value_step_tooltip = dbc.Tooltip(
-        "Step size to use when performing the gridsearch for the best epsilon values. Smaller values will cause the search to run for longer.",
-        target="search-epsilon-value-step",
-        placement="bottom",
-    )
-    search_epsilon_value_step_label = html.Label(
-        "Epsilon value step",
-        id="search-epsilon-value-step-label",
-        style={"margin-left": "10px"},
-    )
     run_button = html.Button(
         "Run AFCluster",
         id="run-afcluster-button",
@@ -230,23 +184,25 @@ def afcluster_controls(_):
         [
             dbc.Col(
                 [
-                    search_epsilon_value_range_tooltip,
+                    # search_epsilon_value_range_start_label,
+                    search_epsilon_value_range_start_tooltip,
+                    search_epsilon_value_range_start_input,
+                ],
+                width="auto",
+            ),
+            dbc.Col(
+                [
                     search_epsilon_value_range_label,
                     search_epsilon_value_range_slider,
                 ],
             ),
             dbc.Col(
                 [
-                    search_epsilon_value_step_tooltip,
-                    search_epsilon_value_step_label,
-                    search_epsilon_value_step_input,
-                    search_epsilon_value_range_start_tooltip,
-                    search_epsilon_value_range_start_label,
-                    search_epsilon_value_range_start_input,
+                    # search_epsilon_value_range_end_label,
                     search_epsilon_value_range_end_tooltip,
-                    search_epsilon_value_range_end_label,
                     search_epsilon_value_range_end_input,
                 ],
+                width="auto",
             ),
         ],
         style={
@@ -260,7 +216,6 @@ def afcluster_controls(_):
     )
     bottomrow = dbc.Row(
         [
-            dbc.Col(search_epsilon_button),
             dbc.Col(
                 run_button,
             ),
@@ -276,26 +231,24 @@ def afcluster_controls(_):
 
 @callback(
     Output("search-epsilon-value-range", "value"),
-    Output("search-epsilon-value-step", "value"),
     Input("search-epsilon-value-range-start", "value"),
     Input("search-epsilon-value-range-end", "value"),
-    Input("search-epsilon-value-step", "value"),
+    State("search-epsilon-value-range", "value"),
 )
-def update_search_epsilon_value_range(
-    search_epsilon_value_range_start,
-    search_epsilon_value_range_end,
-    search_epsilon_value_step,
-):
-    if not search_epsilon_value_range_start or not search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update
+def update_search_epsilon_value_range(new_start, new_end, current_value):
+    if not new_start or not new_end:
+        return dash.no_update
 
-    if search_epsilon_value_range_start >= search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update
+    if new_start >= new_end:
+        return dash.no_update
 
-    return (
-        [search_epsilon_value_range_start, search_epsilon_value_range_end],
-        search_epsilon_value_step,
-    )
+    if current_value is None:
+        return (new_start + new_end) / 2
+
+    if current_value < new_start or current_value > new_end:
+        return (new_start + new_end) / 2
+
+    return dash.no_update
 
 
 @callback(
@@ -319,47 +272,11 @@ def update_search_epsilon_value_range_min_max(
 
 @callback(
     Output("epsilon", "value"),
-    Output("cluster-visual-container", "children", allow_duplicate=True),
-    Input("search-epsilon", "n_clicks"),
-    State("search-epsilon-value-range", "value"),
-    State("search-epsilon-value-step", "value"),
-    State("min-samples", "value"),
-    State("main-msa", "data"),
-    State("msa-data", "data"),
+    Input("search-epsilon-value-range", "value"),
     prevent_initial_call=True,
 )
-def search_epsilon(
-    n_clicks,
-    search_epsilon_value_range,
-    search_epsilon_value_step,
-    min_samples,
-    main_msa,
-    msa_data,
-):
-    if not (n_clicks or 0) > 0:
-        return dash.no_update, dash.no_update
-
-    if not msa_data or not main_msa:
-        return dash.no_update, no_msa_yet()
-
-    from frankenmsa.cluster import AFCluster
-
-    clusterer = AFCluster()
-
-    msa = msa_data[main_msa]
-    msa = pd.DataFrame.from_dict(msa)
-
-    best_eps = clusterer.gridsearch_eps(
-        msa,
-        min_eps=search_epsilon_value_range[0],
-        max_eps=search_epsilon_value_range[1],
-        data_frac=1,
-        step=search_epsilon_value_step,
-        min_samples=min_samples,
-        mode="fast",
-    )
-
-    return round(best_eps, 1), html.Div()
+def update_epsilon_value_from_slider(search_epsilon_value_range):
+    return search_epsilon_value_range
 
 
 @callback(
