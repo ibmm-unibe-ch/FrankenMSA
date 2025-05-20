@@ -32,7 +32,7 @@ def mmseqs_colab_layout():
                 },
                 className="input-component",
                 persistence=True,
-                persistence_type="session",
+                persistence_type="memory",
             ),
             dbc.Row(
                 [
