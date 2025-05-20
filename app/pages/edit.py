@@ -65,10 +65,9 @@ def layout():
             "flex-direction": "column",
             # "align-items": "stretch",
             "padding-top": "0px",
-            # "height": "100vh",
+            # "height": "100vh",y
         },
     )
-    print("Edit page layout created")
     return layout
 
 
@@ -82,7 +81,7 @@ def layout():
 )
 def clear_msa_data(n_clicks, main_msa, msa_data):
     if (n_clicks or 0) > 0:
-        print("Clearing MSA data")
+        # print("Clearing MSA data")
         return None, {}
     else:
         return dash.no_update, dash.no_update
@@ -99,14 +98,14 @@ def clear_msa_data(n_clicks, main_msa, msa_data):
 )
 def delete_msa_data(n_clicks, msa_name, main_msa, msa_data):
     if (n_clicks or 0) > 0:
-        print(f"Deleting MSA data: {msa_name}")
+        # print(f"Deleting MSA data: {msa_name}")
         msa_data.pop(msa_name, None)
         if main_msa == msa_name:
             if len(msa_data):
                 main_msa = next(iter((msa_data.keys())))
             else:
                 main_msa = None
-        print("main is now: ", main_msa)
+        # print("main is now: ", main_msa)
         return msa_data, main_msa
     else:
         return dash.no_update, dash.no_update
@@ -620,23 +619,23 @@ def free_query_filter_layout():
 def run_free_query_filter(n_clicks, query_string, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to filter.")
+            # print("No MSA data available to filter.")
             return None
 
         from pandas import DataFrame
 
-        print("Running Free Query Filter with the following parameters:")
-        print(f"query_string: {query_string}")
-        print(f"msa_data: {msa_data}")
+        # print("Running Free Query Filter with the following parameters:")
+        # print(f"query_string: {query_string}")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
         filtered_msa = msa.query(query_string)
-        print("Filtered MSA:")
+        # print("Filtered MSA:")
         msa_data[main_msa] = filtered_msa.to_dict()
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -667,22 +666,22 @@ def run_hhfilter(
 ):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to filter.")
+            # print("No MSA data available to filter.")
             return None
 
         from frankenmsa.filter.hhsuite import hhfilter
         from pandas import DataFrame
 
-        print("Running HHFilter with the following parameters:")
-        print(f"diff: {diff}")
-        print(f"max_pairwise_identity: {max_pairwise_identity}")
-        print(f"min_query_coverage: {min_query_coverage}")
-        print(f"min_query_identity: {min_query_identity}")
-        print(f"min_query_score: {min_query_score}")
-        print(f"target_diversity: {target_diversity}")
-        print(f"msa_data: {msa_data}")
+        # print("Running HHFilter with the following parameters:")
+        # print(f"diff: {diff}")
+        # print(f"max_pairwise_identity: {max_pairwise_identity}")
+        # print(f"min_query_coverage: {min_query_coverage}")
+        # print(f"min_query_identity: {min_query_identity}")
+        # print(f"min_query_score: {min_query_score}")
+        # print(f"target_diversity: {target_diversity}")
+        # print(f"msa_data: {msa_data}")
 
-        print("DEBUG WARNING: HHFIlter is disabled for work on macbook!")
+        # print("DEBUG WARNING: HHFIlter is disabled for work on macbook!")
         from time import sleep
 
         sleep(5)
@@ -698,12 +697,12 @@ def run_hhfilter(
         #     target_diversity=target_diversity,
         # )
         # msa_data[main_msa] = msa.to_dict()
-        # print("Filtered MSA:")
+        # # print("Filtered MSA:")
         # return filtered_msa.to_json()
         return msa_data
 
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -718,24 +717,24 @@ def run_hhfilter(
 def run_gapsfilter(n_clicks, gap, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to filter.")
+            # print("No MSA data available to filter.")
             return "No MSA data available to filter."
 
         from frankenmsa.utils.msatools import filter_gaps
         from pandas import DataFrame
 
-        print("Running GapsFilter with the following parameters:")
-        print(f"gap: {gap}")
-        print(f"msa_data: {msa_data}")
+        # print("Running GapsFilter with the following parameters:")
+        # print(f"gap: {gap}")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
         filtered_msa = filter_gaps(msa, allowed_gaps_faction=gap / 100)
         msa_data[main_msa] = filtered_msa.to_dict()
-        print("Filtered MSA:")
+        # print("Filtered MSA:")
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -767,23 +766,23 @@ def drop_duplicates_layout():
 def drop_duplicates(n_clicks, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to drop duplicates.")
+            # print("No MSA data available to drop duplicates.")
             return None
 
         from frankenmsa.utils.msatools import drop_duplicates
         from pandas import DataFrame
 
-        print("Dropping duplicates with the following parameters:")
-        print(f"msa_data: {msa_data}")
+        # print("Dropping duplicates with the following parameters:")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
         filtered_msa = drop_duplicates(msa)
         msa_data[main_msa] = filtered_msa.to_dict()
-        print("Filtered MSA:")
+        # print("Filtered MSA:")
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -855,23 +854,23 @@ def sort_special_layout():
 def sort_by_identity(n_clicks, sort_order, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to sort by identity.")
+            # print("No MSA data available to sort by identity.")
             return None
 
         from frankenmsa.utils.msatools import sort_identity
         from pandas import DataFrame
 
-        print("Sorting MSA by identity with the following parameters:")
-        print(f"sort_order: {sort_order}")
+        # print("Sorting MSA by identity with the following parameters:")
+        # print(f"sort_order: {sort_order}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
         sorted_msa = sort_identity(msa, ascending=(sort_order == "asc"))
         msa_data[main_msa] = sorted_msa.to_dict()
-        print("Sorted MSA:")
+        # print("Sorted MSA:")
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -886,14 +885,14 @@ def sort_by_identity(n_clicks, sort_order, main_msa, msa_data):
 def sort_by_gaps(n_clicks, sort_order, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to sort by gaps.")
+            # print("No MSA data available to sort by gaps.")
             return None
 
         from frankenmsa.utils.msatools import sort_gaps
         from pandas import DataFrame
 
-        print("Sorting MSA by gaps with the following parameters:")
-        print(f"sort_order: {sort_order}")
+        # print("Sorting MSA by gaps with the following parameters:")
+        # print(f"sort_order: {sort_order}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
@@ -901,7 +900,7 @@ def sort_by_gaps(n_clicks, sort_order, main_msa, msa_data):
         msa_data[main_msa] = sorted_msa.to_dict()
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -986,16 +985,16 @@ def update_sort_by_options(main_msa, msa_data):
 def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to sort.")
+            # print("No MSA data available to sort.")
             return dash.no_update
 
         from pandas import DataFrame
         import pandas as pd
 
-        print("Sorting MSA with the following parameters:")
-        print(f"sort_by: {sort_by}")
-        print(f"sort_order: {sort_order}")
-        print(f"msa_data: {msa_data}")
+        # print("Sorting MSA with the following parameters:")
+        # print(f"sort_by: {sort_by}")
+        # print(f"sort_order: {sort_order}")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
@@ -1006,7 +1005,7 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
         msa_data[main_msa] = sorted_msa.to_dict()
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -1110,7 +1109,7 @@ def slice_msa_layout():
     # prevent_initial_call=True,
 )
 def update_range_slider(main_msa, msa_data):
-    print("Updating range slider")
+    # print("Updating range slider")
     if not msa_data:
         return 0, {}, [0, 0], dash.no_update
 
@@ -1138,14 +1137,14 @@ def update_range_slider(main_msa, msa_data):
 def slice_msa(n_clicks, range_value, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to slice.")
+            # print("No MSA data available to slice.")
             return None
 
         from pandas import DataFrame
 
-        print("Slicing MSA with the following parameters:")
-        print(f"range_value: {range_value}")
-        print(f"msa_data: {msa_data}")
+        # print("Slicing MSA with the following parameters:")
+        # print(f"range_value: {range_value}")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
@@ -1153,12 +1152,12 @@ def slice_msa(n_clicks, range_value, main_msa, msa_data):
         from frankenmsa.utils.msatools import slice_sequences
 
         sliced_msa = slice_sequences(msa, range_value[0], range_value[1])
-        print("Sliced MSA:")
+        # print("Sliced MSA:")
         msa_data[main_msa] = sliced_msa.to_dict()
         return msa_data
 
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -1198,14 +1197,14 @@ def set_depth_layout():
 def set_depth(n_clicks, depth, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to set depth.")
+            # print("No MSA data available to set depth.")
             return None
 
         from pandas import DataFrame
 
-        print("Setting MSA depth with the following parameters:")
-        print(f"depth: {depth}")
-        print(f"msa_data: {msa_data}")
+        # print("Setting MSA depth with the following parameters:")
+        # print(f"depth: {depth}")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
@@ -1214,10 +1213,10 @@ def set_depth(n_clicks, depth, main_msa, msa_data):
 
         new_msa = adjust_depth(msa, depth)
         msa_data[main_msa] = new_msa.to_dict()
-        print("New MSA:")
+        # print("New MSA:")
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -1266,13 +1265,13 @@ def set_sequence_length_layout():
 def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
     if (n_clicks_match or n_clicks_pad or 0) > 0:
         if not msa_data:
-            print("No MSA data available to set sequence length.")
+            # print("No MSA data available to set sequence length.")
             return dash.no_update
 
         from pandas import DataFrame
 
-        print("Setting MSA sequence length with the following parameters:")
-        print(f"msa_data: {msa_data}")
+        # print("Setting MSA sequence length with the following parameters:")
+        # print(f"msa_data: {msa_data}")
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
 
@@ -1284,11 +1283,11 @@ def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
             mode = "max"
 
         new_msa = unify_length(msa, mode)
-        print("New MSA:")
+        # print("New MSA:")
         msa_data[main_msa] = new_msa.to_dict()
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update
 
 
@@ -1328,21 +1327,21 @@ def copy_layout():
 def copy_msa(n_clicks, new_msa_name, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
-            print("No MSA data available to copy.")
+            # print("No MSA data available to copy.")
             return None
 
         from pandas import DataFrame
 
-        print("Copying MSA with the following parameters:")
-        print(f"new_msa_name: {new_msa_name}")
-        print(f"msa_data: {msa_data}")
+        # print("Copying MSA with the following parameters:")
+        # print(f"new_msa_name: {new_msa_name}")
+        # print(f"msa_data: {msa_data}")
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
 
         msa_data[new_msa_name] = msa.to_dict()
-        print("New MSA:")
+        # print("New MSA:")
         return msa_data
     else:
-        print("No button click detected.")
+        # print("No button click detected.")
         return dash.no_update

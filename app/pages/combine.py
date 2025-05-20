@@ -301,17 +301,17 @@ def combine_msas(n_clicks, children, name, msa_data):
             if add_horizontal:
                 if len(msa) != len(combined_msa):
                     msa = adjust_depth(msa, len(combined_msa))
-                    print(msa.head())
-                    print(combined_msa.head())
+                    # print(msa.head())
+                    # print(combined_msa.head())
                     break
                     combined_sequences = combined_msa["sequence"].str.cat(
                         msa["sequence"], sep=""
                     )
-                    print(combined_sequences)
+                    # print(combined_sequences)
                 combined_msa["sequence"] = combined_msa["sequence"].str.cat(
                     msa["sequence"], sep=""
                 )
-                print(combined_msa)
+                # print(combined_msa)
             else:
                 msa = unify_length(msa, int(combined_msa["sequence"].str.len()[0]))
                 combined_msa = pd.concat([combined_msa, msa], axis=0)
