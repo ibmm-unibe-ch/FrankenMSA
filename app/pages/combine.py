@@ -154,6 +154,10 @@ def combine_msa_block(msa_data, index):
                                 ],
                             ),
                         ],
+                        style={
+                            "margin-bottom": "20px",
+                            "line-height": "1.5",
+                        },
                     ),
                     dbc.Col(
                         [add_direction], width="auto", style={"align-items": "left"}
