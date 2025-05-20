@@ -2,4 +2,4 @@
 Visualizations for the frankenmsa package.
 """
 
-from .msa_map import visualise_msa
+from .alignment_chart import visualise_msa
