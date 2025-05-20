@@ -48,13 +48,9 @@ def no_msa_yet():
 
 @callback(
     Output("cluster-controls-container", "children"),
-    Input("main-msa", "data"),
-    Input("msa-data", "data"),
+    Input("cluster-controls-container", "children"),
 )
-def afcluster_controls(
-    main_msa,
-    msa_data,
-):
+def afcluster_controls(_):
     min_samples = dcc.Input(
         id="min-samples",
         type="number",
@@ -80,12 +76,11 @@ def afcluster_controls(
         id="epsilon",
         type="number",
         placeholder="Epsilon value for DBSCAN",
-        value=0.5,
-        min=0,
-        max=10,
-        step=0.1,
+        value=0.50,
+        min=0.01,
+        max=1000.0,
         persistence=True,
-        persistence_type="memory",
+        persistence_type="session",
     )
     epsilon_tooltip = dbc.Tooltip(
         "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood.",
@@ -125,6 +120,48 @@ def afcluster_controls(
     search_epsilon_value_range_label = html.Label(
         "Epsilon value range",
         id="search-epsilon-value-range-label",
+        style={"margin-left": "10px"},
+    )
+    search_epsilon_value_range_start_input = dcc.Input(
+        id="search-epsilon-value-range-start",
+        type="number",
+        placeholder="Epsilon value start",
+        value=3,
+        min=1,
+        max=100,
+        step=0.5,
+        persistence=True,
+        persistence_type="session",
+    )
+    search_epsilon_value_range_start_tooltip = dbc.Tooltip(
+        "Start value of the epsilon range to search for the best value. A gridsearch is performed to find the best value.",
+        target="search-epsilon-value-range-start",
+        placement="bottom",
+    )
+    search_epsilon_value_range_start_label = html.Label(
+        "Epsilon value start",
+        id="search-epsilon-value-range-start-label",
+        style={"margin-left": "10px"},
+    )
+    search_epsilon_value_range_end_input = dcc.Input(
+        id="search-epsilon-value-range-end",
+        type="number",
+        placeholder="Epsilon value end",
+        value=20,
+        min=1,
+        max=100,
+        step=0.5,
+        persistence=True,
+        persistence_type="session",
+    )
+    search_epsilon_value_range_end_tooltip = dbc.Tooltip(
+        "End value of the epsilon range to search for the best value. A gridsearch is performed to find the best value.",
+        target="search-epsilon-value-range-end",
+        placement="bottom",
+    )
+    search_epsilon_value_range_end_label = html.Label(
+        "Epsilon value end",
+        id="search-epsilon-value-range-end-label",
         style={"margin-left": "10px"},
     )
 
@@ -203,6 +240,12 @@ def afcluster_controls(
                     search_epsilon_value_step_tooltip,
                     search_epsilon_value_step_label,
                     search_epsilon_value_step_input,
+                    search_epsilon_value_range_start_tooltip,
+                    search_epsilon_value_range_start_label,
+                    search_epsilon_value_range_start_input,
+                    search_epsilon_value_range_end_tooltip,
+                    search_epsilon_value_range_end_label,
+                    search_epsilon_value_range_end_input,
                 ],
             ),
         ],
@@ -229,6 +272,49 @@ def afcluster_controls(
     return html.Div(
         [toprow, midrow, bottomrow],
     )
+
+
+@callback(
+    Output("search-epsilon-value-range", "value"),
+    Output("search-epsilon-value-step", "value"),
+    Input("search-epsilon-value-range-start", "value"),
+    Input("search-epsilon-value-range-end", "value"),
+    Input("search-epsilon-value-step", "value"),
+)
+def update_search_epsilon_value_range(
+    search_epsilon_value_range_start,
+    search_epsilon_value_range_end,
+    search_epsilon_value_step,
+):
+    if not search_epsilon_value_range_start or not search_epsilon_value_range_end:
+        return dash.no_update, dash.no_update
+
+    if search_epsilon_value_range_start >= search_epsilon_value_range_end:
+        return dash.no_update, dash.no_update
+
+    return (
+        [search_epsilon_value_range_start, search_epsilon_value_range_end],
+        search_epsilon_value_step,
+    )
+
+
+@callback(
+    Output("search-epsilon-value-range", "min"),
+    Output("search-epsilon-value-range", "max"),
+    Input("search-epsilon-value-range-start", "value"),
+    Input("search-epsilon-value-range-end", "value"),
+)
+def update_search_epsilon_value_range_min_max(
+    search_epsilon_value_range_start,
+    search_epsilon_value_range_end,
+):
+    if not search_epsilon_value_range_start or not search_epsilon_value_range_end:
+        return dash.no_update, dash.no_update
+
+    if search_epsilon_value_range_start >= search_epsilon_value_range_end:
+        return dash.no_update, dash.no_update
+
+    return search_epsilon_value_range_start, search_epsilon_value_range_end
 
 
 @callback(
@@ -267,11 +353,13 @@ def search_epsilon(
         msa,
         min_eps=search_epsilon_value_range[0],
         max_eps=search_epsilon_value_range[1],
+        data_frac=1,
         step=search_epsilon_value_step,
         min_samples=min_samples,
+        mode="fast",
     )
 
-    return best_eps, html.Div()
+    return round(best_eps, 1), html.Div()
 
 
 @callback(
@@ -376,6 +464,7 @@ def pca_plot(msa):
         hover_name="header",
         title="PCA of Clusters",
         template="plotly_white",
+        color_continuous_scale="deep",
     )
 
     fig_query = px.scatter(
@@ -389,14 +478,12 @@ def pca_plot(msa):
     )
     fig_query.update_traces(
         marker=dict(
-            size=10,
-            line=dict(width=2),
+            size=20,
         ),
     )
     fig.add_trace(
         fig_query.data[0],
     )
-
     return dcc.Graph(
         id="pca-plot",
         figure=fig,
