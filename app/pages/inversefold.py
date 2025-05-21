@@ -75,7 +75,9 @@ def proteinmpnn_layout():
         [
             html.H1("Inverse Fold with ProteinMPNN"),
             html.P(
-                "Repeatedly run inverse folding using ProteinMPNN. To generate an arbitrary pseudo-MSA from a given protein structure.",
+                dcc.Markdown(
+                    "Repeatedly run inverse folding using ProteinMPNN. To generate an arbitrary pseudo-MSA from a given protein structure. This uses the [biolib](https://biolib.com/) remote ProteinMPNN server. Since this is a remote server with a queue it may take a while to get results. Please be patient. Note that at this point only homomers are supported by FrankenMSA so please only upload PDBs with a single protein and chain.",
+                )
             ),
             upload_component,
             options,
@@ -110,16 +112,20 @@ def proteinmpnn_layout():
 @callback(
     Output("pdb-upload-status", "children"),
     Output("main-msa", "data", allow_duplicate=True),
+    Output("msa-data", "data", allow_duplicate=True),
     Input("run-proteinmpnn-button", "n_clicks"),
     State("upload-pdb-data", "contents"),
     State("upload-pdb-data", "filename"),
     State("proteinmpnn-sampling-temperature", "value"),
     State("proteinmpnn-sequence-count", "value"),
+    State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def run_proteinmpnn(n_clicks, contents, filename, sampling_temperature, sequence_count):
+def run_proteinmpnn(
+    n_clicks, contents, filename, sampling_temperature, sequence_count, msa_data
+):
     if (n_clicks or 0) == 0:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
     if contents is not None:
         if filename.lower().endswith(".pdb"):
             # turn the octet-stream into a string
@@ -133,10 +139,12 @@ def run_proteinmpnn(n_clicks, contents, filename, sampling_temperature, sequence
             with open("temp.pdb", "wb") as f:
                 f.write(decoded)
             # Run ProteinMPNN
-            from frankenmsa.inverse_fold.protein_mpnn import ProteinMPNN
+            from frankenmsa.inverse_fold import (
+                BiolibProteinMPNN as ProteinMPNN,
+            )
 
             proteinmpnn = ProteinMPNN()
-            msa_df = proteinmpnn.generate(
+            msa_df, _ = proteinmpnn.generate(
                 "temp.pdb",
                 n=sequence_count,
                 temperature=sampling_temperature,
@@ -144,17 +152,24 @@ def run_proteinmpnn(n_clicks, contents, filename, sampling_temperature, sequence
             # Clean up the temporary file
             Path("temp.pdb").unlink()
             # Return the generated MSA
+
+            name = f"proteinmpnn_{Path(filename).name}"
+            msa_data[name] = msa_df.to_dict()
+
             return (
                 f"'{filename}' successfully uploaded. {sequence_count} sequences generated.",
-                msa_df.to_dict(),
+                name,
+                msa_data,
             )
         else:
             return (
                 f"'{filename}' has an unknown format. Please upload a .pdb file",
                 dash.no_update,
+                dash.no_update,
             )
     else:
         return (
             "No file uploaded",
+            dash.no_update,
             dash.no_update,
         )
