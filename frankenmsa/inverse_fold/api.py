@@ -43,7 +43,7 @@ def get_sequence_generator_backend():
     global __default_generator__
     if __default_generator__ is None:
         __default_generator__ = __default_generator_class__()
-        if __default_generator__.needs_init:
+        if getattr(__default_generator__, "needs_init", False):
             __default_generator__.init()
     return __default_generator__
 
