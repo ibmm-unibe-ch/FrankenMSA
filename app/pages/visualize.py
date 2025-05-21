@@ -2,7 +2,7 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
-from frankenmsa.visual import visualise_msa
+from dash_bio import AlignmentChart
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
@@ -207,9 +207,27 @@ def update_visual_alignment(visualise_alignment, main, data):
 
 
 def show_alignment(msa):
-    from frankenmsa.visual import visualise_msa
+    from frankenmsa.utils import unify_length, encode_a3m
 
-    return visualise_msa(msa, backend="plotly")
+    df = msa.copy()
+    if len(df) > 150:
+        print(
+            f"Warning: The MSA has more than {150} sequences which will cause the plot to crash! Downsampling uniformly to 150 sequences."
+        )
+        df = df.iloc[:: len(df) // 150]
+
+    a3m_string = encode_a3m(unify_length(df, "first"))
+    chart = AlignmentChart(
+        id="alignment-chart",
+        data=a3m_string,
+        showlabel=True,
+        showid=True,
+        showconservation=False,
+        showconsensus=False,
+        showgap=False,
+        width="100%",
+    )
+    return chart
 
 
 def show_gaps(msa):
