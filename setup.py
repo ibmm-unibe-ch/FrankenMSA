@@ -1,20 +1,23 @@
 from setuptools import setup, find_packages
 
 extras_require = {
-    "cluster": [
-        "afcluster>=0.1.2",
-    ],
-    "filter": [
-        "hh-suite",
-    ],
-    "torch": [
-        "torch",
-    ],
     "docs": [
         "sphinx",
         "sphinx_rtd_theme",
     ],
 }
+
+with open("app/requirements.txt", "r") as f:
+    app = []
+    for line in f:
+        line = line.strip()
+        if line and not line.startswith("#"):
+            # Ignore comments and empty lines
+            package = line.split("==")[0]  # Get the package name
+            app.append(package)
+    extras_require["app"] = app
+
+
 extras_require["all"] = []
 for k, v in extras_require.items():
     if k not in ("all", "docs"):
@@ -23,14 +26,13 @@ for k, v in extras_require.items():
 
 setup(
     name="frankenmsa",
-    version="0.1.2",
+    version="0.1.3",
     description="FrankenMSA is a package for protein design and folding",
-    author="Jannik Gut, Noah Kleinschmidt, Thommas Lemmin",
-    author_email="jannik.gut@unibe.ch, noah.kleinschmidt@unibe.ch, thommas.lemmin@unibe.ch",
+    author="Noah Kleinschmidt, Jannik Gut, Thommas Lemmin",
+    author_email="noah.kleinschmidt@unibe.ch, jannik.gut@unibe.ch, thommas.lemmin@unibe.ch",
     url="https://github.com/ibmm-unibe-ch/frankenmsa",
     packages=find_packages(),
     install_requires=[
-        # Add your project dependencies here
         "numpy",
         "pathlib",
         "pandas",
@@ -38,6 +40,7 @@ setup(
         "requests",
         "scikit-learn",
         "scipy",
+        "afcluster>=0.1.2",
     ],
     extras_require=extras_require,
     classifiers=[
