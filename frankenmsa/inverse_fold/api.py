@@ -2,9 +2,9 @@
 Functional API for the sequence generators
 """
 
-from .protein_mpnn import ProteinMPNN
+from .remote_protein_mpnn import BiolibProteinMPNN
 
-__default_generator_class__ = ProteinMPNN
+__default_generator_class__ = BiolibProteinMPNN
 __default_generator__ = None
 
 

@@ -18,7 +18,7 @@ def test_protein_mpnn_generate():
     else:
         device = "cpu"
 
-    from frankenmsa.inverse_fold import ProteinMPNN
+    from frankenmsa.inverse_fold import LocalProteinMPNN as ProteinMPNN
 
     proteinmpnn_dir = PARENT.parents[3] / "ProteinMPNN"
     assert proteinmpnn_dir.exists(), "ProteinMPNN directory not found"
@@ -56,7 +56,7 @@ def test_protein_mpnn_from_os_environ():
     else:
         device = "cpu"
 
-    from frankenmsa.inverse_fold import ProteinMPNN
+    from frankenmsa.inverse_fold import LocalProteinMPNN as ProteinMPNN
 
     generator = ProteinMPNN()
     generator.init()
@@ -91,3 +91,17 @@ def test_functional_api():
     assert "sequence" in sequences.columns
     assert "recovery_rate" in sequences.columns
     assert "score" in sequences.columns
+
+
+def test_biolib_proteinmpnn():
+    from frankenmsa.inverse_fold import BiolibProteinMPNN as ProteinMPNN
+
+    generator = ProteinMPNN()
+    out, extra = generator.generate(
+        str(TEST_PDB1),
+        n=3,
+        temperature=1.0,
+    )
+    assert len(out) == 3
+    assert isinstance(out, pd.DataFrame)
+    assert "sequence" in out.columns

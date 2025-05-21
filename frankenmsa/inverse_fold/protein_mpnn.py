@@ -1,15 +1,14 @@
 """
-ProteinMPNN sequence generator backend.
-
-
+Local ProteinMPNN sequence generator backend.
 """
 
 from pathlib import Path
-import frankenfold.core.sequence_generators.backend as backend
 from collections import namedtuple
 from copy import deepcopy
 import os
 import pandas as pd
+
+from . import backend
 
 MAX_LENGTH = 20000
 """
@@ -22,7 +21,7 @@ The number of letters in the amino acid alphabet.
 """
 
 
-class ProteinMPNN(backend.SequenceGenerator):
+class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
     """
     Use ProteinMPNN to generate sequences from structures.
 
