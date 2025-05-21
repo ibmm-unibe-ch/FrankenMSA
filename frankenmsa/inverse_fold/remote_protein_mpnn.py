@@ -4,7 +4,7 @@ Remote ProteinMPNN sequence generator backend
 
 from pathlib import Path
 import os
-import tempfile
+import uuid
 import pandas as pd
 
 from . import backend
@@ -62,7 +62,7 @@ class BiolibProteinMPNN(backend.BaseSequenceGenerator):
         if not Path(pdbfile).exists():
             raise FileNotFoundError(f"PDB file {pdbfile} does not exist.")
 
-        outdir = Path(pdbfile).parent / "proteinmpnn_output"
+        outdir = Path(pdbfile).parent / str(uuid.uuid4())
         args = [
             "--pdb_path",
             pdbfile,
