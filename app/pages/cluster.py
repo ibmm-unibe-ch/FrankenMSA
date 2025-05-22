@@ -15,7 +15,7 @@ def layout():
         [
             html.H1("Cluster Sequences with AFCluster"),
             html.P(
-                "Cluster sequences based on their similarity. Clusters can be saved as new MSAs to be used in downstream tasks."
+                "Cluster sequences based on their similarity. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
             ),
             dbc.Row(
                 [
@@ -148,11 +148,29 @@ def afcluster_controls(_):
         n_clicks=0,
     )
     save_clusters = html.Button(
-        "Save Clusters",
+        "Save Clusters as separate MSAs",
         id="save-clusters-button",
         className="button-component",
         style={"margin-top": "20px"},
         n_clicks=0,
+    )
+
+    other_columns_to_include = dcc.Dropdown(
+        id="afcluster-other-columns",
+        options=[],
+        value=[],
+        multi=True,
+        className="dropdown-component",
+        placeholder="Other columns...",
+    )
+    other_columns_to_include_tooltip = dbc.Tooltip(
+        "Optionally, select other columns whose data to include during clustering. These columns have to be numeric. By default only the 'sequence' column is considered (this is the only non-numeric column allowed).",
+        target="afcluster-other-columns",
+        placement="top",
+    )
+    other_columns_to_include_label = html.Label(
+        "Other columns to include",
+        id="afcluster-other-columns-label",
     )
     toprow = dbc.Row(
         [
@@ -161,19 +179,29 @@ def afcluster_controls(_):
                     min_samples_tooltip,
                     min_samples_label,
                     min_samples,
-                ]
+                ],
+                width="auto",
             ),
             dbc.Col(
                 [
                     epsilon_tooltip,
                     epsilon_label,
                     epsilon,
-                ]
+                ],
+                width="auto",
+            ),
+            dbc.Col(
+                [
+                    other_columns_to_include_tooltip,
+                    # other_columns_to_include_label,
+                    other_columns_to_include,
+                ],
+                # width="auto",
             ),
         ],
         style={
-            "margin-top": "20px",
-            "align-items": "center",
+            "margin": "20px",
+            "align-items": "bottom",
             "justify-contents": "center",
             "display": "flex",
             "flex-direction": "row",
@@ -284,6 +312,7 @@ def update_epsilon_value_from_slider(search_epsilon_value_range):
     Input("run-afcluster-button", "n_clicks"),
     State("min-samples", "value"),
     State("epsilon", "value"),
+    State("afcluster-other-columns", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
@@ -292,6 +321,7 @@ def run_afcluster(
     n_clicks,
     min_samples,
     epsilon,
+    columns_to_include,
     main_msa,
     msa_data,
 ):
@@ -312,6 +342,7 @@ def run_afcluster(
         msa,
         min_samples=min_samples,
         eps=epsilon,
+        columns=(columns_to_include or None),
         consensus_sequence=False,
         levenshtein=False,
     )
@@ -445,3 +476,23 @@ def save_clusters(
         color="success",
         is_open=True,
     )
+
+
+@callback(
+    Output("afcluster-other-columns", "options"),
+    Input("msa-data", "data"),
+    State("main-msa", "data"),
+)
+def update_other_columns_options(msa_data, main_msa):
+    if not msa_data or not main_msa:
+        return dash.no_update
+
+    msa = msa_data[main_msa]
+    msa = pd.DataFrame.from_dict(msa)
+
+    columns = msa.select_dtypes(include=["number"]).columns.tolist()
+
+    # Create options for the dropdown
+    options = [{"label": col, "value": col} for col in columns]
+
+    return options

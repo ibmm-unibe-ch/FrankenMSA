@@ -62,6 +62,7 @@ def upload_file(contents, filename, msa_data):
         # turn the octet-stream into a string
         import base64
         import io
+        from pathlib import Path
 
         content_type, content_string = contents.split(",")
         decoded = base64.b64decode(content_string)
@@ -73,8 +74,6 @@ def upload_file(contents, filename, msa_data):
             or filename.endswith(".fa")
         ):
             from frankenmsa.utils import read_a3m
-
-            from pathlib import Path
 
             with open("temp_file.a3m", "w") as f:
                 f.write(decoded)
@@ -112,8 +111,9 @@ def upload_file(contents, filename, msa_data):
             You can now navigate to the other pages to perform operations on the MSA.
             """
         )
-        msa_data[filename] = msa.to_dict("list")
-        return success_message, filename, msa_data
+        name = Path(filename).stem
+        msa_data[name] = msa.to_dict("list")
+        return success_message, name, msa_data
 
     return dash.no_update, dash.no_update, dash.no_update
 
