@@ -235,7 +235,7 @@ def show_gaps(msa):
 
     _df = unify_length(msa, "max")
 
-    count_gaps = np.zeros(len(_df["sequence"][0]))
+    count_gaps = np.zeros(len(_df["sequence"].values[0]))
     for seq in _df["sequence"]:
         count_gaps += np.array([1 if aa == "-" else 0 for aa in seq])
     # count_gaps /= count_gaps.sum()
@@ -262,8 +262,8 @@ def show_conservation(msa):
 
     _df = unify_length(msa, "max")
 
-    count_conservation = np.zeros(len(_df["sequence"][0]))
-    for i in range(len(_df["sequence"][0])):
+    count_conservation = np.zeros(len(_df["sequence"].values[0]))
+    for i in range(len(_df["sequence"].values[0])):
         aas_at_i = _df["sequence"].str.get(i)
         aas_at_i_counts = aas_at_i.value_counts()
         most_common_aa = aas_at_i_counts.idxmax()
@@ -293,10 +293,10 @@ def show_query_identity(msa):
 
     _df = unify_length(msa, "max")
 
-    count_identity = np.zeros(len(_df["sequence"][0]))
+    count_identity = np.zeros(len(_df["sequence"].values[0]))
     query, _df = _df.iloc[0], _df.iloc[1:]
     query = query["sequence"]
-    for i in range(len(_df["sequence"][0])):
+    for i in range(len(_df["sequence"].values[0])):
         aas_at_i = _df["sequence"].str.get(i)
         aas_at_i_counts = aas_at_i.value_counts()
         aa_in_query_at_i = query[i]
