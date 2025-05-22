@@ -1,0 +1,8 @@
+frankenmsa>=0.1.2
+afcluster>=0.1.1
+dash==3.0.4
+dash_bootstrap_components==2.0.2
+numpy
+pandas
+plotly
+scikit_learn

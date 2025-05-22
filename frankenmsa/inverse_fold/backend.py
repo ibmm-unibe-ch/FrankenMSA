@@ -3,9 +3,9 @@ Backends for generating protein sequences
 """
 
 from pathlib import Path
+import pandas as pd
 import sys
 from typing import List, Dict, Tuple
-import pandas as pd
 
 
 class BackendNotSetError(Exception):
@@ -16,9 +16,41 @@ class BadBackendError(Exception):
     pass
 
 
-class SequenceGenerator:
+class BaseSequenceGenerator:
     """
     The base class for sequence generator backends
+    This class is used to define the interface for sequence generators.
+
+    (you will probably want to use the DownloadableSequenceGenerator class instead of this one)
+    """
+
+    def generate(self, *args, **kwargs) -> Tuple[pd.DataFrame, Dict]:
+        """
+        Generate sequences
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame with the generated sequences which contains the columns "header" and "sequence"
+        dict
+            A dictionary of additional information
+        """
+        raise NotImplementedError()
+
+    __call__ = generate
+
+    def __repr__(self):
+        """
+        Return a string representation of the class
+        """
+        attrs = ", ".join(f"{k}={v}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}({attrs})"
+
+
+class DownloadableSequenceGenerator(BaseSequenceGenerator):
+    """
+    The base class for sequence generator backends that should either be cloned from a git repository or otherwise downloaded
+    from a remote location and includes all the necessary scripts and other files to function properly.
 
     Attributes
     ----------
@@ -42,7 +74,6 @@ class SequenceGenerator:
         self.setup_parameters = None
         self.local_path = None
         self.model = None
-        self.module = None
         self.src = None
         self._is_loaded = False
         self.needs_init = True
@@ -112,7 +143,7 @@ class SequenceGenerator:
             raise AttributeError("Local path not set")
         elif not Path(self.local_path).exists():
             raise FileNotFoundError(f"Backend not downloaded: {self.local_path}")
-        # self.add_to_path()
+        self.add_to_path()
         self.import_module()
         model = self.setup_model()
         if model is None:
@@ -122,19 +153,6 @@ class SequenceGenerator:
         self.model = model
         self._is_loaded = True
 
-    def generate(self, *args, **kwargs) -> Tuple[pd.DataFrame, Dict]:
-        """
-        Generate sequences using the model
-
-        Returns
-        -------
-        pd.DataFrame
-            A dataframe containing the generated sequences. This will contain a "sequence" column.
-        dict
-            A dictionary of additional information
-        """
-        raise NotImplementedError()
-
     def add_to_path(self):
         """
         Add the backend to the system path
@@ -143,8 +161,6 @@ class SequenceGenerator:
             path = Path(self.local_path).absolute()
             if not path.exists():
                 raise FileNotFoundError(f"Backend not downloaded: {self.local_path}")
-            if self.module == path.name:
-                path = path.parent
             sys.path.append(str(path))
         else:
             raise AttributeError("Local path not set")
@@ -194,16 +210,11 @@ class SequenceGenerator:
         The module will be stored in the `src` attribute. Depending on the respective backend, this attribute will be useful or not.
         """
         if self.local_path is not None:
-            path = Path(self.local_path).absolute()
-            if not path.exists():
-                raise FileNotFoundError(f"Backend not downloaded: {self.local_path}")
-            if self.module == path.name:
-                path = path.parent
-            sys.path.append(str(path))
+            sys.path.append(str(Path(self.local_path).absolute()))
         else:
             raise AttributeError("Local path not set")
 
-        module = __import__(self.module or self.name, globals(), locals(), [], 0)
+        module = __import__(self.name, globals(), locals(), [], 0)
         self.src = module
         return module
 
@@ -322,6 +333,3 @@ class SequenceGenerator:
             with open(self.local_path.replace(".gz", ""), "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
         os.remove(self.local_path)
-
-    def __repr__(self):
-        return f"SequenceGenerator({self.name})"

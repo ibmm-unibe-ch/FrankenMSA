@@ -1,0 +1,181 @@
+.header {
+    background-color: #2C2C2C; /* Anthracite color */
+    color: white;
+    display: flex;
+    min-height: 60px;;
+    align-items: center;
+    text-align: center;
+    justify-content: space-between; /* Distribute children evenly across the available width */
+}
+
+.header-icon {
+    align-items: center; /* Vertically center the icon */
+    text-align: center;
+    justify-content: center; /* Horizontally center the icon */
+    margin: 0.5%; 
+    min-width: 50px; /* Minimum width for the icon */
+    width: 4%;
+}
+
+.logo-main {
+    display: inline-block;
+    align-items: center;
+    margin: 0.5%; 
+    min-width: 200px; /* Minimum width for the logo */
+    width: 20%;
+}
+
+.gradient-background {
+    background: linear-gradient(87deg,#5efed8,#00cc9a,#009d76);
+    background-size: 180% 180%;
+    animation: gradient-animation 21s ease infinite;
+    align-items: center;
+    text-align: center;
+    padding: 5%; /* Add some padding for better spacing */
+    min-height: 100vh; /* Ensure it takes full height */
+}
+  
+  @keyframes gradient-animation {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+.gradient-background h1, h2, h3, h4, h5, h6, p, label {
+    color: white;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    text-align: center;
+}
+
+.horizontal-align {
+    display: flex;
+    justify-content: center; /* Center the content horizontally */
+    align-items: center; /* Center the content vertically */
+    text-align: center;
+    margin-left: auto;
+}
+
+.shaded-bordered {
+    line-height: 60px;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 5px;
+    text-align: center;
+    border-color: #f0f0f0;
+    color: #f0f0f0;
+    font-weight: bold;
+    margin: 10px;
+    background-color: #f0f0f048;
+}
+
+.shaded-bordered h1, h2 {
+    line-height: 50px;
+    margin-bottom: 20px;
+}
+
+.shaded-bordered p, label {
+    margin: 0; /* Remove default margin */
+    padding: 10px; /* Remove default padding */
+    line-height: normal;
+    margin-bottom: 10px;
+}
+
+.upload-component {
+    /* width: 100%; */
+    height: 60px;
+    line-height: 60px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 5px;
+    text-align: center;
+    border-color: #f0f0f0;
+    color: #f0f0f0;
+    font-weight: bold;
+    margin: 10px;
+    background-color: #f0f0f048; /* Light background for the file upload area */
+    cursor: pointer; /* Change cursor to pointer on hover */
+    transition: background-color 0.3s; /* Smooth transition for background color */
+}
+
+.dropdown-component {
+    width: 100%;
+    height: 60px;
+    text-align: center;
+    margin: 10px;
+    color:#009d76;
+    cursor: pointer; /* Change cursor to pointer on hover */
+    transition: background-color 0.3s; /* Smooth transition for background color */
+}
+
+.dropdown-component option {
+    
+    background-color: #f0f0f048; /* Light background for the dropdown area */
+}
+
+.button-component {
+    /* width: 100%; */
+    height: 60px;
+    line-height: normal;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 5px;
+    text-align: center;
+    border-color: #f0f0f0;
+    color: #f0f0f0;
+    text-align: center;
+    margin: 10px;
+    background-color: #f0f0f048; /* Light background for the button area */
+    cursor: pointer; /* Change cursor to pointer on hover */
+    transition: background-color 0.3s; /* Smooth transition for background color */
+}
+.button-component:hover {
+    background-color: #f0f0f0; /* Change background color on hover */
+    color: #000; /* Change text color on hover */
+}
+
+.sidebar {
+    background-color: #2C2C2C; /* Anthracite color */
+    color: white;
+    font-weight: bold;
+
+    width: 150px;
+    height: 100%; /* Full height */
+    position: absolute; /* Position relative to the parent container */
+    
+    /*top: 0; /* Align to the top of the parent container */
+    left: 0; /* Align to the left of the parent container */
+    padding: 20px; 
+    padding-top: 5%;
+
+}
+
+.main-next-to-sidebar {
+    margin-left: 150px; /* Leave space for the sidebar */
+    padding: 20px;
+    padding-top: 5%;
+}
+
+input, textarea {
+    /* line-height: 60px; */
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 5px;
+    text-align: center;
+    border-color: #f0f0f0;
+    color: #565656;
+    font-weight: bold;
+    margin: 10px;
+    background-color: #f0f0f0; /* Light background for the input area */
+}
+
+textarea {
+    text-align: left;
+}
