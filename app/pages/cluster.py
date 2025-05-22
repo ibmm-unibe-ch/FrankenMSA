@@ -316,7 +316,7 @@ def run_afcluster(
         levenshtein=False,
     )
 
-    msa_data[main_msa] = msa.to_dict()
+    msa_data[main_msa] = msa.to_dict("list")
     return msa_data
 
 
@@ -437,7 +437,7 @@ def save_clusters(
     for cluster_id, subset in msa.groupby("cluster_id"):
 
         name = f"{main_msa}_cluster_{cluster_id}"
-        msa_data[name] = subset.to_dict()
+        msa_data[name] = subset.to_dict("list")
 
     info = f"Saved {len(msa['cluster_id'].unique())} clusters to MSA data."
     return msa_data, dbc.Alert(

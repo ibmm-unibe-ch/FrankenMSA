@@ -154,7 +154,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, env_mode, msa_da
         )
         n_mmseqs_generated = sum(1 for i in msa_data.keys() if "mmseqs" in i)
         new_main_msa = f"mmseqs_{n_mmseqs_generated + 1}"
-        msa_data[new_main_msa] = msa_df.to_dict()
+        msa_data[new_main_msa] = msa_df.to_dict("list")
         return new_main_msa, msa_data, "Alignment completed successfully."
     except Exception as e:
         return dash.no_update, dash.no_update, f"Error during alignment: {str(e)}"

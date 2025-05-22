@@ -112,7 +112,7 @@ def upload_file(contents, filename, msa_data):
             You can now navigate to the other pages to perform operations on the MSA.
             """
         )
-        msa_data[filename] = msa.to_dict()
+        msa_data[filename] = msa.to_dict("list")
         return success_message, filename, msa_data
 
     return dash.no_update, dash.no_update, dash.no_update

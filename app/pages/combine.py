@@ -317,7 +317,7 @@ def combine_msas(n_clicks, children, name, msa_data):
                 combined_msa = pd.concat([combined_msa, msa], axis=0)
                 combined_msa = combined_msa.reset_index(drop=True)
 
-    msa_data[name] = combined_msa.to_dict()
+    msa_data[name] = combined_msa.to_dict("list")
     return msa_data, name, dash.no_update
 
 
