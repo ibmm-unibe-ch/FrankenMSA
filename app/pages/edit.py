@@ -1356,6 +1356,7 @@ def rename_msa(n_clicks, new_name, main_msa, msa_data):
 
 
 @callback(
+    Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
     Input("edit-copy", "n_clicks"),
     State("main-msa", "data"),
@@ -1364,9 +1365,9 @@ def rename_msa(n_clicks, new_name, main_msa, msa_data):
 )
 def copy_msa(n_clicks, main_msa, msa_data):
     if (n_clicks or 0) > 0:
-        if not msa_data:
+        if not msa_data or not main_msa:
             # print("No MSA data available to copy.")
-            return dash.no_update
+            return dash.no_update, dash.no_update
 
         from pandas import DataFrame
 
@@ -1377,10 +1378,10 @@ def copy_msa(n_clicks, main_msa, msa_data):
         new_msa_name = f"{main_msa}_{n_present + 1}"
         msa_data[new_msa_name] = msa.to_dict("list")
         # print("New MSA:")
-        return msa_data
+        return new_msa_name, msa_data
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
 
 @callback(
