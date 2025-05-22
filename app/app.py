@@ -143,5 +143,13 @@ app.layout = html.Div(
 )
 
 
+def launch(**kwargs):
+    """Main function to run the Dash app.
+    Add any keyword arguments to the app.run() method.
+    """
+    app.run(**kwargs)
+
+
+main = launch  # alias
 if __name__ == "__main__":
     app.run(debug=True)
