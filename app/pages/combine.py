@@ -125,6 +125,24 @@ def combine_msa_block(msa_data, index):
         value=(0, 100),
         marks={i: str(i) for i in range(0, 101, 10)},
     )
+    horizontal_index_start = dcc.Input(
+        id={"type": "combine-msa-horizontal-index-start", "index": index},
+        type="number",
+        value=0,
+        min=0,
+        max=100,
+        step=1,
+        style={"width": "50px"},
+    )
+    horizontal_index_end = dcc.Input(
+        id={"type": "combine-msa-horizontal-index-end", "index": index},
+        type="number",
+        value=100,
+        min=0,
+        max=100,
+        step=1,
+        style={"width": "50px"},
+    )
     vertical_index_tooltip = html.P(
         "Optionally select a specific range of row indices to add a slice of the MSA vertically.",
         # target={"type": "combine-msa-vertical-index", "index": index},
@@ -138,6 +156,23 @@ def combine_msa_block(msa_data, index):
         marks={i: str(i) for i in range(0, 101, 10)},
     )
 
+    vertical_index_start = dcc.Input(
+        id={"type": "combine-msa-vertical-index-start", "index": index},
+        type="number",
+        value=0,
+        min=0,
+        step=1,
+        style={"width": "50px"},
+    )
+    vertical_index_end = dcc.Input(
+        id={"type": "combine-msa-vertical-index-end", "index": index},
+        type="number",
+        value=100,
+        min=0,
+        step=1,
+        style={"width": "50px"},
+    )
+
     block = html.Div(
         [
             dbc.Row(
@@ -148,10 +183,19 @@ def combine_msa_block(msa_data, index):
                             dbc.Row(
                                 [
                                     horizontal_index_tooltip,
-                                    horizontal_index_slider,
-                                    vertical_index_tooltip,
-                                    vertical_index_slider,
+                                    dbc.Col(horizontal_index_start, width="auto"),
+                                    dbc.Col(horizontal_index_slider),
+                                    dbc.Col(horizontal_index_end, width="auto"),
                                 ],
+                            ),
+                            dbc.Row(
+                                [
+                                    vertical_index_tooltip,
+                                    dbc.Col(vertical_index_start, width="auto"),
+                                    dbc.Col(vertical_index_slider),
+                                    dbc.Col(vertical_index_end, width="auto"),
+                                ],
+                                align="stretch",
                             ),
                         ],
                         style={
@@ -209,6 +253,8 @@ def remove_combine_msa_block(n_clicks, children):
     Output({"type": "combine-msa-vertical-index", "index": MATCH}, "value"),
     Output({"type": "combine-msa-vertical-index", "index": MATCH}, "max"),
     Output({"type": "combine-msa-vertical-index", "index": MATCH}, "marks"),
+    Output({"type": "combine-msa-vertical-index-start", "index": MATCH}, "value"),
+    Output({"type": "combine-msa-vertical-index-end", "index": MATCH}, "value"),
     Input({"type": "combine-msa-dropdown", "index": MATCH}, "value"),
     State(
         "msa-data",
@@ -222,13 +268,15 @@ def update_vertical_sliders(selected_msa, msa_data):
 
     _max = len(msa)
     marks = {i: str(i) for i in range(0, int(_max + 1), max(1, int(_max // 10)))}
-    return (0, _max), _max, marks
+    return (0, _max), _max, marks, 0, _max
 
 
 @callback(
     Output({"type": "combine-msa-horizontal-index", "index": MATCH}, "value"),
     Output({"type": "combine-msa-horizontal-index", "index": MATCH}, "max"),
     Output({"type": "combine-msa-horizontal-index", "index": MATCH}, "marks"),
+    Output({"type": "combine-msa-horizontal-index-start", "index": MATCH}, "value"),
+    Output({"type": "combine-msa-horizontal-index-end", "index": MATCH}, "value"),
     Input({"type": "combine-msa-dropdown", "index": MATCH}, "value"),
     State(
         "msa-data",
@@ -243,7 +291,71 @@ def update_horizontal_sliders(selected_msa, msa_data):
     sequence_length = msa["sequence"].str.len().max()
     _max = sequence_length
     marks = {i: str(i) for i in range(0, int(_max + 1), max(1, int(_max // 10)))}
-    return (0, _max), _max, marks
+    return (0, _max), _max, marks, 0, _max
+
+
+@callback(
+    Output(
+        {"type": "combine-msa-horizontal-index", "index": MATCH},
+        "value",
+        allow_duplicate=True,
+    ),
+    Input({"type": "combine-msa-horizontal-index-start", "index": MATCH}, "value"),
+    Input({"type": "combine-msa-horizontal-index-end", "index": MATCH}, "value"),
+    prevent_initial_call=True,
+)
+def update_horizontal_index_range(min_value, max_value):
+    return (min_value, max_value)
+
+
+@callback(
+    Output(
+        {"type": "combine-msa-vertical-index", "index": MATCH},
+        "value",
+        allow_duplicate=True,
+    ),
+    Input({"type": "combine-msa-vertical-index-start", "index": MATCH}, "value"),
+    Input({"type": "combine-msa-vertical-index-end", "index": MATCH}, "value"),
+    prevent_initial_call=True,
+)
+def update_vertical_index_range(min_value, max_value):
+    return (min_value, max_value)
+
+
+@callback(
+    Output(
+        {"type": "combine-msa-vertical-index-start", "index": MATCH},
+        "value",
+        allow_duplicate=True,
+    ),
+    Output(
+        {"type": "combine-msa-vertical-index-end", "index": MATCH},
+        "value",
+        allow_duplicate=True,
+    ),
+    Input({"type": "combine-msa-vertical-index", "index": MATCH}, "value"),
+    prevent_initial_call=True,
+)
+def update_vertical_index_range(range_value):
+    return range_value
+
+
+@callback(
+    Output(
+        {"type": "combine-msa-horizontal-index-start", "index": MATCH},
+        "value",
+        allow_duplicate=True,
+    ),
+    Output(
+        {"type": "combine-msa-horizontal-index-end", "index": MATCH},
+        "value",
+        allow_duplicate=True,
+    ),
+    Input({"type": "combine-msa-horizontal-index", "index": MATCH}, "value"),
+    prevent_initial_call=True,
+)
+def update_horizontal_index_range(range_value):
+    return range_value
 
 
 @callback(
