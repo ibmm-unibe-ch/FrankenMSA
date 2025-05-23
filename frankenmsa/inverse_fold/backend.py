@@ -69,18 +69,19 @@ class DownloadableSequenceGenerator(BaseSequenceGenerator):
     """
 
     def __init__(self):
-        self.remote_url = None
-        self.checkpoint_path = None
-        self.setup_parameters = None
-        self.local_path = None
-        self.model = None
-        self.src = None
+        cls = self.__class__
+        self.remote_url = getattr(cls, "remote_url", None)
+        self.checkpoint_path = getattr(cls, "checkpoint_path", None)
+        self.local_path = getattr(cls, "local_path", None)
+        self.setup_parameters = getattr(cls, "setup_parameters", None)
+        self.model = getattr(cls, "model", None)
+        self.src = getattr(cls, "src", None)
         self._is_loaded = False
-        self.needs_init = True
+        self.needs_init = getattr(cls, "needs_init", True)
 
-        self.pip_requirements = []
-        self.conda_requirements = []
-        self.conda_channels = []
+        self.pip_requirements = getattr(cls, "pip_requirements", [])
+        self.conda_requirements = getattr(cls, "conda_requirements", [])
+        self.conda_channels = getattr(cls, "conda_channels", [])
 
     @property
     def device(self):
