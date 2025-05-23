@@ -21,6 +21,43 @@ The number of letters in the amino acid alphabet.
 """
 
 
+def has_local_protein_mpnn(directory=None):
+    """
+    Check if the local ProteinMPNN repository is available.
+
+    Parameters
+    ----------
+    directory : str, optional
+        The path to the local directory containing the ProteinMPNN repository, by default None
+
+    Returns
+    -------
+    bool
+        True if the local ProteinMPNN repository is available, False otherwise
+    """
+    L = LocalProteinMPNN
+    if os.environ.get("ProteinMPNN_DIR") is not None:
+        local_path = Path(os.environ.get("ProteinMPNN_DIR"))
+        if local_path.name == L.module or (local_path / L.module).exists():
+            return True
+
+    elif directory is not None:
+        if (Path(directory) / L.module).exists() or (
+            Path(directory) / "ProteinMPNN"
+        ).exists():
+            return True
+    elif (Path.cwd() / L.module).exists() or (Path.cwd() / "ProteinMPNN").exists():
+        return True
+    elif (Path.home() / "ProteinMPNN").exists():
+        return True
+
+    elif (Path(__file__).parent / L.module).exists() or (
+        Path(__file__).parent / "ProteinMPNN"
+    ).exists():
+        return True
+    return False
+
+
 class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
     """
     Use ProteinMPNN to generate sequences from structures.
@@ -32,11 +69,12 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
     - Alternatively, you can set the path after the class is initialized using `protein_mpnn_instance.local_path = "/path/to/ProteinMPNN"`, or use the `from_directory` method to create the instance from a local directory.
     """
 
+    module = "protein_mpnn_utils"
+    remote_url = "https://github.com/dauparas/ProteinMPNN.git"
+    checkpoint_path = "vanilla_model_weights/v_48_020.pt"
+
     def __init__(self):
         super().__init__()
-
-        self.remote_url = "https://github.com/dauparas/ProteinMPNN.git"
-        self.checkpoint_path = "vanilla_model_weights/v_48_020.pt"
 
         self.setup_parameters = dict(
             hidden_dim=128,
@@ -49,7 +87,7 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
         )
 
         name = "ProteinMPNN"
-        self.module = "protein_mpnn_utils"
+
         if os.environ.get("ProteinMPNN_DIR") is not None:
             self.local_path = Path(os.environ.get("ProteinMPNN_DIR"))
             if self.local_path.name == self.module:
