@@ -71,8 +71,8 @@ def afcluster_layout():
     return html.Div(
         [
             html.H1("Cluster Sequences with AFCluster"),
-            html.P(
-                "Cluster sequences based on their similarity. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
+            dcc.Markdown(
+                "Cluster sequences based on their similarity using `DBSCAN` as done by [Wayment-Steele et al. (2024)](https://www.nature.com/articles/s41586-023-06832-9) in `AF-Cluster`. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
             ),
             dbc.Row(
                 [
