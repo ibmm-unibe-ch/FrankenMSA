@@ -8,6 +8,17 @@
     justify-content: space-between; /* Distribute children evenly across the available width */
 }
 
+.footer{
+    background-color: #2C2C2C; /* Anthracite color */
+    color: white;
+    display: flex;
+    min-height: 60px;
+    align-items: center;
+    text-align: center;
+    justify-content: center; /* Center the footer content */
+    
+}
+
 .header-icon {
     align-items: center; /* Vertically center the icon */
     text-align: center;

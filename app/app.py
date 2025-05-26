@@ -131,10 +131,45 @@ def select_new_main_msa(new_main_msa):
         return dash.no_update
 
 
+def make_footer():
+    footer = html.Div(
+        [
+            html.A(
+                "GitHub Repository",
+                href="https://github.com/ibmm-unibe-ch/FrankenMSA",
+                className="footer-link",
+                style={"margin-right": "20px"},
+            ),
+            html.A(
+                "Found an issue?",
+                href="https://github.com/ibmm-unibe-ch/FrankenMSA/issues/new",
+                className="footer-link",
+                style={"margin-right": "20px"},
+            ),
+            html.A(
+                "Contact Us",
+                href="mailto:jannik.gut@unibe.ch",
+                className="footer-link",
+                style={"margin-right": "20px"},
+            ),
+            html.A(
+                "About",
+                href="https://www.ibmm.unibe.ch/research/group_lemmin/index_eng.html",
+                className="footer-link",
+                style={"margin-right": "20px"},
+            ),
+        ],
+        className="footer",
+        style={"display": "flex", "align-items": "center", "height": "50px"},
+    )
+    return footer
+
+
 app.layout = html.Div(
     [
         make_header(),
         dash.page_container,
+        make_footer(),
         # empty stuff for the state
         dcc.Store(id="main-msa", data=None, storage_type="session"),
         dcc.Store(id="msa-data", data={}, storage_type="session"),
