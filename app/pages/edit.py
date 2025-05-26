@@ -11,6 +11,22 @@ dash.register_page(
 
 def make_siderbar():
 
+    sep_tooltip = dbc.Tooltip(
+        "Remove the first sequence from the MSA and store it in a separate singleton MSA named '..._query'",
+        target="edit-separate-query",
+    )
+    dup_tooltip = dbc.Tooltip(
+        "Duplicate the current MSA and store it in a new MSA with the name '..._N' where N is the next available number.",
+        target="edit-copy",
+    )
+    delete_tooltip = dbc.Tooltip(
+        "Delete the currently selected MSA. This will remove it from the list of MSAs and delete all associated data.",
+        target="edit-delete",
+    )
+    clear_tooltip = dbc.Tooltip(
+        "Clear all MSA data. This will remove all MSAs and their associated data from the application.",
+        target="edit-clear",
+    )
     sidebar = html.Div(
         [
             dbc.Nav(
@@ -53,6 +69,10 @@ def make_siderbar():
                 vertical=True,
                 pills=True,
             ),
+            sep_tooltip,
+            dup_tooltip,
+            delete_tooltip,
+            clear_tooltip,
         ],
         className="sidebar",
     )
@@ -1315,7 +1335,7 @@ def rename_layout():
             dcc.Input(
                 id="rename-input",
                 type="text",
-                placeholder="New MSA",
+                placeholder="New Name",
                 className="input-component",
                 style={"width": "50%"},
             ),
