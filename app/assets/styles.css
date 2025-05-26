@@ -1,3 +1,9 @@
+body {
+    -webkit-text-size-adjust: 100%; /* Prevent font scaling on mobile devices */
+    text-size-adjust: 100%;
+    font-size: 16px; /* Set a base font size */
+}
+
 .header {
     background-color: #2C2C2C; /* Anthracite color */
     color: white;
@@ -160,7 +166,7 @@
     color: white;
     font-weight: bold;
     font-size: normal;
-    width: 150px;
+    /* width: 150px; */
     height: 100%; /* Full height */
     position: absolute; /* Position relative to the parent container */
     
@@ -172,7 +178,7 @@
 }
 
 .main-next-to-sidebar {
-    margin-left: 150px; /* Leave space for the sidebar */
+    /* margin-left: 150px; Leave space for the sidebar */
     padding: 20px;
     padding-top: 5%;
 }

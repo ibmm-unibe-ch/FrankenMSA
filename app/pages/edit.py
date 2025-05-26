@@ -66,7 +66,7 @@ def make_siderbar():
                         className="text-danger",
                     ),
                 ],
-                vertical=True,
+                vertical=False,
                 pills=True,
             ),
             sep_tooltip,
@@ -74,7 +74,11 @@ def make_siderbar():
             delete_tooltip,
             clear_tooltip,
         ],
-        className="sidebar",
+        className="header",
+        style={
+            "height": "50px",
+            "margin-top": "0px",
+        },
     )
     return sidebar
 
@@ -86,10 +90,7 @@ def layout():
     )
 
     layout = html.Div(
-        [
-            body,
-            sidebar,
-        ],
+        [dbc.Row([sidebar]), dbc.Row(body)],
         className="gradient-background",
         style={
             "display": "flex",

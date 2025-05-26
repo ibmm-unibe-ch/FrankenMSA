@@ -135,6 +135,12 @@ def make_footer():
     footer = html.Div(
         [
             html.A(
+                "About",
+                href="https://www.ibmm.unibe.ch/research/group_lemmin/index_eng.html",
+                className="footer-link",
+                style={"margin-right": "20px"},
+            ),
+            html.A(
                 "GitHub Repository",
                 href="https://github.com/ibmm-unibe-ch/FrankenMSA",
                 className="footer-link",
@@ -149,12 +155,6 @@ def make_footer():
             html.A(
                 "Contact Us",
                 href="mailto:jannik.gut@unibe.ch",
-                className="footer-link",
-                style={"margin-right": "20px"},
-            ),
-            html.A(
-                "About",
-                href="https://www.ibmm.unibe.ch/research/group_lemmin/index_eng.html",
                 className="footer-link",
                 style={"margin-right": "20px"},
             ),
