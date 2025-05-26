@@ -1,3 +1,9 @@
+body {
+    -webkit-text-size-adjust: 100%; /* Prevent font scaling on mobile devices */
+    text-size-adjust: 100%;
+    font-size: 16px; /* Set a base font size */
+}
+
 .header {
     background-color: #2C2C2C; /* Anthracite color */
     color: white;
@@ -6,6 +12,17 @@
     align-items: center;
     text-align: center;
     justify-content: space-between; /* Distribute children evenly across the available width */
+}
+
+.footer{
+    background-color: #2C2C2C; /* Anthracite color */
+    color: white;
+    display: flex;
+    min-height: 60px;
+    align-items: center;
+    text-align: center;
+    justify-content: center; /* Center the footer content */
+    
 }
 
 .header-icon {
@@ -64,7 +81,7 @@
 }
 
 .shaded-bordered {
-    line-height: 60px;
+    /* line-height: 60px; */
     border-width: 2px;
     border-style: solid;
     border-radius: 5px;
@@ -91,11 +108,14 @@
 .upload-component {
     /* width: 100%; */
     height: 60px;
-    line-height: 60px;
+    /* line-height: 60px; */
     border-width: 1px;
     border-style: solid;
     border-radius: 5px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-color: #f0f0f0;
     color: #f0f0f0;
     font-weight: bold;
@@ -145,8 +165,8 @@
     background-color: #2C2C2C; /* Anthracite color */
     color: white;
     font-weight: bold;
-
-    width: 150px;
+    font-size: normal;
+    /* width: 150px; */
     height: 100%; /* Full height */
     position: absolute; /* Position relative to the parent container */
     
@@ -158,7 +178,7 @@
 }
 
 .main-next-to-sidebar {
-    margin-left: 150px; /* Leave space for the sidebar */
+    /* margin-left: 150px; Leave space for the sidebar */
     padding: 20px;
     padding-top: 5%;
 }
@@ -178,4 +198,14 @@ input, textarea {
 
 textarea {
     text-align: left;
+}
+
+a {
+    color: #009e6f; /* Set the desired color for links */
+    text-decoration: none; /* Remove underline from links */
+}
+
+a:hover {
+    color: #005540; /* Change color on hover */
+    text-decoration: underline; /* Add underline on hover */
 }

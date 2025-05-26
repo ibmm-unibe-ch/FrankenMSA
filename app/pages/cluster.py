@@ -13,19 +13,74 @@ dash.register_page(
 def layout():
     return html.Div(
         [
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dbc.Row(afcluster_layout()),
+                            dbc.Row(kmeans_layout()),
+                        ],
+                    ),
+                    dbc.Col(
+                        [
+                            dcc.Loading(
+                                html.Div(
+                                    id="cluster-visual-container",
+                                    className="shaded-bordered",
+                                )
+                            ),
+                            html.Div(
+                                [
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="clusters-to-save-dropdown",
+                                                    options=[],
+                                                    value=[],
+                                                    multi=True,
+                                                    className="dropdown-component",
+                                                    placeholder="Select clusters to save",
+                                                ),
+                                            ),
+                                            dbc.Col(
+                                                html.Button(
+                                                    "Save Selected Clusters",
+                                                    id="save-selected-clusters-button",
+                                                    className="button-component",
+                                                    style={"margin-top": "20px"},
+                                                    n_clicks=0,
+                                                ),
+                                            ),
+                                        ]
+                                    )
+                                ],
+                                id="save-clusters-container",
+                                className="shaded-bordered",
+                            ),
+                        ],
+                    ),
+                ]
+            )
+        ],
+        className="gradient-background",
+    )
+
+
+def afcluster_layout():
+    return html.Div(
+        [
             html.H1("Cluster Sequences with AFCluster"),
-            html.P(
-                "Cluster sequences based on their similarity. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
+            dcc.Markdown(
+                "Cluster sequences based on their similarity using `DBSCAN` as done by [Wayment-Steele et al. (2024)](https://www.nature.com/articles/s41586-023-06832-9) in `AF-Cluster`. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
             ),
             dbc.Row(
                 [
                     dbc.Col(
                         html.Div(
                             id="cluster-controls-container",
-                            className="shaded-bordered",
                         ),
-                    ),
-                    dbc.Col(dcc.Loading(html.Div(id="cluster-visual-container"))),
+                    )
                 ]
             ),
             html.Div(
@@ -33,7 +88,7 @@ def layout():
                 # className="shaded-bordered",
             ),
         ],
-        className="gradient-background",
+        className="shaded-bordered",
     )
 
 
@@ -100,6 +155,7 @@ def afcluster_controls(_):
         marks={i: str(i) for i in range(1, 101, 10)},
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
 
     search_epsilon_value_range_label = html.Label(
@@ -147,13 +203,6 @@ def afcluster_controls(_):
         style={"margin-top": "20px"},
         n_clicks=0,
     )
-    save_clusters = html.Button(
-        "Save Clusters as separate MSAs",
-        id="save-clusters-button",
-        className="button-component",
-        style={"margin-top": "20px"},
-        n_clicks=0,
-    )
 
     other_columns_to_include = dcc.Dropdown(
         id="afcluster-other-columns",
@@ -168,10 +217,7 @@ def afcluster_controls(_):
         target="afcluster-other-columns",
         placement="top",
     )
-    other_columns_to_include_label = html.Label(
-        "Other columns to include",
-        id="afcluster-other-columns-label",
-    )
+
     toprow = dbc.Row(
         [
             dbc.Col(
@@ -243,14 +289,8 @@ def afcluster_controls(_):
         },
     )
     bottomrow = dbc.Row(
-        [
-            dbc.Col(
-                run_button,
-            ),
-            dbc.Col(
-                save_clusters,
-            ),
-        ]
+        run_button,
+        style={"width": "100%"},
     )
     return html.Div(
         [toprow, midrow, bottomrow],
@@ -496,3 +536,271 @@ def update_other_columns_options(msa_data, main_msa):
     options = [{"label": col, "value": col} for col in columns]
 
     return options
+
+
+def kmeans_layout():
+    return html.Div(
+        [
+            html.H1("Cluster Sequences with KMeans"),
+            html.P(
+                "Cluster sequences based on their similarity using KMeans clustering. Clusters can be saved as new MSAs to be used in downstream tasks."
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        html.Div(
+                            id="kmeans-controls-container",
+                        ),
+                    ),
+                ]
+            ),
+            html.Div(
+                id="kmeans-save-container",
+                # className="shaded-bordered",
+            ),
+        ],
+        className="shaded-bordered",
+    )
+
+
+@callback(
+    Output("kmeans-controls-container", "children"),
+    Input("kmeans-controls-container", "children"),
+)
+def kmeans_controls(_):
+    n_clusters = dcc.Input(
+        id="kmeans-n-clusters",
+        type="number",
+        placeholder="Number of clusters",
+        value=5,
+        min=1,
+        max=1000,
+        step=1,
+        persistence=True,
+        persistence_type="session",
+    )
+    n_clusters_tooltip = dbc.Tooltip(
+        "Number of clusters to form.",
+        target="kmeans-n-clusters",
+        placement="bottom",
+    )
+
+    n_clusters_label = html.Label(
+        "Number of Clusters",
+    )
+
+    run_button = html.Button(
+        "Run KMeans",
+        id="run-kmeans-button",
+        className="button-component",
+        style={"margin-top": "20px"},
+        n_clicks=0,
+    )
+
+    other_columns_to_include = dcc.Dropdown(
+        id="kmeans-other-columns",
+        options=[],
+        value=[],
+        multi=True,
+        className="dropdown-component",
+        placeholder="Other columns...",
+    )
+    other_columns_to_include_tooltip = dbc.Tooltip(
+        "Optionally, select other columns whose data to include during clustering. These columns have to be numeric. By default only the 'sequence' column is considered (this is the only non-numeric column allowed).",
+        target="kmeans-other-columns",
+        placement="top",
+    )
+
+    top_row = dbc.Row(
+        [
+            dbc.Col(
+                [
+                    n_clusters_tooltip,
+                    n_clusters_label,
+                    n_clusters,
+                ],
+                width="auto",
+            ),
+            dbc.Col(
+                [
+                    other_columns_to_include_tooltip,
+                    other_columns_to_include,
+                ],
+                # width="auto",
+            ),
+        ],
+        style={
+            "margin": "20px",
+            "align-items": "bottom",
+            "justify-contents": "center",
+            "display": "flex",
+            "flex-direction": "row",
+            "flex-wrap": "wrap",
+        },
+    )
+    bottom_row = dbc.Row(
+        run_button,
+        style={"width": "100%"},
+    )
+    return html.Div(
+        [top_row, bottom_row],
+    )
+
+
+@callback(
+    Output("kmeans-other-columns", "options"),
+    Input("msa-data", "data"),
+    State("main-msa", "data"),
+)
+def update_kmeans_other_columns_options(msa_data, main_msa):
+    if not msa_data or not main_msa:
+        return dash.no_update
+
+    msa = msa_data[main_msa]
+    msa = pd.DataFrame.from_dict(msa)
+
+    columns = msa.select_dtypes(include=["number"]).columns.tolist()
+
+    # Create options for the dropdown
+    options = [{"label": col, "value": col} for col in columns]
+
+    return options
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("run-kmeans-button", "n_clicks"),
+    State("kmeans-n-clusters", "value"),
+    State("kmeans-other-columns", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def run_kmeans(
+    n_clicks,
+    n_clusters,
+    columns_to_include,
+    main_msa,
+    msa_data,
+):
+    if not (n_clicks or 0) > 0:
+        return dash.no_update
+
+    if not msa_data or not main_msa:
+        return dash.no_update
+
+    from frankenmsa.cluster import KMeans
+
+    clusterer = KMeans()
+
+    msa = msa_data[main_msa]
+    msa = pd.DataFrame.from_dict(msa)
+
+    msa = clusterer.cluster(
+        msa,
+        n_clusters=n_clusters,
+        columns=(columns_to_include or None),
+    )
+
+    msa_data[main_msa] = msa.to_dict("list")
+    return msa_data
+
+
+@callback(
+    Output("kmeans-save-container", "children"),
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("save-kmeans-clusters-button", "n_clicks"),
+    State("msa-data", "data"),
+    State("main-msa", "data"),
+    prevent_initial_call=True,
+)
+def save_kmeans_clusters(
+    n_clicks,
+    msa_data,
+    main_msa,
+):
+    if not (n_clicks or 0) > 0:
+        return dash.no_update, dash.no_update
+
+    if not msa_data or not main_msa:
+        return dash.no_update, dash.no_update
+
+    msa = msa_data[main_msa]
+    msa = pd.DataFrame.from_dict(msa)
+
+    if "cluster_id" not in msa.columns:
+        return dbc.Alert("No clusters found. Please run KMeans first."), msa_data
+
+    for cluster_id, subset in msa.groupby("cluster_id"):
+
+        name = f"{main_msa}_kmeans_cluster_{cluster_id}"
+        msa_data[name] = subset.to_dict("list")
+
+    info = f"Saved {len(msa['cluster_id'].unique())} clusters to MSA data."
+    return (
+        dbc.Alert(
+            info,
+            color="success",
+            is_open=True,
+        ),
+        msa_data,
+    )
+
+
+@callback(
+    Output("clusters-to-save-dropdown", "options"),
+    Input("msa-data", "data"),
+    State("main-msa", "data"),
+)
+def update_clusters_to_save_options(msa_data, main_msa):
+    if not msa_data or not main_msa:
+        return dash.no_update
+
+    msa = msa_data[main_msa]
+    msa = pd.DataFrame.from_dict(msa)
+
+    if "cluster_id" not in msa.columns:
+        return dash.no_update
+
+    clusters = msa["cluster_id"].unique()
+    options = [{"label": f"Cluster {c}", "value": c} for c in clusters]
+    options.insert(0, {"label": "All", "value": "all"})
+    return options
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("save-selected-clusters-button", "n_clicks"),
+    State("clusters-to-save-dropdown", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def save_selected_clusters(
+    n_clicks,
+    selected_clusters,
+    main_msa,
+    msa_data,
+):
+    if not (n_clicks or 0) > 0:
+        return dash.no_update
+
+    if not msa_data or not main_msa:
+        return dash.no_update
+
+    msa = msa_data[main_msa]
+    msa = pd.DataFrame.from_dict(msa)
+
+    if "cluster_id" not in msa.columns:
+        return dash.no_update
+
+    if "all" in selected_clusters:
+        selected_clusters = msa["cluster_id"].unique()
+
+    for cluster_id in selected_clusters:
+        subset = msa[msa["cluster_id"] == cluster_id]
+        name = f"{main_msa}_selected_cluster_{cluster_id}"
+        msa_data[name] = subset.to_dict("list")
+
+    info = f"Saved {len(selected_clusters)} clusters to MSA data."
+    return msa_data

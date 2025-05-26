@@ -16,8 +16,10 @@ def mmseqs_colab_layout():
     return html.Div(
         [
             html.H1("MMseqs2 ColabFold"),
-            html.P(
-                "Align one or more sequences using MMseqs2. This is a fast and accurate sequence alignment tool that can handle large datasets efficiently."
+            dcc.Markdown(
+                """
+                Align one or more sequences using [MMseqs2](https://www.nature.com/articles/s41467-018-04964-5). This is a fast and accurate sequence alignment tool that can handle large datasets efficiently.
+                """
             ),
             dcc.Textarea(
                 id="mmseqs-input",

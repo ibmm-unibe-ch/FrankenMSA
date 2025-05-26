@@ -124,6 +124,7 @@ def combine_msa_block(msa_data, index):
         step=1,
         value=(0, 100),
         marks={i: str(i) for i in range(0, 101, 10)},
+        tooltip={"placement": "bottom", "always_visible": True},
     )
     horizontal_index_start = dcc.Input(
         id={"type": "combine-msa-horizontal-index-start", "index": index},
@@ -152,6 +153,7 @@ def combine_msa_block(msa_data, index):
         step=1,
         value=(0, 100),
         marks={i: str(i) for i in range(0, 101, 10)},
+        tooltip={"placement": "bottom", "always_visible": True},
     )
 
     vertical_index_start = dcc.Input(
