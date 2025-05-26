@@ -61,7 +61,9 @@ def make_siderbar():
 
 def layout():
     sidebar = make_siderbar()
-    body = html.Div(id="edit-main-content", className="main-next-to-sidebar")
+    body = html.Div(
+        msa_overview_layout(), id="edit-main-content", className="main-next-to-sidebar"
+    )
 
     layout = html.Div(
         [
@@ -218,13 +220,6 @@ def filter_layout():
         ],
     )
     return top
-    return html.Div(
-        [
-            gapsfilter_layout(),
-            hhfilter_layout(),
-            free_query_filter_layout(),
-        ]
-    )
 
 
 def gapsfilter_layout():
@@ -256,6 +251,7 @@ def gapsfilter_layout():
         className="input-component",
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
 
     filter_button = html.Button(
@@ -301,6 +297,12 @@ def gapsfilter_layout():
 def hhfilter_layout():
 
     title = html.H1("Filter the MSA with HHFilter")
+    descr = dcc.Markdown(
+        """
+Use HHFilter from HH-Suite by [Soeding et al. (2019)](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-3019-7) to filter the MSA based on sequence homology.
+You can find more information about the parameters in the [HHFilter documentation](https://github.com/soedinglab/hh-suite/wiki#hhfilter--filter-an-msa).
+"""
+    )
 
     diff_input_label = html.P(
         "Sequence diversity factor (0-10000):",
@@ -355,6 +357,7 @@ def hhfilter_layout():
         className="input-component",
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
     min_query_coverage_input_label = html.P(
         "Minimum coverage with query sequence (0-100):",
@@ -381,6 +384,7 @@ def hhfilter_layout():
         className="input-component",
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
     min_query_identity_input_label = html.P(
         "Minimum sequence identity with query sequence (0-100):",
@@ -407,6 +411,7 @@ def hhfilter_layout():
         className="input-component",
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
     min_query_score_input_label = html.P(
         "Minimum sequence score with query sequence (-100 to 100):",
@@ -433,6 +438,7 @@ def hhfilter_layout():
         className="input-component",
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
     target_diversity_input_label = html.P(
         "Target diversity (1-10000):",
@@ -560,6 +566,7 @@ def hhfilter_layout():
     layout = html.Div(
         [
             title,
+            descr,
             top_row,
             sliders,
             bottom_row,
@@ -574,8 +581,8 @@ def free_query_filter_layout():
     upper = html.Div(
         [
             html.H1("Free Query"),
-            html.P(
-                "Use the DataFrame.query(...) interface to filter the MSA in any way you like."
+            dcc.Markdown(
+                "Use the `DataFrame.query(...)` interface to filter the MSA in any way you like. See the [pandas documentation](https://pandas.pydata.org/docs/dev/reference/api/pandas.DataFrame.query.html) or [this blog](https://note.nkmk.me/en/python-pandas-query/) for more details and examples.",
             ),
             dcc.Input(
                 id="free-query-filter-input",
@@ -1064,6 +1071,7 @@ def slice_msa_layout():
         className="input-component",
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
 
     slice_button = html.Button(
@@ -1412,3 +1420,79 @@ def separate_query(n_clicks, main_msa, msa_data):
         msa_data[main_msa] = msa.to_dict("list")
 
     return msa_data
+
+
+def msa_overview_layout():
+    return html.Div(
+        [
+            dash_table.DataTable(
+                id="msa-overview-table",
+                columns=[
+                    {"name": "", "id": "column"},
+                    {"name": "", "id": "value"},
+                ],
+                data=[
+                    {"column": "Number of sequences", "value": 0},
+                    {"column": "Max. sequence length", "value": 0},
+                    {"column": "Min. sequence length", "value": 0},
+                    {"column": "Avg. sequence length", "value": 0},
+                    {"column": "Number of gaps", "value": 0},
+                ],
+                style_table={"overflowX": "auto"},
+            ),
+            html.H2("Consensus Sequence"),
+            html.P(
+                "query sequence",
+                id="msa-consensus-seq",
+                className="shaded-bordered",
+                style={
+                    "display": "inline-block",
+                    "textAlign": "center",
+                    "maxWidth": "1000px",
+                    "width": "100%",
+                    "overflow-wrap": "anywhere",
+                },
+            ),
+        ],
+    )
+
+
+@callback(
+    Output("msa-overview-table", "data"),
+    Output("msa-consensus-seq", "children"),
+    Input("main-msa", "data"),
+    Input("msa-data", "data"),
+)
+def update_msa_overview(main_msa, msa_data):
+    if not msa_data or not main_msa:
+        return dash.no_update, dash.no_update
+
+    from pandas import DataFrame
+
+    msa = msa_data[main_msa]
+    msa = DataFrame.from_dict(msa)
+
+    if msa.empty:
+        return dash.no_update, "No query sequence available."
+
+    from frankenmsa.utils.seqtools import consensus_sequence
+
+    consensus = consensus_sequence(msa["sequence"])
+
+    # Calculate MSA statistics
+    num_sequences = len(msa)
+    max_length = msa["sequence"].str.len().max()
+    min_length = msa["sequence"].str.len().min()
+    avg_length = msa["sequence"].str.len().mean()
+    num_gaps = (msa["sequence"] == "-").sum()
+
+    # Prepare data for the table
+    overview_data = [
+        {"column": "Number of sequences", "value": num_sequences},
+        {"column": "Max. sequence length", "value": max_length},
+        {"column": "Min. sequence length", "value": min_length},
+        {"column": "Avg. sequence length", "value": avg_length},
+        {"column": "Number of gaps", "value": num_gaps},
+    ]
+
+    return overview_data, consensus

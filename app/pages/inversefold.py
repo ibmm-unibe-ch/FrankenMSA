@@ -46,6 +46,7 @@ def proteinmpnn_layout():
                         marks={i / 10: str(i / 10) for i in range(10, 50, 10)},
                         persistence=True,
                         persistence_type="session",
+                        tooltip={"placement": "bottom", "always_visible": True},
                     ),
                 ]
             ),
@@ -55,9 +56,9 @@ def proteinmpnn_layout():
                     dcc.Input(
                         id="proteinmpnn-sequence-count",
                         type="number",
-                        value=10,
+                        value=128,
                         min=1,
-                        max=1000,
+                        max=5000,
                         step=1,
                         persistence=True,
                         persistence_type="session",
@@ -76,7 +77,7 @@ def proteinmpnn_layout():
             html.H1("Inverse Fold with ProteinMPNN"),
             html.P(
                 dcc.Markdown(
-                    "Repeatedly run inverse folding using ProteinMPNN. To generate an arbitrary pseudo-MSA from a given protein structure. This uses the [biolib](https://biolib.com/) remote ProteinMPNN server. Since this is a remote server with a queue it may take a while to get results. Please be patient. Note that at this point only homomers are supported by FrankenMSA so please only upload PDBs with a single protein and chain.",
+                    "Repeatedly run inverse folding using [ProteinMPNN](https://www.science.org/doi/10.1126/science.add2187). To generate an arbitrary pseudo-MSA from a given protein structure. This uses the [biolib](https://biolib.com/) remote ProteinMPNN server. Since this is a remote server with a queue it may take a while to get results. Please be patient. Note that at this point only homomers are supported by FrankenMSA so please only upload PDBs with a single protein and chain.",
                 )
             ),
             upload_component,

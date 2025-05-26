@@ -12,27 +12,29 @@ dash.register_page(
 
 def layout():
     return html.Div(
-        [
-            html.H1("Cluster Sequences with AFCluster"),
-            html.P(
-                "Cluster sequences based on their similarity. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        html.Div(
-                            id="cluster-controls-container",
-                            className="shaded-bordered",
+        html.Div(
+            [
+                html.H1("Cluster Sequences with AFCluster"),
+                html.P(
+                    "Cluster sequences based on their similarity. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            html.Div(
+                                id="cluster-controls-container",
+                            ),
                         ),
-                    ),
-                    dbc.Col(dcc.Loading(html.Div(id="cluster-visual-container"))),
-                ]
-            ),
-            html.Div(
-                id="cluster-save-container",
-                # className="shaded-bordered",
-            ),
-        ],
+                        dbc.Col(dcc.Loading(html.Div(id="cluster-visual-container"))),
+                    ]
+                ),
+                html.Div(
+                    id="cluster-save-container",
+                    # className="shaded-bordered",
+                ),
+            ],
+            className="shaded-bordered",
+        ),
         className="gradient-background",
     )
 
@@ -100,6 +102,7 @@ def afcluster_controls(_):
         marks={i: str(i) for i in range(1, 101, 10)},
         persistence=True,
         persistence_type="session",
+        tooltip={"placement": "bottom", "always_visible": True},
     )
 
     search_epsilon_value_range_label = html.Label(
