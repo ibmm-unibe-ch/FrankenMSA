@@ -44,6 +44,11 @@ def make_siderbar():
                         active="exact",
                     ),
                     dbc.NavLink(
+                        "Insertions to Gaps",
+                        id="edit-insertions-to-gaps",
+                        active="exact",
+                    ),
+                    dbc.NavLink(
                         "Duplicate MSA",
                         id="edit-copy",
                         active="exact",
@@ -1517,3 +1522,31 @@ def update_msa_overview(main_msa, msa_data):
     ]
 
     return overview_data, consensus
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("edit-insertions-to-gaps", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def insertions_to_gaps(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            # print("No MSA data available to insertions to gaps.")
+            return dash.no_update
+
+        from pandas import DataFrame
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # replace all lowercase characters in the sequence column with '-'
+        msa["sequence"] = msa["sequence"].str.replace(r"[a-z]", "-", regex=True)
+        msa_data[main_msa] = msa.to_dict("list")
+        # print("New MSA:")
+        return msa_data
+    else:
+        # print("No button click detected.")
+        return dash.no_update
