@@ -179,3 +179,13 @@ input, textarea {
 textarea {
     text-align: left;
 }
+
+a {
+    color: #009e6f; /* Set the desired color for links */
+    text-decoration: none; /* Remove underline from links */
+}
+
+a:hover {
+    color: #005540; /* Change color on hover */
+    text-decoration: underline; /* Add underline on hover */
+}
