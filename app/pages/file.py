@@ -138,7 +138,7 @@ def file_download_layout():
     download_filename = dcc.Input(
         id="download-filename",
         type="text",
-        placeholder="my_frankenmsa",
+        placeholder="filename (defaults to MSA name)",
         style={"width": "50%"},
         className="input-component",
         persistence=True,
@@ -196,7 +196,7 @@ def download_file(n_clicks, main_msa, msa_data, format, filename):
         msa = pd.DataFrame(msa)
 
         if filename == "":
-            filename = "my_frankenmsa"
+            filename = main_msa
         if format == ".a3m":
             filename += ".a3m"
             from frankenmsa.utils import write_a3m
