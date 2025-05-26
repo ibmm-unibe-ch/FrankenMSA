@@ -3,7 +3,7 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 from pandas import DataFrame
-from dash.dependencies import MATCH
+from dash.dependencies import MATCH, ALL
 
 dash.register_page(
     __name__,
@@ -130,7 +130,6 @@ def combine_msa_block(msa_data, index):
         type="number",
         value=0,
         min=0,
-        max=100,
         step=1,
         style={"width": "50px"},
     )
@@ -139,7 +138,6 @@ def combine_msa_block(msa_data, index):
         type="number",
         value=100,
         min=0,
-        max=100,
         step=1,
         style={"width": "50px"},
     )
@@ -363,49 +361,56 @@ def update_horizontal_index_range(range_value):
     Output("main-msa", "data", allow_duplicate=True),
     Output("combine-msa-blocks-container", "children", allow_duplicate=True),
     Input("combine-msas-button", "n_clicks"),
-    State("combine-msa-blocks-container", "children"),
+    State({"type": "combine-msa-dropdown", "index": ALL}, "value"),
+    State({"type": "combine-msa-direction", "index": ALL}, "value"),
+    State({"type": "combine-msa-horizontal-index-start", "index": ALL}, "value"),
+    State({"type": "combine-msa-horizontal-index-end", "index": ALL}, "value"),
+    State({"type": "combine-msa-vertical-index-start", "index": ALL}, "value"),
+    State({"type": "combine-msa-vertical-index-end", "index": ALL}, "value"),
     State("combine-msa-name", "value"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def combine_msas(n_clicks, children, name, msa_data):
+def combine_msas(
+    n_clicks,
+    src_dropdowns,
+    directions,
+    h_starts,
+    h_ends,
+    v_starts,
+    v_ends,
+    name,
+    msa_data,
+):
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
     if not name:
         count_combined = sum(1 for i in msa_data.keys() if i.startswith("combined"))
         name = f"combined_{count_combined + 1}"
 
-    _children = [i for i in children if i["type"] != "Alert"]
-
-    if not len(_children):
-        return (dash.no_update, dash.no_update, children + [nothing_to_combine()])
+    if not src_dropdowns:
+        return (dash.no_update, dash.no_update, [nothing_to_combine()])
 
     import pandas as pd
     from frankenmsa.utils import slice_sequences, adjust_depth, unify_length
 
     combined_msa = None
-    for block in _children:
-        components = extract_block_components(block)
+    for (
+        selected_msa,
+        direction,
+        h_start,
+        h_end,
+        v_start,
+        v_end,
+    ) in zip(src_dropdowns, directions, h_starts, h_ends, v_starts, v_ends):
 
-        selected_msa = components["dropdown"]["props"]["children"]["props"]["value"]
         msa = msa_data[selected_msa]
         msa = DataFrame.from_dict(msa)
 
-        add_horizontal = components["add_direction"]["props"]["value"] == "horizontal"
+        add_horizontal = direction == "horizontal"
+        msa = slice_sequences(msa, h_start, h_end)
 
-        horizontal_index = components["horizontal_index"]["props"]["children"][1][
-            "props"
-        ]
-        min_value, max_value = horizontal_index["value"]
-        _min, _max = horizontal_index["min"], horizontal_index["max"]
-        if not (_min == min_value and _max == max_value):
-            msa = slice_sequences(msa, min_value, max_value)
-
-        vertical_index = components["vertical_index"]["props"]["children"][1]["props"]
-        min_index, max_index = vertical_index["value"]
-        _min, _max = vertical_index["min"], vertical_index["max"]
-        if not (_min == min_index and _max == max_index):
-            msa = msa.iloc[min_index:max_index]
+        msa = msa.iloc[v_start:v_end].reset_index(drop=True)
 
         if combined_msa is None:
             combined_msa = msa
@@ -413,13 +418,7 @@ def combine_msas(n_clicks, children, name, msa_data):
             if add_horizontal:
                 if len(msa) != len(combined_msa):
                     msa = adjust_depth(msa, len(combined_msa))
-                    # print(msa.head())
-                    # print(combined_msa.head())
-                    break
-                    combined_sequences = combined_msa["sequence"].str.cat(
-                        msa["sequence"], sep=""
-                    )
-                    # print(combined_sequences)
+
                 combined_msa["sequence"] = combined_msa["sequence"].str.cat(
                     msa["sequence"], sep=""
                 )
@@ -443,10 +442,9 @@ def extract_block_components(block):
             components.extend(component["props"]["children"])
         else:
             components.append(component)
-
+    print(components)
     dropdown = None
     add_direction = None
-    add_vertical = None
     horizontal_index = None
     vertical_index = None
     for c in components:
@@ -458,13 +456,13 @@ def extract_block_components(block):
             add_direction = c
         if has_path_ending_in(
             c,
-            ["props", "children", 1, "props", "id", "type"],
+            ["props", "children", 1, "children", "props", "id", "type"],
             "combine-msa-horizontal-index",
         ):
             horizontal_index = c
         if has_path_ending_in(
             c,
-            ["props", "children", 3, "props", "id", "type"],
+            ["props", "children", 3, "children", "props", "id", "type"],
             "combine-msa-vertical-index",
         ):
             vertical_index = c
