@@ -13,6 +13,18 @@ def layout():
 
 
 def mmseqs_colab_layout():
+    pairing_tooltip = dbc.Tooltip(
+        dcc.Markdown(
+            "Pairing mode determines how sequences are paired for alignment. `None` means no pairing (i.e. single sequence -> MSA). If multiple sequences are provided `Greedy` provides a quicker but less accurate alignment, while `All` pairs all uses a more exhaustive but more accurate algorithm."
+        ),
+        target="mmseqs-pairing-mode",
+    )
+    filter_tooltip = dbc.Tooltip(
+        dcc.Markdown(
+            "Filtering mode determines whether to filter sequences before alignment. Filtering can improve alignment quality by removing low-quality sequences."
+        ),
+        target="mmseqs-filter-mode",
+    )
     return html.Div(
         [
             html.H1("MMseqs2 ColabFold"),
@@ -69,24 +81,8 @@ def mmseqs_colab_layout():
                             ),
                         ]
                     ),
-                    dbc.Col(
-                        [
-                            html.P("Use Environment-specific model"),
-                            dcc.RadioItems(
-                                id="mmseqs-env-mode",
-                                options=[
-                                    {
-                                        "label": "Yes",
-                                        "value": True,
-                                    },
-                                    {"label": "No", "value": False},
-                                ],
-                                value=True,
-                                persistence=True,
-                                persistence_type="memory",
-                            ),
-                        ]
-                    ),
+                    pairing_tooltip,
+                    filter_tooltip,
                 ]
             ),
             html.Button(
@@ -121,11 +117,10 @@ def mmseqs_colab_layout():
     State("mmseqs-input", "value"),
     State("mmseqs-pairing-mode", "value"),
     State("mmseqs-filter-mode", "value"),
-    State("mmseqs-env-mode", "value"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, env_mode, msa_data):
+def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
     if n_clicks == 0:
         raise dash.exceptions.PreventUpdate
 
@@ -150,7 +145,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, env_mode, msa_da
         mmseqs = MMSeqs2Colab("frankenmsa-gui")
         msa_df = mmseqs.align(
             sequences,
-            env_mode,
+            True,  # use env-mode by default
             filter_mode,
             None if pairing_mode == "none" else pairing_mode,
         )
