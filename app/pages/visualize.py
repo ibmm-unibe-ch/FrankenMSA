@@ -30,28 +30,28 @@ def layout():
         label="Visualise Alignment",
         value=True,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     visualise_gaps_checkbox = dbc.Checkbox(
         id="visualise-gaps",
         label="Visualise Gaps",
         value=False,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     visualise_conservation_checkbox = dbc.Checkbox(
         id="visualise-conservation",
         label="Visualise Conservation",
         value=False,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     visualise_identity_checkbox = dbc.Checkbox(
         id="visualise-identity",
         label="Visualise Identity",
         value=False,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
 
     visualise_controls = dbc.Row(

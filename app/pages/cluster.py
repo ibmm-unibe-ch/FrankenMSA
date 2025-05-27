@@ -115,7 +115,7 @@ def afcluster_controls(_):
         max=1000,
         step=1,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     min_samples_tooltip = dbc.Tooltip(
         "Minimum number of samples per cluster. Clusters with fewer samples will be ignored.",
@@ -135,7 +135,7 @@ def afcluster_controls(_):
         min=0.01,
         max=1000.0,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     epsilon_tooltip = dbc.Tooltip(
         "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood. The range slider below can be used to set this value as well.",
@@ -154,7 +154,7 @@ def afcluster_controls(_):
         value=3,
         marks={i: str(i) for i in range(1, 101, 10)},
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
 
@@ -172,7 +172,7 @@ def afcluster_controls(_):
         max=100,
         step=0.5,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     search_epsilon_value_range_start_tooltip = dbc.Tooltip(
         "Start value of the epsilon range slider.",
@@ -188,7 +188,7 @@ def afcluster_controls(_):
         max=100,
         step=0.5,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     search_epsilon_value_range_end_tooltip = dbc.Tooltip(
         "End value of the epsilon range slider.",
@@ -577,7 +577,7 @@ def kmeans_controls(_):
         max=1000,
         step=1,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
     n_clusters_tooltip = dbc.Tooltip(
         "Number of clusters to form.",

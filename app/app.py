@@ -2,6 +2,7 @@ import dash
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
+import os
 
 
 app = Dash(
@@ -80,7 +81,7 @@ def make_header():
     select_main_msa = dbc.Select(
         id="select-main-msa",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         style={"width": "20%"},
     )
 
@@ -185,8 +186,8 @@ app.layout = html.Div(
         dash.page_container,
         make_footer(),
         # empty stuff for the state
-        dcc.Store(id="main-msa", data=None, storage_type="session"),
-        dcc.Store(id="msa-data", data={}, storage_type="session"),
+        dcc.Store(id="main-msa", data=None, storage_type="memory"),
+        dcc.Store(id="msa-data", data={}, storage_type="memory"),
         dcc.Store(id="afcluster-last-settings", data={}, storage_type="memory"),
     ],
 )
@@ -201,4 +202,7 @@ def launch(**kwargs):
 
 main = launch  # alias
 if __name__ == "__main__":
+    # Increase memory quota if running on a platform that supports it
+    os.environ["DASH_MAX_MEMORY"] = "1024"  # Set memory quota to 1024MB (1GB)
+
     app.run(debug=True)

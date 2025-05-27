@@ -45,7 +45,7 @@ def proteinmpnn_layout():
                         value=1.0,
                         marks={i / 10: str(i / 10) for i in range(10, 50, 10)},
                         persistence=True,
-                        persistence_type="session",
+                        persistence_type="memory",
                         tooltip={"placement": "bottom", "always_visible": True},
                     ),
                 ]
@@ -61,7 +61,7 @@ def proteinmpnn_layout():
                         max=5000,
                         step=1,
                         persistence=True,
-                        persistence_type="session",
+                        persistence_type="memory",
                     ),
                 ]
             ),

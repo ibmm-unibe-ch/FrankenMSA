@@ -284,7 +284,7 @@ def gapsfilter_layout():
         },
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
 
@@ -390,7 +390,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         },
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
     min_query_coverage_input_label = html.P(
@@ -417,7 +417,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         },
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
     min_query_identity_input_label = html.P(
@@ -444,7 +444,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         },
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
     min_query_score_input_label = html.P(
@@ -471,7 +471,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         },
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
     target_diversity_input_label = html.P(
@@ -492,7 +492,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         step=1,
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
 
     filter_button = html.Button(
@@ -1118,7 +1118,7 @@ def slice_msa_layout():
         marks={},  # This will be updated dynamically
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
     )
 

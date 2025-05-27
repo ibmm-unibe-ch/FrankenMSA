@@ -132,7 +132,7 @@ def file_download_layout():
         multi=False,
         clearable=False,
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
         className="dropdown-component",
     )
     download_filename = dcc.Input(
@@ -142,7 +142,7 @@ def file_download_layout():
         style={"width": "50%"},
         className="input-component",
         persistence=True,
-        persistence_type="session",
+        persistence_type="memory",
     )
 
     download_component = dcc.Download(
@@ -195,7 +195,7 @@ def download_file(n_clicks, main_msa, msa_data, format, filename):
         msa = msa_data[main_msa]
         msa = pd.DataFrame(msa)
 
-        if filename == "":
+        if filename == "" or filename is None:
             filename = main_msa
         if format == ".a3m":
             filename += ".a3m"

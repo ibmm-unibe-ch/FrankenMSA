@@ -50,7 +50,7 @@ def mmseqs_colab_layout():
                                 ],
                                 value="none",
                                 persistence=True,
-                                persistence_type="session",
+                                persistence_type="memory",
                             ),
                         ]
                     ),
@@ -65,7 +65,7 @@ def mmseqs_colab_layout():
                                 ],
                                 value=True,
                                 persistence=True,
-                                persistence_type="session",
+                                persistence_type="memory",
                             ),
                         ]
                     ),
@@ -83,7 +83,7 @@ def mmseqs_colab_layout():
                                 ],
                                 value=True,
                                 persistence=True,
-                                persistence_type="session",
+                                persistence_type="memory",
                             ),
                         ]
                     ),
