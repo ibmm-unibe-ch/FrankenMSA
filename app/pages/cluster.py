@@ -27,7 +27,8 @@ def layout():
                                 html.Div(
                                     id="cluster-visual-container",
                                     className="shaded-bordered",
-                                )
+                                ),
+                                color="white",
                             ),
                             html.Div(
                                 [

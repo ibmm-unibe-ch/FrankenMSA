@@ -96,7 +96,8 @@ def proteinmpnn_layout():
                         "margin-top": "20px",
                         "textAlign": "center",
                     },
-                )
+                ),
+                color="white",
             ),
         ],
         style={

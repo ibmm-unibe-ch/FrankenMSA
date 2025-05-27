@@ -70,6 +70,7 @@ def layout():
             visualise_controls,
             dcc.Loading(
                 id="loading",
+                color="white",
                 type="circle",
                 children=[
                     html.Div(
