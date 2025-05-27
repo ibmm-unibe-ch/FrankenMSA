@@ -300,6 +300,7 @@ def gapsfilter_layout():
                 id="gapsfilter-loading",
                 type="circle",
                 children=html.Div(id="gapsfilter-status-text"),
+                color="white",
             )
         ],
         style={
@@ -634,6 +635,7 @@ def free_query_filter_layout():
                 id="free-query-filter-loading",
                 type="circle",
                 children=html.Div(id="free-query-filter-status-text"),
+                color="white",
             ),
             html.Button(
                 "Filter MSA",
