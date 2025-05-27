@@ -41,7 +41,7 @@ setup(
         "scikit-learn",
         "scipy",
         "afcluster>=0.1.2",
-        "biolib",
+        "pybiolib",
         "dash",
         "dash_bio",
         "GitPython",
