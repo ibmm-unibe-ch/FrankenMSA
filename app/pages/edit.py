@@ -27,6 +27,13 @@ def make_siderbar():
         "Clear all MSA data. This will remove all MSAs and their associated data from the application.",
         target="edit-clear",
     )
+
+    ins_to_gaps_tooltip = dbc.Tooltip(
+        dcc.Markdown(
+            "Replace all insersions (i.e. lowercase characters) with gaps (i.e. '-') in the MSA."
+        ),
+        target="edit-insertions-to-gaps",
+    )
     sidebar = html.Div(
         [
             dbc.Nav(
@@ -78,6 +85,7 @@ def make_siderbar():
             dup_tooltip,
             delete_tooltip,
             clear_tooltip,
+            ins_to_gaps_tooltip,
         ],
         className="header",
         style={
@@ -1392,6 +1400,8 @@ def rename_msa(n_clicks, new_name, main_msa, msa_data):
 @callback(
     Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("edit-copy", "n_clicks"),
     State("main-msa", "data"),
     State("msa-data", "data"),
@@ -1401,7 +1411,7 @@ def copy_msa(n_clicks, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data or not main_msa:
             # print("No MSA data available to copy.")
-            return dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
 
@@ -1412,14 +1422,16 @@ def copy_msa(n_clicks, main_msa, msa_data):
         new_msa_name = f"{main_msa}_{n_present + 1}"
         msa_data[new_msa_name] = msa.to_dict("list")
         # print("New MSA:")
-        return new_msa_name, msa_data
+        return new_msa_name, msa_data, "Copied MSA as: " + new_msa_name, True
     else:
         # print("No button click detected.")
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, False
 
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("edit-separate-query", "n_clicks"),
     State("main-msa", "data"),
     State("msa-data", "data"),
@@ -1429,7 +1441,7 @@ def separate_query(n_clicks, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data or not main_msa:
             # print("No MSA data available to separate query.")
-            return dash.no_update
+            return dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
 
@@ -1445,7 +1457,8 @@ def separate_query(n_clicks, main_msa, msa_data):
         print(msa_data[query_name])
         msa_data[main_msa] = msa.to_dict("list")
 
-    return msa_data
+        return msa_data, "Query separated as a new MSA named: " + query_name, True
+    return dash.no_update, dash.no_update, False
 
 
 def msa_overview_layout():
@@ -1526,6 +1539,8 @@ def update_msa_overview(main_msa, msa_data):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("edit-insertions-to-gaps", "n_clicks"),
     State("main-msa", "data"),
     State("msa-data", "data"),
@@ -1535,7 +1550,7 @@ def insertions_to_gaps(n_clicks, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data or not main_msa:
             # print("No MSA data available to insertions to gaps.")
-            return dash.no_update
+            return dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
 
@@ -1546,7 +1561,11 @@ def insertions_to_gaps(n_clicks, main_msa, msa_data):
         msa["sequence"] = msa["sequence"].str.replace(r"[a-z]", "-", regex=True)
         msa_data[main_msa] = msa.to_dict("list")
         # print("New MSA:")
-        return msa_data
+        return (
+            msa_data,
+            "Inserted gaps for all lowercase characters in the sequences.",
+            True,
+        )
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False

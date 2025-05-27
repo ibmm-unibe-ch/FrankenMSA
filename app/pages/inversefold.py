@@ -174,3 +174,20 @@ def run_proteinmpnn(
             dash.no_update,
             dash.no_update,
         )
+
+
+@callback(
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("run-proteinmpnn-button", "n_clicks"),
+    State("upload-pdb-data", "filename"),
+    prevent_initial_call=True,
+)
+def show_notification(n_clicks, filename):
+    if n_clicks > 0:
+        if filename:
+            return (
+                f"Running ProteinMPNN on '{filename}'. This will take some time as it is a remote server. Go for a coffee or tea and come back later ☕.",
+                True,
+            )
+    return dash.no_update, False

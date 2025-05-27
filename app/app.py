@@ -165,8 +165,22 @@ def make_footer():
     return footer
 
 
+def make_notification():
+    return dbc.Toast(
+        "This is a notification",
+        id="notification",
+        header="Notification",
+        is_open=False,
+        dismissable=True,
+        icon="info",
+        duration=3000,
+        style={"position": "fixed", "top": 50, "right": 20, "width": "300px"},
+    )
+
+
 app.layout = html.Div(
     [
+        make_notification(),
         make_header(),
         dash.page_container,
         make_footer(),
