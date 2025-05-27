@@ -660,6 +660,8 @@ def free_query_filter_layout():
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("free-query-filter-button", "n_clicks"),
     State("free-query-filter-input", "value"),
     State("main-msa", "data"),
@@ -670,7 +672,7 @@ def run_free_query_filter(n_clicks, query_string, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to filter.")
-            return dash.no_update
+            return dash.no_update, "No data to filter!", True
 
         from pandas import DataFrame
 
@@ -683,14 +685,16 @@ def run_free_query_filter(n_clicks, query_string, main_msa, msa_data):
         filtered_msa = msa.query(query_string)
         # print("Filtered MSA:")
         msa_data[main_msa] = filtered_msa.to_dict("list")
-        return msa_data
+        return msa_data, f"Filtered by '{query_string}' successfully.", True
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("hhfilter-button", "n_clicks"),
     State("hhfilter-diff", "value"),
     State("hhfilter-max-pairwise-identity", "value"),
@@ -717,47 +721,53 @@ def run_hhfilter(
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to filter.")
-            return dash.no_update
+            return dash.no_update, "No data to filter!", True
 
-        from frankenmsa.filter.hhsuite import hhfilter
-        from pandas import DataFrame
+        try:
+            from frankenmsa.filter.hhsuite import hhfilter
+            from pandas import DataFrame
 
-        # print("Running HHFilter with the following parameters:")
-        # print(f"diff: {diff}")
-        # print(f"max_pairwise_identity: {max_pairwise_identity}")
-        # print(f"min_query_coverage: {min_query_coverage}")
-        # print(f"min_query_identity: {min_query_identity}")
-        # print(f"min_query_score: {min_query_score}")
-        # print(f"target_diversity: {target_diversity}")
-        # print(f"msa_data: {msa_data}")
+            # print("Running HHFilter with the following parameters:")
+            # print(f"diff: {diff}")
+            # print(f"max_pairwise_identity: {max_pairwise_identity}")
+            # print(f"min_query_coverage: {min_query_coverage}")
+            # print(f"min_query_identity: {min_query_identity}")
+            # print(f"min_query_score: {min_query_score}")
+            # print(f"target_diversity: {target_diversity}")
+            # print(f"msa_data: {msa_data}")
 
-        # print("DEBUG WARNING: HHFIlter is disabled for work on macbook!")
-        from time import sleep
+            # print("DEBUG WARNING: HHFIlter is disabled for work on macbook!")
 
-        sleep(5)
-        # msa = msa_data[main_msa]
-        # msa = DataFrame.from_dict(msa)
-        # filtered_msa = hhfilter(
-        #     msa,
-        #     diff=diff,
-        #     max_pairwise_identity=max_pairwise_identity,
-        #     min_query_coverage=min_query_coverage,
-        #     min_query_identity=min_query_identity,
-        #     min_query_score=min_query_score,
-        #     target_diversity=target_diversity,
-        # )
-        # msa_data[main_msa] = msa.to_dict("list")
-        # # print("Filtered MSA:")
-        # return filtered_msa.to_json()
-        return msa_data
+            msa = msa_data[main_msa]
+            msa = DataFrame.from_dict(msa)
+            filtered_msa = hhfilter(
+                msa,
+                diff=diff,
+                max_pairwise_identity=max_pairwise_identity,
+                min_query_coverage=min_query_coverage,
+                min_query_identity=min_query_identity,
+                min_query_score=min_query_score,
+                target_diversity=target_diversity,
+            )
+            msa_data[main_msa] = msa.to_dict("list")
+            # print("Filtered MSA:")
+            return msa_data, "HHFilter applied successfully.", True
+        except:
+            return (
+                dash.no_update,
+                "HHFilter failed to run. Please check the parameters and make sure it is installed!",
+                True,
+            )
 
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("gapsfilter-button", "n_clicks"),
     State("gapsfilter-gap", "value"),
     State("main-msa", "data"),
@@ -768,7 +778,7 @@ def run_gapsfilter(n_clicks, gap, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to filter.")
-            return "No MSA data available to filter."
+            return dash.no_update, "No data to filter!", True
 
         from frankenmsa.utils.msatools import filter_gaps
         from pandas import DataFrame
@@ -782,10 +792,10 @@ def run_gapsfilter(n_clicks, gap, main_msa, msa_data):
         filtered_msa = filter_gaps(msa, allowed_gaps_faction=gap / 100)
         msa_data[main_msa] = filtered_msa.to_dict("list")
         # print("Filtered MSA:")
-        return msa_data
+        return msa_data, "Gaps filter applied successfully.", True
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 def drop_duplicates_layout():
@@ -926,6 +936,8 @@ def sort_by_identity(n_clicks, sort_order, main_msa, msa_data):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("sort-special-gaps-button", "n_clicks"),
     Input("sort-special-order-radio", "value"),
     State("main-msa", "data"),
@@ -936,7 +948,7 @@ def sort_by_gaps(n_clicks, sort_order, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to sort by gaps.")
-            return dash.no_update
+            return dash.no_update, "No data to sort!", True
 
         from frankenmsa.utils.msatools import sort_gaps
         from pandas import DataFrame
@@ -948,10 +960,10 @@ def sort_by_gaps(n_clicks, sort_order, main_msa, msa_data):
         msa = DataFrame.from_dict(msa)
         sorted_msa = sort_gaps(msa, ascending=(sort_order == "asc"))
         msa_data[main_msa] = sorted_msa.to_dict("list")
-        return msa_data
+        return msa_data, "Sorted by gaps successfully.", True
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 def sort_by_column_layout():
@@ -1025,6 +1037,8 @@ def update_sort_by_options(main_msa, msa_data):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("sort-button", "n_clicks"),
     Input("sort-by-dropdown", "value"),
     Input("sort-order-radio", "value"),
@@ -1036,7 +1050,7 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to sort.")
-            return dash.no_update
+            return dash.no_update, "No data to sort!", True
 
         from pandas import DataFrame
         import pandas as pd
@@ -1053,10 +1067,10 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
         sorted_msa = msa.sort_values(by=sort_by, ascending=(sort_order == "asc"))
         sorted_msa = pd.concat([query, sorted_msa], ignore_index=True)
         msa_data[main_msa] = sorted_msa.to_dict("list")
-        return msa_data
+        return msa_data, "Sequences sorted successfully", True
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 # ======================================================================
@@ -1178,6 +1192,8 @@ def update_range_slider(main_msa, msa_data):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("slice-button", "n_clicks"),
     Input("slice-range-slider", "value"),
     State("main-msa", "data"),
@@ -1188,7 +1204,7 @@ def slice_msa(n_clicks, range_value, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to slice.")
-            return dash.no_update
+            return dash.no_update, "No data to slice!", True
 
         from pandas import DataFrame
 
@@ -1204,11 +1220,15 @@ def slice_msa(n_clicks, range_value, main_msa, msa_data):
         sliced_msa = slice_sequences(msa, range_value[0], range_value[1])
         # print("Sliced MSA:")
         msa_data[main_msa] = sliced_msa.to_dict("list")
-        return msa_data
+        return (
+            msa_data,
+            f"Sliced MSA successfully to {range_value[0]}-{range_value[1]}.",
+            True,
+        )
 
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 def set_depth_layout():
@@ -1238,6 +1258,8 @@ def set_depth_layout():
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("set-depth-button", "n_clicks"),
     Input("set-depth-input", "value"),
     State("main-msa", "data"),
@@ -1248,7 +1270,7 @@ def set_depth(n_clicks, depth, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data:
             # print("No MSA data available to set depth.")
-            return dash.no_update
+            return dash.no_update, "No data to crop or extend", True
 
         from pandas import DataFrame
 
@@ -1261,13 +1283,15 @@ def set_depth(n_clicks, depth, main_msa, msa_data):
 
         from frankenmsa.utils.msatools import adjust_depth
 
+        old = len(msa)
         new_msa = adjust_depth(msa, depth)
+        new = len(new_msa)
         msa_data[main_msa] = new_msa.to_dict("list")
         # print("New MSA:")
-        return msa_data
+        return msa_data, "Set MSA depth successfully from {old} to {new}.", True
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 def set_sequence_length_layout():
@@ -1306,6 +1330,8 @@ def set_sequence_length_layout():
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
     Input("match-query-length-button", "n_clicks"),
     Input("pad-longest-sequence-button", "n_clicks"),
     State("main-msa", "data"),
@@ -1316,7 +1342,7 @@ def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
     if (n_clicks_match or n_clicks_pad or 0) > 0:
         if not msa_data:
             # print("No MSA data available to set sequence length.")
-            return dash.no_update
+            return dash.no_update, "No data to unify sequence lengths!", True
 
         from pandas import DataFrame
 
@@ -1333,12 +1359,17 @@ def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
             mode = "max"
 
         new_msa = unify_length(msa, mode)
+        unified_length = len(new_msa.iloc[0]["sequence"])
         # print("New MSA:")
         msa_data[main_msa] = new_msa.to_dict("list")
-        return msa_data
+        return (
+            msa_data,
+            f"Unified sequence lengths to {unified_length} characters.",
+            True,
+        )
     else:
         # print("No button click detected.")
-        return dash.no_update
+        return dash.no_update, dash.no_update, False
 
 
 def rename_layout():
