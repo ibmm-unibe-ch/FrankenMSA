@@ -881,6 +881,12 @@ def sort_special_layout():
                         n_clicks=0,
                         className="button-component",
                     ),
+                    html.Button(
+                        "Shuffle MSA",
+                        id="shuffle-button",
+                        n_clicks=0,
+                        className="button-component",
+                    ),
                     dcc.RadioItems(
                         id="sort-special-order-radio",
                         options=[
@@ -1064,12 +1070,48 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        query = msa.iloc[0]
+        query = msa.iloc[[0]]
         msa = msa.iloc[1:]
         sorted_msa = msa.sort_values(by=sort_by, ascending=(sort_order == "asc"))
         sorted_msa = pd.concat([query, sorted_msa], ignore_index=True)
         msa_data[main_msa] = sorted_msa.to_dict("list")
         return msa_data, "Sequences sorted successfully", True
+    else:
+        # print("No button click detected.")
+        return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("shuffle-button", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def shuffle_msa(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data:
+            # print("No MSA data available to shuffle.")
+            return dash.no_update, "No data to shuffle!", True
+
+        from pandas import DataFrame, concat
+
+        # print("Shuffling MSA with the following parameters:")
+        # print(f"msa_data: {msa_data}")
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+        query = msa.iloc[[0]]
+        print(query)
+        msa = msa.iloc[1:]  # Exclude the first row (query)
+        shuffled_msa = msa.sample(frac=1).reset_index(drop=True)
+        shuffled_msa = concat([query, shuffled_msa], ignore_index=True)
+        print(shuffled_msa)
+        msa_data[main_msa] = shuffled_msa.to_dict("list")
+        # print("Shuffled MSA:")
+        return msa_data, "MSA shuffled successfully.", True
     else:
         # print("No button click detected.")
         return dash.no_update, dash.no_update, False
@@ -1361,7 +1403,7 @@ def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
             mode = "max"
 
         new_msa = unify_length(msa, mode)
-        unified_length = len(new_msa.iloc[0]["sequence"])
+        unified_length = len(new_msa.iloc[[0]]["sequence"])
         # print("New MSA:")
         msa_data[main_msa] = new_msa.to_dict("list")
         return (
@@ -1480,7 +1522,7 @@ def separate_query(n_clicks, main_msa, msa_data):
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        query = msa.iloc[0]
+        query = msa.iloc[[0]]
         msa = msa.iloc[1:]
 
         query_name = main_msa + "_query"
@@ -1556,7 +1598,7 @@ def update_msa_overview(main_msa, msa_data):
     max_length = msa["sequence"].str.len().max()
     min_length = msa["sequence"].str.len().min()
     avg_length = msa["sequence"].str.len().mean()
-    num_gaps = (msa["sequence"] == "-").sum()
+    num_gaps = (msa["sequence"].str.count("-")).sum()
 
     # Prepare data for the table
     overview_data = [
