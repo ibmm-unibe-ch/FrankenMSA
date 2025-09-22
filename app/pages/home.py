@@ -29,7 +29,7 @@ The frankenMSA library is available on PyPI and can be freely installed.
         className="gradient-background",
         children=[
             html.Img(
-                src="assets/logo_white_transparent_large.png",
+                src="assets/frankenmsa_dark_v2.png",
                 className="logo-main",
             ),
             html.P(main_text, style={"margin-top": "4%"}),

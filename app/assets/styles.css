@@ -43,7 +43,7 @@ body {
 }
 
 .gradient-background {
-    background: linear-gradient(87deg,#5efed8,#00cc9a,#009d76);
+    background: linear-gradient(87deg,#eaeaea,#e0fff7,#ebfffa);
     background-size: 180% 180%;
     animation: gradient-animation 21s ease infinite;
     align-items: center;
@@ -65,7 +65,7 @@ body {
   }
 
 .gradient-background h1, h2, h3, h4, h5, h6, p, label {
-    color: white;
+    color: #2C2C2C;
     margin: 0;
     padding: 0;
     align-items: center;
@@ -86,11 +86,11 @@ body {
     border-style: solid;
     border-radius: 5px;
     text-align: center;
-    border-color: #f0f0f0;
-    color: #f0f0f0;
+    border-color: #ffffff;
+    color: #2c2c2c;
     font-weight: bold;
     margin: 10px;
-    background-color: #f0f0f048;
+    background-color: #ffffff7d;
 }
 
 .shaded-bordered h1, h2 {
@@ -116,11 +116,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-color: #f0f0f0;
-    color: #f0f0f0;
+    border-color: #CCCCCC;
+    color: #2C2C2C;
     font-weight: bold;
     margin: 10px;
-    background-color: #f0f0f048; /* Light background for the file upload area */
+    background-color: #F8F8F8; /* Light background for the file upload area */
     cursor: pointer; /* Change cursor to pointer on hover */
     transition: background-color 0.3s; /* Smooth transition for background color */
 }
@@ -137,7 +137,7 @@ body {
 
 .dropdown-component option {
     
-    background-color: #f0f0f048; /* Light background for the dropdown area */
+    background-color: #F8F8F8; /* Light background for the dropdown area */
 }
 
 .button-component {
@@ -148,17 +148,17 @@ body {
     border-style: solid;
     border-radius: 5px;
     text-align: center;
-    border-color: #f0f0f0;
-    color: #f0f0f0;
+    border-color: #CCCCCC;
+    color: #2C2C2C;
     text-align: center;
     margin: 10px;
-    background-color: #f0f0f048; /* Light background for the button area */
+    background-color: #F8F8F8; /* Light background for the button area */
     cursor: pointer; /* Change cursor to pointer on hover */
     transition: background-color 0.3s; /* Smooth transition for background color */
 }
 .button-component:hover {
-    background-color: #f0f0f0; /* Change background color on hover */
-    color: #000; /* Change text color on hover */
+    background-color: #CCCCCC; /* Change background color on hover */
+    color: #2C2C2C; /* Change text color on hover */
 }
 
 .sidebar {
@@ -189,7 +189,7 @@ input, textarea {
     border-style: solid;
     border-radius: 5px;
     text-align: center;
-    border-color: #f0f0f0;
+    border-color: #CCCCCC;
     color: #565656;
     font-weight: bold;
     margin: 10px;
