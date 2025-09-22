@@ -1166,6 +1166,24 @@ def slice_msa_layout():
         tooltip={"placement": "bottom", "always_visible": True},
     )
 
+    slice_start_input = dcc.Input(
+        id="slice-range-start",
+        type="number",
+        value=0,
+        min=0,
+        step=1,
+        style={"width": "60px"},
+    )
+
+    slice_end_input = dcc.Input(
+        id="slice-range-end",
+        type="number",
+        value=0,
+        min=0,
+        step=1,
+        style={"width": "60px"},
+    )
+
     slice_button = html.Button(
         "Slice MSA",
         id="slice-button",
@@ -1188,7 +1206,15 @@ def slice_msa_layout():
         [
             html.H1("Slice the MSA"),
             range_slider_label,
-            range_slider,
+            dbc.Row(
+                [
+                    dbc.Col(slice_start_input, width="auto"),
+                    dbc.Col(range_slider),
+                    dbc.Col(slice_end_input, width="auto"),
+                ],
+                align="center",
+                style={"margin-bottom": "20px"},
+            ),
             html.Div(
                 [
                     html.Div(slice_status, style={"flex": "1", "textAlign": "left"}),
@@ -1211,6 +1237,10 @@ def slice_msa_layout():
     Output("slice-range-slider", "max"),
     Output("slice-range-slider", "marks"),
     Output("slice-range-slider", "value"),
+    Output("slice-range-start", "value"),
+    Output("slice-range-end", "value"),
+    Output("slice-range-start", "max"),
+    Output("slice-range-end", "max"),
     Output("slice-status-text", "children"),
     Input("main-msa", "data"),
     Input("msa-data", "data"),
@@ -1219,7 +1249,7 @@ def slice_msa_layout():
 def update_range_slider(main_msa, msa_data):
     # print("Updating range slider")
     if not msa_data:
-        return 0, {}, [0, 0], dash.no_update
+        return 0, {}, [0, 0], 0, 0, 0, 0, dash.no_update
 
     msa = msa_data[main_msa]
     msa = DataFrame.from_dict(msa)
@@ -1230,6 +1260,10 @@ def update_range_slider(main_msa, msa_data):
         max_length,
         marks,
         [0, max_length],
+        0,
+        max_length,
+        max_length,
+        max_length,
         f"Select a range to slice (0 to {max_length})",
     )
 
@@ -1273,6 +1307,27 @@ def slice_msa(n_clicks, range_value, main_msa, msa_data):
     else:
         # print("No button click detected.")
         return dash.no_update, dash.no_update, False
+
+
+# Callbacks to sync input fields with slider for slice functionality
+@callback(
+    Output("slice-range-slider", "value", allow_duplicate=True),
+    Input("slice-range-start", "value"),
+    Input("slice-range-end", "value"),
+    prevent_initial_call=True,
+)
+def update_slice_range_from_inputs(start_value, end_value):
+    return [start_value, end_value]
+
+
+@callback(
+    Output("slice-range-start", "value", allow_duplicate=True),
+    Output("slice-range-end", "value", allow_duplicate=True),
+    Input("slice-range-slider", "value"),
+    prevent_initial_call=True,
+)
+def update_slice_inputs_from_range(range_value):
+    return range_value
 
 
 def set_depth_layout():
