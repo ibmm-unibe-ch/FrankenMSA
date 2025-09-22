@@ -1190,6 +1190,15 @@ def slice_msa_layout():
         n_clicks=0,
         className="button-component",
     )
+
+    slice_copy_button = html.Button(
+        "Slice MSA copy",
+        id="slice-copy-button",
+        n_clicks=0,
+        className="button-component",
+        style={"margin-left": "10px"},
+    )
+
     slice_status = dcc.Loading(
         [
             html.Div(
@@ -1218,7 +1227,10 @@ def slice_msa_layout():
             html.Div(
                 [
                     html.Div(slice_status, style={"flex": "1", "textAlign": "left"}),
-                    html.Div(slice_button, style={"flex": "1", "textAlign": "right"}),
+                    html.Div(
+                        [slice_button, slice_copy_button],
+                        style={"flex": "1", "textAlign": "right"},
+                    ),
                 ],
                 style={
                     "display": "flex",
@@ -1273,7 +1285,7 @@ def update_range_slider(main_msa, msa_data):
     Output("notification", "children", allow_duplicate=True),
     Output("notification", "is_open", allow_duplicate=True),
     Input("slice-button", "n_clicks"),
-    Input("slice-range-slider", "value"),
+    State("slice-range-slider", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
@@ -1306,6 +1318,53 @@ def slice_msa(n_clicks, range_value, main_msa, msa_data):
 
     else:
         # print("No button click detected.")
+        return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("slice-copy-button", "n_clicks"),
+    State("slice-range-slider", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def slice_msa_copy(n_clicks, range_value, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data:
+            return dash.no_update, "No data to slice!", True
+
+        from pandas import DataFrame
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        from frankenmsa.utils.msatools import slice_sequences
+
+        sliced_msa = slice_sequences(msa, range_value[0], range_value[1])
+
+        # Create new MSA name with the format {name}_{start}_{end}
+        new_msa_name = f"{main_msa}_{range_value[0]}_{range_value[1]}"
+
+        # Ensure the name is unique
+        counter = 1
+        base_name = new_msa_name
+        while new_msa_name in msa_data:
+            new_msa_name = f"{base_name}_{counter}"
+            counter += 1
+
+        # Add the sliced MSA as a new entry
+        msa_data[new_msa_name] = sliced_msa.to_dict("list")
+
+        return (
+            msa_data,
+            f"Created sliced MSA copy '{new_msa_name}' with range {range_value[0]}-{range_value[1]}.",
+            True,
+        )
+
+    else:
         return dash.no_update, dash.no_update, False
 
 
