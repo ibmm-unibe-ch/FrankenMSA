@@ -43,45 +43,41 @@ class TestShuffleMSA:
                     assert shuffled["sequence"].iloc[row][col] == "-"
 
     
-    # ----------------------------------------------------------------------
-    # Optional A: allow gaps to be shuffled (uncomment to enable)
-    #
-    # def test_shuffle_preserve_gaps_false(self):
-    #     df = make_test_df()
-    #     df = unify_length(df, "first")
-    #
-    #     shuffled = shuffle_msa(df, preserve_gaps=False, random_state=42)
-    #
-    #     # Query stays identical
-    #     assert shuffled["sequence"].iloc[0] == df["sequence"].iloc[0]
-    #
-    #     # At least one non-query row changed
-    #     changed = any(
-    #         shuffled["sequence"].iloc[i] != df["sequence"].iloc[i]
-    #         for i in range(1, len(df))
-    #     )
-    #     assert changed
+    
+    def test_shuffle_preserve_gaps_false(self):
+        df = make_test_df()
+        df = unify_length(df, "first")
+    
+        shuffled = shuffle_msa(df, preserve_gaps=False, random_state=42)
+    
+        # Query stays identical
+        assert shuffled["sequence"].iloc[0] == df["sequence"].iloc[0]
+    
+        # At least one non-query row changed
+        changed = any(
+            shuffled["sequence"].iloc[i] != df["sequence"].iloc[i]
+            for i in range(1, len(df))
+        )
+        assert changed
 
-    # ----------------------------------------------------------------------
-    # Optional B: restrict shuffle range (start=1, end=3)
-    #
-    # def test_shuffle_with_range(self):
-    #     df = make_test_df()
-    #     df = unify_length(df, "first")
-    #
-    #     shuffled = shuffle_msa(df, start=1, end=3, preserve_gaps=True, random_state=42)
-    #
-    #     # Query stays identical
-    #     assert shuffled["sequence"].iloc[0] == df["sequence"].iloc[0]
-    #
-    #     # Some non-query row changed
-    #     changed = any(
-    #         shuffled["sequence"].iloc[i] != df["sequence"].iloc[i]
-    #         for i in range(1, len(df))
-    #     )
-    #     assert changed
-    #
-    #     # Columns outside [1,3) must be unchanged (col 0 and col 3)
-    #     for col in [0, 3]:
-    #         for row in range(len(df)):
-    #             assert shuffled["sequence"].iloc[row][col] == df["sequence"].iloc[row][col]
+
+    def test_shuffle_with_range(self):
+        df = make_test_df()
+        df = unify_length(df, "first")
+    
+        shuffled = shuffle_msa(df, start=1, end=3, preserve_gaps=True, random_state=42)
+    
+        # Query stays identical
+        assert shuffled["sequence"].iloc[0] == df["sequence"].iloc[0]
+    
+        # Some non-query row changed
+        changed = any(
+            shuffled["sequence"].iloc[i] != df["sequence"].iloc[i]
+            for i in range(1, len(df))
+        )
+        assert changed
+    
+        # Columns outside [1,3) must be unchanged (col 0 and col 3)
+        for col in [0, 3]:
+            for row in range(len(df)):
+                assert shuffled["sequence"].iloc[row][col] == df["sequence"].iloc[row][col]
