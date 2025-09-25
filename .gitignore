@@ -171,3 +171,7 @@ cython_debug/
 .pypirc
 
 ProteinMPNN
+
+
+run.sh
+temp_file.a3m
