@@ -17,6 +17,7 @@ __all__ = [
     "adjust_depth",
     "extend_to_depth",
     "crop_to_depth",
+    "shuffle_msa"
 ]
 
 
@@ -355,3 +356,105 @@ def filter_identity(
     filtered_df = pd.concat([query_sequence, filtered_df], ignore_index=True)
     filtered_df = filtered_df.reset_index(drop=True)
     return filtered_df
+
+
+def shuffle_msa(
+    df: pd.DataFrame,
+    start: Optional[int] = None,
+    end: Optional[int] = None,
+    preserve_gaps: bool = True,
+    random_state: Optional[int] = None,
+    inplace: bool = False,
+) -> pd.DataFrame:
+    """
+    Column-wise shuffling for an MSA DataFrame while keeping the first sequence (query) fixed.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing sequences. Must contain a column named "sequence".
+        All sequences must have the same length.
+    start : int, optional
+        Start position (0-based, inclusive) of the region to shuffle. Defaults to 0.
+    end : int, optional
+        End position (0-based, exclusive) of the region to shuffle. Defaults to sequence length.
+    preserve_gaps : bool, default True
+        If True, gaps ('-') keep their original row positions in each column and only
+        non-gap residues among non-query rows are shuffled. If False, gaps participate
+        in the shuffling (still excluding the query row).
+    random_state : int, optional
+        Seed for reproducibility.
+    inplace : bool, default False
+        If True, modify the input DataFrame in place and return it. Otherwise, return a copy.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with column-shuffled non-query sequences in the selected range.
+
+    Notes
+    -----
+    - The first row is treated as the query sequence and is not modified.
+    - This function does NOT pad or crop sequences. If lengths differ, a ValueError is raised.
+      You may call `unify_length` beforehand if needed.
+    """
+    if "sequence" not in df.columns:
+        raise ValueError("DataFrame must contain a 'sequence' column.")
+
+    # Ensure all sequences have the same length
+    lengths = df["sequence"].str.len().unique()
+    if len(lengths) != 1:
+        raise ValueError(
+            "All sequences must have the same length. Consider calling `unify_length` first."
+        )
+    L = int(lengths[0])
+
+    # Resolve slice bounds
+    s = 0 if start is None else int(start)
+    e = L if end is None else int(end)
+    if not (0 <= s <= e <= L):
+        raise ValueError(f"Invalid range: start={s}, end={e}, sequence_length={L}")
+
+    # Prepare RNG
+    import random
+    rng = random.Random(random_state)
+
+    # Work on a copy unless inplace
+    out = df if inplace else df.copy()
+
+    # Fast path: nothing to do if depth < 2 or zero-length slice
+    if len(out) <= 1 or s == e:
+        return out.reset_index(drop=True)
+
+    # Convert sequences to list-of-chars for in-place edits
+    seq_lists = out["sequence"].tolist()
+    seq_lists = [list(seq) for seq in seq_lists]  # depth x L
+
+    # Shuffle per column in [s, e)
+    # Row 0 is query and remains unchanged
+    depth = len(seq_lists)
+    for col in range(s, e):
+        # Collect indices of rows eligible for shuffling (exclude query row 0)
+        non_query_rows = list(range(1, depth))
+
+        if preserve_gaps:
+            # Only shuffle among non-gap residues; keep gaps at their rows
+            nongap_rows = [r for r in non_query_rows if seq_lists[r][col] != "-"]
+            if len(nongap_rows) > 1:
+                residues = [seq_lists[r][col] for r in nongap_rows]
+                rng.shuffle(residues)
+                for r, aa in zip(nongap_rows, residues):
+                    seq_lists[r][col] = aa
+            # else: 0 or 1 residue -> nothing to permute
+        else:
+            # Shuffle everything (including '-') among non-query rows
+            if len(non_query_rows) > 1:
+                residues = [seq_lists[r][col] for r in non_query_rows]
+                rng.shuffle(residues)
+                for r, aa in zip(non_query_rows, residues):
+                    seq_lists[r][col] = aa
+
+    # Stitch back to strings
+    out["sequence"] = ["".join(chars) for chars in seq_lists]
+    return out.reset_index(drop=True)
+
