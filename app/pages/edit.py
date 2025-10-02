@@ -39,7 +39,7 @@ def make_siderbar():
             dbc.Nav(
                 [
                     dbc.NavLink("Filter", id="edit-filter", active="exact"),
-                    dbc.NavLink("Sort", id="edit-sort", active="exact"),
+                    dbc.NavLink("Sort & Shuffle", id="edit-sort", active="exact"),
                     dbc.NavLink("Slice & Crop", id="edit-crop", active="exact"),
                     # dbc.NavLink(
                     #     "Free Table Editor", id="edit-table-editor", active="exact"
@@ -852,16 +852,6 @@ def drop_duplicates(n_clicks, main_msa, msa_data):
 # Sort layout
 # ======================================================================
 
-
-def sort_by_layout():
-    return html.Div(
-        [
-            sort_special_layout(),
-            sort_by_column_layout(),
-        ],
-    )
-
-
 def sort_special_layout():
     return html.Div(
         [
@@ -869,23 +859,28 @@ def sort_special_layout():
             html.P("Sort the MSA by special properties such as sequence identity."),
             html.Div(
                 [
-                    html.Button(
-                        "Sort by Sequence Identity",
-                        id="sort-special-identity-button",
-                        n_clicks=0,
-                        className="button-component",
-                    ),
-                    html.Button(
-                        "Sort by Gaps",
-                        id="sort-special-gaps-button",
-                        n_clicks=0,
-                        className="button-component",
-                    ),
-                    html.Button(
-                        "Shuffle MSA",
-                        id="shuffle-button",
-                        n_clicks=0,
-                        className="button-component",
+                    html.Div(
+                        [
+                            html.Button(
+                                "Sort by Sequence Identity",
+                                id="sort-special-identity-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                            html.Button(
+                                "Sort by Gaps",
+                                id="sort-special-gaps-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                            html.Button(
+                                "Shuffle MSA",
+                                id="shuffle-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        style={"display": "flex", "gap": "8px"},
                     ),
                     dcc.RadioItems(
                         id="sort-special-order-radio",
@@ -895,19 +890,154 @@ def sort_special_layout():
                         ],
                         value="desc",
                         labelStyle={"display": "block"},
-                        style={"flex": "1", "margin-right": "10px"},
+                        style={"margin-left": "20px"},
                     ),
                 ],
                 style={
                     "display": "flex",
                     "flex-direction": "row",
                     "align-items": "center",
-                    "justify-content": "space-between",
-                    "width": "100%",
+                    "justify-content": "center",   
+                    "gap": "40px",                 
                 },
             ),
         ],
         className="shaded-bordered",
+    )
+def shuffle_columns_layout():
+    
+    start_input = dcc.Input(
+        id="shuffle-range-start",
+        type="number",
+        value=0,
+        min=0,
+        step=1,
+        style={"width": "120px", "marginRight": "8px"},
+    )
+    end_input = dcc.Input(
+        id="shuffle-range-end",
+        type="number",
+        value=0,
+        min=0,
+        step=1,
+        style={"width": "120px", "marginLeft": "8px"},
+    )
+    
+    range_slider = dcc.RangeSlider(
+        id="shuffle-range-slider",
+        min=0,
+        max=0, 
+        step=1,
+        value=[0, 0],
+        marks={0: "0"},
+        tooltip={"placement": "bottom", "always_visible": True},
+        className="input-component",
+        persistence=True,
+        persistence_type="memory",
+        allowCross=False,
+    )
+    checklist = dcc.Checklist(
+        id="shuffle-preserve-gaps",
+        options=[{"label": "Preserve gaps", "value": "keep"}],
+        value=["keep"],
+        labelStyle={"marginRight": "16px"},
+        inline=True,
+    )
+    button = html.Button(
+        "Apply Column Shuffle",
+        id="apply-shuffle-button",
+        n_clicks=0,
+        className="button-component",
+        style={
+            "marginTop": "16px",
+            "fontSize": "1.25rem",
+            "fontWeight": 600,
+            "padding": "14px 40px",
+            "borderRadius": "8px",
+            "boxShadow": "0 2px 8px rgba(43,124,255,0.08)",
+        },
+    )
+    return html.Div(
+        [
+            html.H1("Column-wise Shuffle", className="section-title"),
+            html.Div(
+                [
+                    start_input,
+                    html.Div(range_slider, style={"flex": 1, "margin": "0 12px"}),
+                    end_input,
+                ],
+                style={"display": "flex", "alignItems": "center", "marginBottom": "12px"},
+            ),
+            html.Div(checklist, style={"marginBottom": "10px"}),
+            html.Div(button, style={"textAlign": "center"}),
+        ],
+        className="shaded-bordered",
+    )
+
+from dash import callback, Output, Input, State
+import dash
+from pandas import DataFrame
+
+@callback(
+    Output("shuffle-range-slider", "max"),
+    Output("shuffle-range-slider", "marks"),
+    Output("shuffle-range-slider", "value"),
+    Output("shuffle-range-start", "value"),
+    Output("shuffle-range-end", "value"),
+    Output("shuffle-range-start", "max"),
+    Output("shuffle-range-end", "max"),
+    Input("main-msa", "data"),
+    Input("msa-data", "data"),
+    # prevent_initial_call=True,
+)
+def update_shuffle_range_slider(main_msa, msa_data):
+    if not msa_data or not main_msa:
+        return 0, {0: "0"}, [0, 0], 0, 0, 0, 0
+    msa = msa_data[main_msa]
+    msa = DataFrame.from_dict(msa)
+    if msa.empty or "sequence" not in msa:
+        return 0, {0: "0"}, [0, 0], 0, 0, 0, 0
+    
+    if "sequence" in msa and len(msa["sequence"]) > 0:
+        n_cols = len(msa["sequence"].iloc[0])
+    else:
+        n_cols = 0
+    mid = n_cols // 2
+    marks = {0: "0", mid: str(mid), n_cols: str(n_cols)} if n_cols > 0 else {0: "0"}
+    return n_cols, marks, [0, n_cols], 0, n_cols, n_cols, n_cols
+
+
+
+from dash import callback, no_update, ctx
+@callback(
+    Output("shuffle-range-slider", "value", allow_duplicate=True),
+    Output("shuffle-range-start", "value", allow_duplicate=True),
+    Output("shuffle-range-end", "value", allow_duplicate=True),
+    Input("shuffle-range-slider", "value"),
+    Input("shuffle-range-start", "value"),
+    Input("shuffle-range-end", "value"),
+    prevent_initial_call=True,
+)
+def sync_shuffle_slider_and_inputs(slider_value, start_value, end_value):
+    triggered = ctx.triggered_id
+    if triggered == "shuffle-range-slider":
+        if not slider_value or len(slider_value) != 2:
+            return no_update, no_update, no_update
+        return slider_value, slider_value[0], slider_value[1]
+    elif triggered in ("shuffle-range-start", "shuffle-range-end"):
+        if start_value is None or end_value is None:
+            return no_update, no_update, no_update
+        return [start_value, end_value], start_value, end_value
+    else:
+        return no_update, no_update, no_update
+
+def sort_by_layout():
+    return html.Div(
+        [
+            sort_special_layout(), 
+            shuffle_columns_layout(),          
+            sort_by_column_layout(),    
+        ],
     )
 
 
@@ -1115,8 +1245,76 @@ def shuffle_msa(n_clicks, main_msa, msa_data):
     else:
         # print("No button click detected.")
         return dash.no_update, dash.no_update, False
+    
+
+from dash import callback, Input, Output, State
+import dash  
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("apply-shuffle-button", "n_clicks"),
+    State("shuffle-range-start", "value"),
+    State("shuffle-range-end", "value"),
+    State("shuffle-preserve-gaps", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data):
+    """Apply column-wise shuffle using msatools.shuffle_msa (keeps row 0 fixed)."""
+    if (n_clicks or 0) <= 0:
+        return dash.no_update, dash.no_update, False
+
+    if not msa_data or not main_msa:
+        return dash.no_update, "No data to shuffle!", True
+
+    try:
+        import pandas as pd
+        from frankenmsa.utils.msatools import (
+            shuffle_msa as shuffle_msa_cols,
+            unify_length,
+        )
+
+        # Load current MSA into DataFrame
+        df = pd.DataFrame.from_dict(msa_data[main_msa])
+
+        # Ensure equal lengths (use first row length as reference)
+        df = unify_length(df, "first")
+
+        # Parse UI options
+        preserve_gaps = "keep" in (preserve_vals or [])
+        s = int(start) if start not in (None, "") else None
+        e = int(end) if end not in (None, "") else None
+
+        # Do the column-wise shuffle (row 0 kept fixed)
+        shuffled = shuffle_msa_cols(
+            df,
+            start=s,
+            end=e,
+            preserve_gaps=preserve_gaps,
+            inplace=False,
+        )
+
+        # Write back to store
+        msa_data[main_msa] = shuffled.to_dict("list")
+
+        # Build a small status message
+        L = len(shuffled["sequence"].iloc[0])
+        range_txt = f"[{0 if s is None else s}:{L if e is None else e}]"
+        gap_txt = "(preserved gaps)" if preserve_gaps else "(gaps shuffled)"
+
+        msg = f"Shuffled columns {range_txt} {gap_txt}."
+        return msa_data, msg, True
+
+    except Exception as ex:
+        return dash.no_update, f"Shuffle failed: {ex}", True
 
 
+
+
+    
 # ======================================================================
 # Slice & Crop layout
 # ======================================================================
