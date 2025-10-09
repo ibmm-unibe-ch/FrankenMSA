@@ -277,14 +277,13 @@ def proteinmpnn_layout():
 # This callback serializes the current UI state into a Colab URL query string
 # so the notebook can parse it with parse_qs(location.search).
 @callback(
-    Output("proteinmpnn-colab-link", "href", allow_duplicate=True),
+    Output("proteinmpnn-colab-link", "href"),
     Input("proteinmpnn-sampling-temperature", "value"),
     Input("proteinmpnn-sequence-count", "value"),
     Input("proteinmpnn-design-chains", "value"),
     Input("proteinmpnn-fixed-chains", "value"),
     Input("proteinmpnn-pdb-code", "value"),
     Input("proteinmpnn-homomer", "value"),
-    prevent_initial_call=True,  # ← 就加这一行
 )
 def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
     # Basic defaults
@@ -340,17 +339,23 @@ def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
 clientside_callback(
     """
     function(n, href) {
-      if (!n) { return ""; }
+      if (!n || !href) { return ""; }
       try {
         const u = new URL(href, window.location.href);
         const params = Object.fromEntries(u.searchParams.entries());
-        // Persist params across the cross-origin navigation
-        window.name = JSON.stringify(params);
-        // Open Colab in a new tab/window
-        window.open(href, "_blank");
+        const payload = JSON.stringify(params);
+
+        // Open a blank tab first, set its window.name, then navigate to Colab
+        const w = window.open("about:blank", "_blank");
+        if (w) {
+          try { w.name = payload; } catch (e) {}
+          w.location.href = u.toString();
+        } else {
+          // Fallback if popup blocked
+          window.open(u.toString(), "_blank");
+        }
       } catch (e) {
         console.error("Failed to open Colab with window.name handoff:", e);
-        // Fallback: still try to open the href
         window.open(href, "_blank");
       }
       return "";
