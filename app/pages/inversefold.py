@@ -3,6 +3,7 @@ from dash import html, dcc
 from dash import callback, Input, Output, State, clientside_callback
 import dash_bootstrap_components as dbc
 from urllib.parse import urlencode
+import time
 
 # HOTFIX: point to upstream public ProteinMPNN demo until our notebook exists on dev
 COLAB_URL = (
@@ -41,8 +42,6 @@ def proteinmpnn_layout():
                             step=0.1,
                             value=1.0,
                             marks={i / 10: str(i / 10) for i in range(10, 50, 10)},
-                            persistence=True,
-                            persistence_type="memory",
                             tooltip={"placement": "bottom", "always_visible": True},
                         ),
                         style={"width": "100%"},
@@ -60,8 +59,6 @@ def proteinmpnn_layout():
                         min=1,
                         max=5000,
                         step=1,
-                        persistence=True,
-                        persistence_type="memory",
                         style={"width": "100%"},
                     ),
                 ],
@@ -94,8 +91,6 @@ def proteinmpnn_layout():
                                 type="text",
                                 value="",
                                 placeholder="e.g., 1ABC",
-                                persistence=True,
-                                persistence_type="memory",
                                 className="input-component",
                                 style={"width": "100%"},
                             ),
@@ -173,8 +168,6 @@ def proteinmpnn_layout():
                                 type="text",
                                 value="",
                                 placeholder="A or A,B",
-                                persistence=True,
-                                persistence_type="memory",
                                 className="input-component",
                                 style={"width": "100%"},
                             ),
@@ -189,8 +182,6 @@ def proteinmpnn_layout():
                                 type="text",
                                 value="",
                                 placeholder="B or B,C",
-                                persistence=True,
-                                persistence_type="memory",
                                 className="input-component",
                                 style={"width": "100%"},
                             ),
@@ -227,8 +218,8 @@ def proteinmpnn_layout():
             html.Div(
                 dcc.Markdown(
                     "Run inverse folding using **ProteinMPNN** on a **Google Colab GPU**.\n"
-                    "This avoids the remote biolib queue and is faster & more reliable.\n"
-                    "**Click _Open Colab Runner_ below** to launch the notebook, then upload your PDB and set the parameters **in Colab**.\n"
+                    "Parameters you set **on this page** (temperature, number of sequences, PDB code, chains, homomer) will be **passed to Colab automatically** via the URL.\n"
+                    "Click **_Open Colab (with these parameters)_** below to launch the notebook. In Colab you can still tweak settings or upload your PDB if you left the code blank.\n"
                     "Note: currently FrankenMSA only supports homomers (single chain)."
                 )
             ),
@@ -249,7 +240,7 @@ def proteinmpnn_layout():
             html.Div(
                 [
                     html.Button(
-                        "Open Colab Runner",
+                        "Open Colab (with these parameters)",
                         id="open-proteinmpnn-colab",
                         n_clicks=0,
                         className="button-component",
@@ -260,7 +251,8 @@ def proteinmpnn_layout():
                         id="proteinmpnn-colab-link",
                         href=COLAB_URL,
                         target="_blank",
-                        style={"display": "none"},
+                        style={"display": "inline-block", "marginTop": "8px"},
+                        children="If a pop-up is blocked, click here to open Colab",
                     ),
                     # hidden dummy for clientside callback output
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
@@ -278,27 +270,32 @@ def proteinmpnn_layout():
 # so the notebook can parse it with parse_qs(location.search).
 @callback(
     Output("proteinmpnn-colab-link", "href"),
-    Input("proteinmpnn-sampling-temperature", "value"),
-    Input("proteinmpnn-sequence-count", "value"),
-    Input("proteinmpnn-design-chains", "value"),
-    Input("proteinmpnn-fixed-chains", "value"),
-    Input("proteinmpnn-pdb-code", "value"),
-    Input("proteinmpnn-homomer", "value"),
+    Input("open-proteinmpnn-colab", "n_clicks"),  # build on click
+    State("proteinmpnn-sampling-temperature", "value"),
+    State("proteinmpnn-sequence-count", "value"),
+    State("proteinmpnn-design-chains", "value"),
+    State("proteinmpnn-fixed-chains", "value"),
+    State("proteinmpnn-pdb-code", "value"),
+    State("proteinmpnn-homomer", "value"),
+    prevent_initial_call=True,
 )
-def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
+
+def build_colab_href(n, temp, num, design, fixed, pdb_code, homomer):
+    if not n:
+        raise dash.exceptions.PreventUpdate
     # Basic defaults
     try:
         t = round(float(temp), 3) if temp not in (None, "") else 1.0
     except Exception:
         t = 1.0
     try:
-        n = int(num) if num not in (None, "") else 128
+        n_val = int(num) if num not in (None, "") else 128
     except Exception:
-        n = 128
+        n_val = 128
 
     params = {}
     params["temp"] = t
-    params["num"] = n
+    params["num"] = n_val
 
     # optional PDB code (uppercased, no spaces)
     if pdb_code is not None:
@@ -325,6 +322,8 @@ def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
     if f:
         params["fixed"] = f
 
+    params["ts"] = int(time.time())
+
     # Always include all params, even if some are blank
     # Ensure all keys are present for: temp, num, pdb, homomer, design, fixed
     for key in ["pdb", "design", "fixed"]:
@@ -335,28 +334,16 @@ def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
     return COLAB_URL + "?" + urlencode(params)
 
 
-# ---- Client-side: write params to window.name, then open Colab in a new tab ----
+# ---- Client-side: open the already-built URL in a new tab ----
 clientside_callback(
     """
     function(n, href) {
       if (!n || !href) { return ""; }
       try {
-        const u = new URL(href, window.location.href);
-        const params = Object.fromEntries(u.searchParams.entries());
-        const payload = JSON.stringify(params);
-
-        // Open a blank tab first, set its window.name, then navigate to Colab
-        const w = window.open("about:blank", "_blank");
-        if (w) {
-          try { w.name = payload; } catch (e) {}
-          w.location.href = u.toString();
-        } else {
-          // Fallback if popup blocked
-          window.open(u.toString(), "_blank");
-        }
-      } catch (e) {
-        console.error("Failed to open Colab with window.name handoff:", e);
         window.open(href, "_blank");
+      } catch (e) {
+        console.error("Failed to open Colab:", e);
+        window.location.href = href;
       }
       return "";
     }
