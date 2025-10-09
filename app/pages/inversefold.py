@@ -74,8 +74,6 @@ def proteinmpnn_layout():
 
     advanced = html.Div(
         [
-            # Removed the inner html.Hr("),
-            # Removed the inner html.H3("Advanced (optional)", ...)
             # Row A: PDB code on the left, Homomer toggle on the right (aligned to the end)
             dbc.Row(
                 [
@@ -246,7 +244,7 @@ def proteinmpnn_layout():
                         className="button-component",
                         style={"width": "100%", "fontWeight": 700},
                     ),
-                    # hidden anchor to carry the computed href (updated by build_colab_href)
+                    # anchor to carry the computed href (updated by build_colab_href)
                     html.A(
                         id="proteinmpnn-colab-link",
                         href=COLAB_URL,
@@ -337,20 +335,33 @@ def build_colab_href(n, temp, num, design, fixed, pdb_code, homomer):
 # ---- Client-side: open the already-built URL in a new tab ----
 clientside_callback(
     """
-    function(n, href) {
-      if (!n || !href) { return ""; }
+    function(href, n) {
+      // Open Colab in a new tab and pass parameters via the NEW window's window.name
+      if (!href || !n) { return ""; }
       try {
-        window.open(href, "_blank");
+        // Parse params from href (already built server-side)
+        const u = new URL(href, window.location.href);
+        const params = Object.fromEntries(u.searchParams.entries());
+
+        // Open new tab
+        const win = window.open(href, "_blank");
+
+        // Write params to the NEW window's name (not the current window)
+        if (win) {
+          try { win.name = JSON.stringify(params); } catch (e) {}
+        } else {
+          console.warn("Popup blocked: please allow popups for this site.");
+        }
       } catch (e) {
-        console.error("Failed to open Colab:", e);
-        window.location.href = href;
+        console.error("Failed to open Colab with window.name handoff:", e);
+        try { window.location.href = href; } catch (_) {}
       }
       return "";
     }
     """,
     Output("colab-launch-dummy", "children"),
-    Input("open-proteinmpnn-colab", "n_clicks"),
-    State("proteinmpnn-colab-link", "href"),
+    Input("proteinmpnn-colab-link", "href"),
+    State("open-proteinmpnn-colab", "n_clicks"),
     prevent_initial_call=True,
 )
 
@@ -361,6 +372,7 @@ clientside_callback(
     Input("toggle-advanced", "n_clicks"),
     prevent_initial_call=True
 )
+
 def toggle_advanced(n):
     if n and n % 2 == 1:
         return True, "Advanced (optional) ▲"
