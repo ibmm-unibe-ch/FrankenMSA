@@ -216,8 +216,8 @@ def proteinmpnn_layout():
             html.Div(
                 dcc.Markdown(
                     "Run inverse folding using **ProteinMPNN** on a **Google Colab GPU**.\n"
-                    "Parameters you set **on this page** (temperature, number of sequences, PDB code, chains, homomer) will be **passed to Colab automatically** via the URL.\n"
-                    "Click **_Open Colab (with these parameters)_** below to launch the notebook. In Colab you can still tweak settings or upload your PDB if you left the code blank.\n"
+                    "Parameters you set on this page (temperature, number of sequences, PDB code, chains, homomer) will be passed to Colab.\n"
+                    "Click **Open Colab (with these parameters)** to launch the notebook. If a pop-up is blocked, use the backup link, or copy the parameter string and paste into the first Colab cell (`QUERY`).\n"
                     "Note: currently FrankenMSA only supports homomers (single chain)."
                 )
             ),
@@ -257,6 +257,29 @@ def proteinmpnn_layout():
                 ],
                 style={"width": "56%", "maxWidth": "620px", "marginTop": "12px", "margin": "20px auto", "textAlign": "center"},
             ),
+            html.Div(
+                [
+                    html.Small(
+                        "Or copy these parameters and paste into the first Colab cell (QUERY):",
+                        className="text-muted",
+                        style={"display": "block", "marginBottom": "6px", "textAlign": "center"},
+                    ),
+                    dbc.InputGroup(
+                        [
+                            dbc.Input(
+                                id="proteinmpnn-param-string",
+                                value="",
+                                readonly=True,
+                                style={"fontFamily": "monospace"},
+                            ),
+                            dbc.Button("Copy", id="proteinmpnn-copy-btn", n_clicks=0, outline=True),
+                        ],
+                        style={"maxWidth": "620px", "margin": "0 auto"},
+                    ),
+                    html.Div(id="proteinmpnn-copy-status", style={"fontSize": "0.9rem", "marginTop": "6px", "minHeight": "1.2rem"}),
+                ],
+                style={"width": "56%", "maxWidth": "620px", "margin": "0 auto 24px auto", "textAlign": "center"},
+            ),
         ],
         style={"width": "80%", "maxWidth": "1000px"},
     )
@@ -268,6 +291,7 @@ def proteinmpnn_layout():
 # so the notebook can parse it with parse_qs(location.search).
 @callback(
     Output("proteinmpnn-colab-link", "href"),
+    Output("proteinmpnn-param-string", "value"),
     Input("open-proteinmpnn-colab", "n_clicks"),  # build on click
     State("proteinmpnn-sampling-temperature", "value"),
     State("proteinmpnn-sequence-count", "value"),
@@ -329,7 +353,9 @@ def build_colab_href(n, temp, num, design, fixed, pdb_code, homomer):
             params[key] = ""
 
     # Append '?' + encoded params to COLAB_URL
-    return COLAB_URL + "?" + urlencode(params)
+    href = COLAB_URL + "?" + urlencode(params)
+    param_str = "?" + urlencode(params)
+    return href, param_str
 
 
 # ---- Client-side: open the already-built URL in a new tab ----
@@ -377,3 +403,24 @@ def toggle_advanced(n):
     if n and n % 2 == 1:
         return True, "Advanced (optional) ▲"
     return False, "Advanced (optional) ▼"
+
+
+# ---- Clipboard copy clientside callback ----
+clientside_callback(
+    """
+    function(n, text) {
+      if (!n) { return ""; }
+      try {
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text || "");
+          return "✅ Parameters copied to clipboard.";
+        }
+      } catch (e) {}
+      return "⚠️ Copy failed. Please select and copy manually.";
+    }
+    """,
+    Output("proteinmpnn-copy-status", "children"),
+    Input("proteinmpnn-copy-btn", "n_clicks"),
+    State("proteinmpnn-param-string", "value"),
+    { "prevent_initial_call": True }
+)
