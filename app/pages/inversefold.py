@@ -1,12 +1,12 @@
 import dash
 from dash import html, dcc
-from dash import callback, Input, Output
+from dash import callback, Input, Output, State, clientside_callback
 import dash_bootstrap_components as dbc
 from urllib.parse import urlencode
 
 # HOTFIX: point to upstream public ProteinMPNN demo until our notebook exists on dev
 COLAB_URL = (
-    "https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/app/proteinmpnn_runner.ipynb"
+    "https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/app/proteinmpnn_runner.ipynb?v=2025-10-09-1205"
 )
 
 dash.register_page(
@@ -247,7 +247,7 @@ def proteinmpnn_layout():
             options,
             advanced_collapse,
             html.Div(
-                dcc.Link(
+                [
                     html.Button(
                         "Open Colab Runner",
                         id="open-proteinmpnn-colab",
@@ -255,10 +255,16 @@ def proteinmpnn_layout():
                         className="button-component",
                         style={"width": "100%", "fontWeight": 700},
                     ),
-                    id="proteinmpnn-colab-link",
-                    href=COLAB_URL,
-                    target="_blank",
-                ),
+                    # hidden anchor to carry the computed href (updated by build_colab_href)
+                    html.A(
+                        id="proteinmpnn-colab-link",
+                        href=COLAB_URL,
+                        target="_blank",
+                        style={"display": "none"},
+                    ),
+                    # hidden dummy for clientside callback output
+                    html.Div(id="colab-launch-dummy", style={"display": "none"}),
+                ],
                 style={"width": "56%", "maxWidth": "620px", "marginTop": "12px", "margin": "20px auto", "textAlign": "center"},
             ),
         ],
@@ -328,6 +334,33 @@ def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
 
     # Append '?' + encoded params to COLAB_URL
     return COLAB_URL + "?" + urlencode(params)
+
+
+# ---- Client-side: write params to window.name, then open Colab in a new tab ----
+clientside_callback(
+    """
+    function(n, href) {
+      if (!n) { return ""; }
+      try {
+        const u = new URL(href, window.location.href);
+        const params = Object.fromEntries(u.searchParams.entries());
+        // Persist params across the cross-origin navigation
+        window.name = JSON.stringify(params);
+        // Open Colab in a new tab/window
+        window.open(href, "_blank");
+      } catch (e) {
+        console.error("Failed to open Colab with window.name handoff:", e);
+        // Fallback: still try to open the href
+        window.open(href, "_blank");
+      }
+      return "";
+    }
+    """,
+    Output("colab-launch-dummy", "children"),
+    Input("open-proteinmpnn-colab", "n_clicks"),
+    State("proteinmpnn-colab-link", "href"),
+    prevent_initial_call=True,
+)
 
 
 @callback(
