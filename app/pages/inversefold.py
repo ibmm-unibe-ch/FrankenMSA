@@ -6,8 +6,7 @@ from urllib.parse import urlencode
 
 # HOTFIX: point to upstream public ProteinMPNN demo until our notebook exists on dev
 COLAB_URL = (
-    "https://colab.research.google.com/github/dauparas/ProteinMPNN/blob/main/"
-    "colab_notebooks/quickdemo.ipynb"
+    "https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/app/proteinmpnn_runner.ipynb"
 )
 
 dash.register_page(
@@ -292,10 +291,12 @@ def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
     except Exception:
         n = 128
 
-    params = {"temp": t, "num": n}
+    params = {}
+    params["temp"] = t
+    params["num"] = n
 
     # optional PDB code (uppercased, no spaces)
-    if pdb_code:
+    if pdb_code is not None:
         p = str(pdb_code).strip().upper()
         if p:
             params["pdb"] = p
@@ -318,6 +319,12 @@ def build_colab_href(temp, num, design, fixed, pdb_code, homomer):
         params["design"] = d
     if f:
         params["fixed"] = f
+
+    # Always include all params, even if some are blank
+    # Ensure all keys are present for: temp, num, pdb, homomer, design, fixed
+    for key in ["pdb", "design", "fixed"]:
+        if key not in params:
+            params[key] = ""
 
     # Append '?' + encoded params to COLAB_URL
     return COLAB_URL + "?" + urlencode(params)
