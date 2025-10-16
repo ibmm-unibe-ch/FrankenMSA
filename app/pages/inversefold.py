@@ -221,6 +221,16 @@ def proteinmpnn_layout():
                         "Job will run on the Colab backend. Please wait here; a ZIP download link will appear below when it finishes.",
                         style={"marginTop": "10px", "fontSize": "0.95rem", "opacity": 0.9}
                     ),
+                    # Visible status area (shows progress/errors/results)
+                    dcc.Loading(
+                        id="proteinmpnn-loading",
+                        type="circle",
+                        children=html.Div(
+                            id="proteinmpnn-status",
+                            style={"marginTop": "14px", "textAlign": "left", "whiteSpace": "pre-wrap"}
+                        ),
+                    ),
+                    # Keep the hidden dummy div (not used anymore, but harmless)
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
                 ],
                 style={
@@ -267,7 +277,7 @@ except Exception:
     colab_bridge = None
 
 @callback(
-    Output("colab-launch-dummy", "children", allow_duplicate=True),
+    Output("proteinmpnn-status", "children", allow_duplicate=True),
     Input("open-proteinmpnn-colab", "n_clicks"),
     State("proteinmpnn-sampling-temperature", "value"),
     State("proteinmpnn-sequence-count", "value"),
@@ -280,7 +290,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb):
     if not n:
         return no_update
     if colab_bridge is None:
-        return html.Div("❌ Colab bridge not available. Please start the Colab notebook first.")
+        return html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
 
     qs = "?" + urllib.parse.urlencode({
         "temp": temp or 1.0,
