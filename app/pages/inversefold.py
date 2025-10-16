@@ -222,7 +222,7 @@ def proteinmpnn_layout():
             html.Div(
                 [
                     html.Button(
-                        "Open in Google Colab",
+                        "Run ProteinMPNN",
                         id="open-proteinmpnn-colab",
                         n_clicks=0,
                         className="button-component",
@@ -265,53 +265,72 @@ def toggle_advanced(n):
 
 from dash.dependencies import Input as _Input, Output as _Output, State as _State  # ensure alias not required, but keep for clarity
 
-clientside_callback(
-    """
-    function(n, temp, num, design, fixed, pdb, homomer, colabUrl) {
-      if (!n) { return ""; }
-      try {
-        const params = new URLSearchParams({
-          temp: (temp ?? 1.0).toString(),
-          num: (num ?? 128).toString(),
-          design: (design || "").toString().trim().toUpperCase(),
-          fixed: (fixed || "").toString().trim().toUpperCase(),
-          pdb: (pdb || "").toString().trim().toUpperCase(),
-          homomer: (homomer ? "1" : "0"),
-        });
-        const paramStr = "?" + params.toString();
 
-        // Try to copy to clipboard
-        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(paramStr).then(
-            () => { /* ok */ },
-            () => { /* ignore */ }
-          );
-        }
+# --- Removed old clientside_callback that opens Google Colab in a new tab ---
 
-        // Open Colab notebook in a new tab
-        const url = colabUrl || "https://colab.research.google.com/";
-        window.open(url, "_blank");
 
-        // Also show a simple alert to guide the user
-        try {
-          alert("Parameters copied. In Colab, paste into the first input field and run.");
-        } catch(e) {}
+# --- Colab integration: directly run ProteinMPNN inside Colab environment ---
+from dash import no_update
+import urllib.parse, os
 
-      } catch(e) {
-        console.error(e);
-        alert("Failed to open Colab. Please try again.");
-      }
-      return "";
-    }
-    """,
-    _Output("colab-launch-dummy", "children"),
-    _Input("open-proteinmpnn-colab", "n_clicks"),
-    _State("proteinmpnn-sampling-temperature", "value"),
-    _State("proteinmpnn-sequence-count", "value"),
-    _State("proteinmpnn-design-chains", "value"),
-    _State("proteinmpnn-fixed-chains", "value"),
-    _State("proteinmpnn-pdb-code", "value"),
-    _State("proteinmpnn-homomer", "value"),
-    _State("colab-url", "data"),
+try:
+    import colab_bridge  # Provided by Colab notebook (Cell 1)
+except Exception:
+    colab_bridge = None
+
+@callback(
+    Output("colab-launch-dummy", "children", allow_duplicate=True),
+    Input("open-proteinmpnn-colab", "n_clicks"),
+    State("proteinmpnn-sampling-temperature", "value"),
+    State("proteinmpnn-sequence-count", "value"),
+    State("proteinmpnn-design-chains", "value"),
+    State("proteinmpnn-fixed-chains", "value"),
+    State("proteinmpnn-pdb-code", "value"),
     prevent_initial_call=True,
 )
+def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb):
+    if not n:
+        return no_update
+    if colab_bridge is None:
+        return html.Div("❌ Colab bridge not available. Please start the Colab notebook first.")
+
+    qs = "?" + urllib.parse.urlencode({
+        "temp": temp or 1.0,
+        "num": num or 128,
+        "design": (design or "").replace(" ", "").upper(),
+        "fixed": (fixed or "").replace(" ", "").upper(),
+        "pdb": (pdb or "").upper(),
+        "homomer": 1,
+    })
+
+    try:
+        params = colab_bridge.parse_params(qs)
+        res = colab_bridge.run_proteinmpnn(
+            sampling_temp=params.get("sampling_temp", 1.0),
+            num_seqs=params.get("num_seqs", 128),
+            pdb_code=params.get("pdb_code", ""),
+            design_csv=params.get("design_csv", ""),
+            fixed_csv=params.get("fixed_csv", ""),
+            homomer=params.get("homomer", True),
+            model_name=params.get("model_name", "v_48_020"),
+            use_soluble_model=params.get("use_soluble_model", False),
+            ca_only=params.get("ca_only", False),
+            clean_workspace=True,
+            allow_upload=False,
+            auto_download=False,
+        )
+    except Exception as e:
+        return html.Div(f"❌ Run failed: {e}")
+
+    zip_name = os.path.basename(res["zip"])
+    link = html.A("⬇️ Download results (ZIP)", href=f"/colab/download/{zip_name}", target="_blank")
+    summary = html.Pre(str({
+        "pdb": res["pdb_path"],
+        "num_sequences": res["num_sequences"],
+        "cuda_available": res["cuda_available"],
+        "fasta": os.path.basename(res["fasta"]),
+        "a3m": os.path.basename(res["a3m"]),
+        "zip": os.path.basename(res["zip"]),
+    }))
+    return html.Div([html.Div("✅ ProteinMPNN finished."), link, summary])
+# --- end Colab integration ---
