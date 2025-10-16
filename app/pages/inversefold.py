@@ -5,10 +5,7 @@ import dash_bootstrap_components as dbc
 from urllib.parse import urlencode
 import time
 
-# HOTFIX: point to upstream public ProteinMPNN demo until our notebook exists on dev
-COLAB_URL = (
-    "https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/app/proteinmpnn_runner.ipynb?v=2025-10-09-1205"
-)
+COLAB_URL = "https://colab.research.google.com/drive/15DjFatufe3gWY-s-Q-zfQHJL9gAHNjxk"
 
 dash.register_page(
     __name__,
@@ -88,7 +85,7 @@ def proteinmpnn_layout():
                                 id="proteinmpnn-pdb-code",
                                 type="text",
                                 value="",
-                                placeholder="e.g., 1ABC",
+                                placeholder="e.g., 2NNC",
                                 className="input-component",
                                 style={"width": "100%"},
                             ),
@@ -212,184 +209,45 @@ def proteinmpnn_layout():
     page_container = html.Div(
         [
             html.H1("Inverse Fold with ProteinMPNN"),
-            html.Div(style={"height": "32px"}),  # add spacing between title and description
+            html.Div(style={"height": "32px"}),
             html.Div(
                 dcc.Markdown(
                     "Run inverse folding using **ProteinMPNN** on a **Google Colab GPU**.\n"
-                    "Parameters you set on this page (temperature, number of sequences, PDB code, chains, homomer) will be passed to Colab.\n"
-                    "Click **Open Colab (with these parameters)** to launch the notebook. If a pop-up is blocked, use the backup link, or copy the parameter string and paste into the first Colab cell (`QUERY`).\n"
+                    "Set parameters here and click **Open Colab** to launch the notebook.\n"
                     "Note: currently FrankenMSA only supports homomers (single chain)."
                 )
-            ),
-            html.Div(
-                dbc.Alert(
-                    [
-                        html.Strong("Heads up: "),
-                        html.Span("Please upload your .pdb file in Google Colab after clicking the button below. "),
-                        html.Span("This page no longer uploads PDBs; Colab will handle files and GPU execution."),
-                    ],
-                    color="info",
-                    className="mb-3",
-                ),
-                style={"width": "100%"},
             ),
             options,
             advanced_collapse,
             html.Div(
                 [
                     html.Button(
-                        "Open Colab (with these parameters)",
+                        "Open in Google Colab",
                         id="open-proteinmpnn-colab",
                         n_clicks=0,
                         className="button-component",
                         style={"width": "100%", "fontWeight": 700},
                     ),
-                    # anchor to carry the computed href (updated by build_colab_href)
-                    html.A(
-                        id="proteinmpnn-colab-link",
-                        href=COLAB_URL,
-                        target="_blank",
-                        style={"display": "inline-block", "marginTop": "8px"},
-                        children="If a pop-up is blocked, click here to open Colab",
+                    html.Div(
+                        "Tip: parameters will be copied automatically. In Colab, paste them into the first input field and run.",
+                        style={"marginTop": "10px", "fontSize": "0.95rem", "opacity": 0.9}
                     ),
-                    # hidden dummy for clientside callback output
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
+                    dcc.Store(id="colab-url", data=COLAB_URL),
                 ],
-                style={"width": "56%", "maxWidth": "620px", "marginTop": "12px", "margin": "20px auto", "textAlign": "center"},
-            ),
-            html.Div(
-                [
-                    html.Small(
-                        "Or copy these parameters and paste into the first Colab cell (QUERY):",
-                        className="text-muted",
-                        style={"display": "block", "marginBottom": "6px", "textAlign": "center"},
-                    ),
-                    dbc.InputGroup(
-                        [
-                            dbc.Input(
-                                id="proteinmpnn-param-string",
-                                value="",
-                                readonly=True,
-                                style={"fontFamily": "monospace"},
-                            ),
-                            dbc.Button("Copy", id="proteinmpnn-copy-btn", n_clicks=0, outline=True),
-                        ],
-                        style={"maxWidth": "620px", "margin": "0 auto"},
-                    ),
-                    html.Div(id="proteinmpnn-copy-status", style={"fontSize": "0.9rem", "marginTop": "6px", "minHeight": "1.2rem"}),
-                ],
-                style={"width": "56%", "maxWidth": "620px", "margin": "0 auto 24px auto", "textAlign": "center"},
+                style={
+                    "width": "56%",
+                    "maxWidth": "620px",
+                    "marginTop": "12px",
+                    "margin": "20px auto",
+                    "textAlign": "center",
+                },
             ),
         ],
         style={"width": "80%", "maxWidth": "1000px"},
     )
 
     return html.Div([page_container], style={"display": "flex", "justifyContent": "center", "width": "100%"})
-
-
-# This callback serializes the current UI state into a Colab URL query string
-# so the notebook can parse it with parse_qs(location.search).
-@callback(
-    Output("proteinmpnn-colab-link", "href"),
-    Output("proteinmpnn-param-string", "value"),
-    Input("open-proteinmpnn-colab", "n_clicks"),  # build on click
-    State("proteinmpnn-sampling-temperature", "value"),
-    State("proteinmpnn-sequence-count", "value"),
-    State("proteinmpnn-design-chains", "value"),
-    State("proteinmpnn-fixed-chains", "value"),
-    State("proteinmpnn-pdb-code", "value"),
-    State("proteinmpnn-homomer", "value"),
-    prevent_initial_call=True,
-)
-
-def build_colab_href(n, temp, num, design, fixed, pdb_code, homomer):
-    if not n:
-        raise dash.exceptions.PreventUpdate
-    # Basic defaults
-    try:
-        t = round(float(temp), 3) if temp not in (None, "") else 1.0
-    except Exception:
-        t = 1.0
-    try:
-        n_val = int(num) if num not in (None, "") else 128
-    except Exception:
-        n_val = 128
-
-    params = {}
-    params["temp"] = t
-    params["num"] = n_val
-
-    # optional PDB code (uppercased, no spaces)
-    if pdb_code is not None:
-        p = str(pdb_code).strip().upper()
-        if p:
-            params["pdb"] = p
-
-    # homomer flag: encode as 1/0 for easier parsing in Colab
-    try:
-        hflag = bool(homomer) if homomer is not None else True
-    except Exception:
-        hflag = True
-    params["homomer"] = 1 if hflag else 0
-
-    def _norm_chains(s):
-        if not s:
-            return ""
-        return s.replace(" ", "").upper()
-
-    d = _norm_chains(design)
-    f = _norm_chains(fixed)
-    if d:
-        params["design"] = d
-    if f:
-        params["fixed"] = f
-
-    params["ts"] = int(time.time())
-
-    # Always include all params, even if some are blank
-    # Ensure all keys are present for: temp, num, pdb, homomer, design, fixed
-    for key in ["pdb", "design", "fixed"]:
-        if key not in params:
-            params[key] = ""
-
-    # Append '?' + encoded params to COLAB_URL
-    href = COLAB_URL + "?" + urlencode(params)
-    param_str = "?" + urlencode(params)
-    return href, param_str
-
-
-# ---- Client-side: open the already-built URL in a new tab ----
-clientside_callback(
-    """
-    function(href, n) {
-      // Open Colab in a new tab and pass parameters via the NEW window's window.name
-      if (!href || !n) { return ""; }
-      try {
-        // Parse params from href (already built server-side)
-        const u = new URL(href, window.location.href);
-        const params = Object.fromEntries(u.searchParams.entries());
-
-        // Open new tab
-        const win = window.open(href, "_blank");
-
-        // Write params to the NEW window's name (not the current window)
-        if (win) {
-          try { win.name = JSON.stringify(params); } catch (e) {}
-        } else {
-          console.warn("Popup blocked: please allow popups for this site.");
-        }
-      } catch (e) {
-        console.error("Failed to open Colab with window.name handoff:", e);
-        try { window.location.href = href; } catch (_) {}
-      }
-      return "";
-    }
-    """,
-    Output("colab-launch-dummy", "children"),
-    Input("proteinmpnn-colab-link", "href"),
-    State("open-proteinmpnn-colab", "n_clicks"),
-    prevent_initial_call=True,
-)
 
 
 @callback(
@@ -405,22 +263,55 @@ def toggle_advanced(n):
     return False, "Advanced (optional) ▼"
 
 
-# ---- Clipboard copy clientside callback ----
+from dash.dependencies import Input as _Input, Output as _Output, State as _State  # ensure alias not required, but keep for clarity
+
 clientside_callback(
     """
-    function(n, text) {
+    function(n, temp, num, design, fixed, pdb, homomer, colabUrl) {
       if (!n) { return ""; }
       try {
+        const params = new URLSearchParams({
+          temp: (temp ?? 1.0).toString(),
+          num: (num ?? 128).toString(),
+          design: (design || "").toString().trim().toUpperCase(),
+          fixed: (fixed || "").toString().trim().toUpperCase(),
+          pdb: (pdb || "").toString().trim().toUpperCase(),
+          homomer: (homomer ? "1" : "0"),
+        });
+        const paramStr = "?" + params.toString();
+
+        // Try to copy to clipboard
         if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text || "");
-          return "✅ Parameters copied to clipboard.";
+          navigator.clipboard.writeText(paramStr).then(
+            () => { /* ok */ },
+            () => { /* ignore */ }
+          );
         }
-      } catch (e) {}
-      return "⚠️ Copy failed. Please select and copy manually.";
+
+        // Open Colab notebook in a new tab
+        const url = colabUrl || "https://colab.research.google.com/";
+        window.open(url, "_blank");
+
+        // Also show a simple alert to guide the user
+        try {
+          alert("Parameters copied. In Colab, paste into the first input field and run.");
+        } catch(e) {}
+
+      } catch(e) {
+        console.error(e);
+        alert("Failed to open Colab. Please try again.");
+      }
+      return "";
     }
     """,
-    Output("proteinmpnn-copy-status", "children"),
-    Input("proteinmpnn-copy-btn", "n_clicks"),
-    State("proteinmpnn-param-string", "value"),
-    { "prevent_initial_call": True }
+    _Output("colab-launch-dummy", "children"),
+    _Input("open-proteinmpnn-colab", "n_clicks"),
+    _State("proteinmpnn-sampling-temperature", "value"),
+    _State("proteinmpnn-sequence-count", "value"),
+    _State("proteinmpnn-design-chains", "value"),
+    _State("proteinmpnn-fixed-chains", "value"),
+    _State("proteinmpnn-pdb-code", "value"),
+    _State("proteinmpnn-homomer", "value"),
+    _State("colab-url", "data"),
+    prevent_initial_call=True,
 )

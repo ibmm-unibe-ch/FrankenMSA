@@ -5,6 +5,7 @@ from dash import callback, Input, Output, State
 import os
 
 
+
 app = Dash(
     use_pages=True,
     suppress_callback_exceptions=True,
@@ -12,6 +13,24 @@ app = Dash(
     prevent_initial_callbacks=True,
 )
 app.config["prevent_initial_callbacks"] = True
+
+# --- Colab download route (serve result files like ZIP/FASTA/A3M) ---
+from flask import send_file
+
+DOWNLOAD_ROOTS = ["/content", "/content/ProteinMPNN/outputs_run"]
+
+@app.server.route("/colab/download/<path:fname>")
+def colab_download(fname):
+    """
+    Serve files produced on the Colab VM so users can download from the web UI.
+    Only files under the whitelisted roots are served.
+    """
+    for root in DOWNLOAD_ROOTS:
+        path = os.path.join(root, fname)
+        if os.path.isfile(path):
+            return send_file(path, as_attachment=True)
+    return ("File not found", 404)
+# --- end Colab download route ---
 
 
 def icon_link(icon, href, tooltip_text):
