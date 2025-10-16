@@ -5,8 +5,6 @@ import dash_bootstrap_components as dbc
 from urllib.parse import urlencode
 import time
 
-COLAB_URL = "https://colab.research.google.com/drive/15DjFatufe3gWY-s-Q-zfQHJL9gAHNjxk"
-
 dash.register_page(
     __name__,
 )
@@ -14,15 +12,6 @@ dash.register_page(
 
 def layout():
     return html.Div(proteinmpnn_layout(), className="gradient-background")
-    return html.Div(
-        [
-            html.H1("Run Inverse Folding"),
-            html.P(
-                "This is the home page of the application. You can navigate to different pages using the links below."
-            ),
-        ],
-        className="gradient-background",
-    )
 
 
 def proteinmpnn_layout():
@@ -213,7 +202,7 @@ def proteinmpnn_layout():
             html.Div(
                 dcc.Markdown(
                     "Run inverse folding using **ProteinMPNN** on a **Google Colab GPU**.\n"
-                    "Set parameters here and click **Open Colab** to launch the notebook.\n"
+                    "Set parameters here and click **Run ProteinMPNN** to start the job. A download link will appear when finished.\n"
                     "Note: currently FrankenMSA only supports homomers (single chain)."
                 )
             ),
@@ -229,11 +218,10 @@ def proteinmpnn_layout():
                         style={"width": "100%", "fontWeight": 700},
                     ),
                     html.Div(
-                        "Tip: parameters will be copied automatically. In Colab, paste them into the first input field and run.",
+                        "Job will run on the Colab backend. Please wait here; a ZIP download link will appear below when it finishes.",
                         style={"marginTop": "10px", "fontSize": "0.95rem", "opacity": 0.9}
                     ),
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
-                    dcc.Store(id="colab-url", data=COLAB_URL),
                 ],
                 style={
                     "width": "56%",
