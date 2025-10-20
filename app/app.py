@@ -213,44 +213,30 @@ app.layout = html.Div(
 
 def launch(**kwargs):
     """Main function to run the Dash app.
-    By default, disable Dash hot-reload and dev tools to avoid page auto-refresh,
-    and run in a production-like mode (stable for Colab/ngrok).
+    Stable, production-like settings; no hot-reload; explicit host/port.
     """
     import os
-    # Sensible defaults for Colab/production
-    kwargs.setdefault("debug", False)
-    kwargs.setdefault("dev_tools_hot_reload", False)
-    kwargs.setdefault("dev_tools_ui", False)
-    kwargs.setdefault("dev_tools_props_check", False)
 
-    # Silence route logging and reduce access-log noise (keep startup lines visible)
-    kwargs.setdefault("dev_tools_silence_routes_logging", True)
+    # Honor HOST/PORT env if provided
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8050"))
 
-    import logging
-    try:
-        # Quiet common HTTP access noise
-        for _name in ("gunicorn.access", "gunicorn.error"):
-            logging.getLogger(_name).setLevel(logging.WARNING)
-        # Keep Dash app logs minimal but not fully silent
-        app.logger.setLevel(logging.WARNING)
-        # Do NOT touch app.server logger to preserve Flask/Werkzeug startup messages
-    except Exception:
-        pass
+    # Ensure production-ish mode
+    os.environ["DASH_DEBUG_MODE"] = "0"
+    os.environ["FLASK_ENV"] = "production"
 
-    # Host/port from env if provided
-    kwargs.setdefault("host", os.getenv("HOST", "0.0.0.0"))
-    kwargs.setdefault("port", int(os.getenv("PORT", "8050")))
+    # Friendly banner
+    print(f"Dash is starting on http://{host}:{port}")
 
-    # Explicit banner so users can see where to open the app
-    try:
-        print(f"Dash is starting on http://{kwargs['host']}:{kwargs['port']}")
-    except Exception:
-        pass
-
-    # Optional memory hint
-    os.environ["DASH_MAX_MEMORY"] = "1024"
-
-    app.run(**kwargs)
+    # Launch the Dash server explicitly (no custom request handlers)
+    app.run_server(
+        host=host,
+        port=port,
+        debug=False,
+        dev_tools_hot_reload=False,
+        dev_tools_ui=False,
+        dev_tools_props_check=False,
+    )
 
 
 main = launch  # alias
