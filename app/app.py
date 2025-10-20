@@ -202,8 +202,6 @@ app.layout = html.Div(
         make_notification(),
         make_header(),
         dash.page_container,
-        # Static status container to prevent layout refreshes on callback updates
-        html.Div(id="proteinmpnn-status", children=[]),
         make_footer(),
         # empty stuff for the state
         dcc.Store(id="main-msa", data=None, storage_type="memory"),
@@ -215,25 +213,26 @@ app.layout = html.Div(
 
 def launch(**kwargs):
     """Main function to run the Dash app.
-    Add any keyword arguments to the app.run() method.
+    By default, disable Dash hot-reload and dev tools to avoid page auto-refresh,
+    and run in a production-like mode (stable for Colab/ngrok).
     """
+    import os
+    # Sensible defaults for Colab/production
+    kwargs.setdefault("debug", False)
+    kwargs.setdefault("dev_tools_hot_reload", False)
+    kwargs.setdefault("dev_tools_ui", False)
+    kwargs.setdefault("dev_tools_props_check", False)
+
+    # Host/port from env if provided
+    kwargs.setdefault("host", os.getenv("HOST", "0.0.0.0"))
+    kwargs.setdefault("port", int(os.getenv("PORT", "8050")))
+
+    # Optional memory hint
+    os.environ["DASH_MAX_MEMORY"] = "1024"
+
     app.run(**kwargs)
 
 
 main = launch  # alias
 if __name__ == "__main__":
-    import os
-    # Disable Dash developer hot-reload tools to prevent auto-refreshes
-    app.enable_dev_tools(dev_tools_hot_reload=False, dev_tools_ui=False)
-
-    # Force production-like environment (no debug reloads)
-    os.environ["DASH_DEBUG_MODE"] = "0"
-    os.environ["FLASK_ENV"] = "production"
-    os.environ["DASH_MAX_MEMORY"] = "1024"  # 1GB
-
-    # Start server without debug and with explicit host/port (works well on Colab/ngrok)
-    app.run_server(
-        host=os.getenv("HOST", "0.0.0.0"),
-        port=int(os.getenv("PORT", "8050")),
-        debug=False,
-    )
+    launch()
