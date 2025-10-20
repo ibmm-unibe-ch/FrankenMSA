@@ -324,8 +324,11 @@ def run_proteinmpnn(
     code = (pdb_code or "").strip().upper()
     uploaded_path = (pdb_path or "").strip()
     if uploaded_path:
+        if not os.path.isfile(uploaded_path):
+            raise RuntimeError(f"Uploaded pdb_path not found: {uploaded_path}")
         local_pdb = uploaded_path
     else:
+        # Keep existing behavior for PDB code; this path remains unchanged
         local_pdb = get_pdb_file(code, allow_upload=allow_upload)
 
     # 2) Setup env
