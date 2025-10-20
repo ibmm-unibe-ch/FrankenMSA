@@ -203,6 +203,8 @@ app.layout = html.Div(
         make_notification(),
         make_header(),
         dash.page_container,
+        # Static status container to prevent layout refreshes on callback updates
+        html.Div(id="proteinmpnn-status", children=[]),
         make_footer(),
         # empty stuff for the state
         dcc.Store(id="main-msa", data=None, storage_type="memory"),
