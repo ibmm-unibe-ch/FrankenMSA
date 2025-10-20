@@ -121,8 +121,18 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
         raise RuntimeError(f"Failed to download PDB for code: {pdb_code}")
 
     if allow_upload:
+        # Only attempt Colab upload when running in a real Colab front-end session.
         try:
-            from google.colab import files
+            from google.colab import files  # type: ignore
+            try:
+                from IPython import get_ipython  # type: ignore
+                ip = get_ipython()
+                has_kernel = bool(ip and getattr(ip, "kernel", None))
+            except Exception:
+                has_kernel = False
+            if not has_kernel:
+                raise RuntimeError("Colab upload UI is not available in this environment. Please use the web UI upload (pdb_path) or provide a PDB code.")
+
             print("📤 No PDB code provided. Please upload your local .pdb file:")
             uploaded = files.upload()
             if not uploaded:
@@ -131,7 +141,7 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
             print(f"✅ Uploaded: {name}")
             return name
         except Exception as e:
-            raise RuntimeError(f"Upload failed: {e}")
+            raise RuntimeError(f"Upload failed (no Colab front-end?): {e}. Please use the web UI upload (pdb_path) or provide a PDB code.")
 
     raise RuntimeError("No PDB code provided and uploads are disabled.")
 
