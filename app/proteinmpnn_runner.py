@@ -1,4 +1,3 @@
-
 # proteinmpnn_runner.py
 # A compact, Colab-friendly runner that wraps your 4-cell workflow into one module.
 # - Parses params (URL or query string)
@@ -222,6 +221,7 @@ def run_proteinmpnn(
     allow_upload: bool = True,       # only applies on Colab
     clean_workspace: bool = False,   # wipe old outputs each run
     auto_download: bool = False,     # auto-download ZIP in Colab
+    pdb_path: str = "",
 ) -> Dict:
     """
     Main entry point: does the whole workflow and returns a summary dict.
@@ -229,8 +229,13 @@ def run_proteinmpnn(
     if clean_workspace:
         clean_colab_workspace()
 
-    # 1) PDB input
-    pdb_path = get_pdb_file(pdb_code, allow_upload=allow_upload)
+    # 1) PDB input (prefer explicit local path from Dash upload)
+    code = (pdb_code or "").strip().upper()
+    uploaded_path = (pdb_path or "").strip()
+    if uploaded_path:
+        local_pdb = uploaded_path
+    else:
+        local_pdb = get_pdb_file(code, allow_upload=allow_upload)
 
     # 2) Setup env
     env = ensure_proteinmpnn()
@@ -240,12 +245,12 @@ def run_proteinmpnn(
 
     # Stage PDB into the repo root (and also into out_dir) because ProteinMPNN may change cwd internally
     import shutil
-    pdb_basename = os.path.basename(pdb_path)
+    pdb_basename = os.path.basename(local_pdb)
     staged_pdb_root = os.path.join(root, pdb_basename)
     staged_pdb_out  = os.path.join(out_dir, pdb_basename)
 
-    if os.path.abspath(pdb_path) != os.path.abspath(staged_pdb_root):
-        shutil.copy2(pdb_path, staged_pdb_root)
+    if os.path.abspath(local_pdb) != os.path.abspath(staged_pdb_root):
+        shutil.copy2(local_pdb, staged_pdb_root)
     # Also copy to out_dir to be safe if the runner changes cwd
     if not os.path.isfile(staged_pdb_out):
         shutil.copy2(staged_pdb_root, staged_pdb_out)
@@ -256,7 +261,7 @@ def run_proteinmpnn(
     # 3) Prepare chain controls
     designed_list = _split_chains(design_csv)
     fixed_list    = _split_chains(fixed_csv)
-    chain_jsonl   = _maybe_write_chain_jsonl(out_dir, pdb_path, designed_list, fixed_list)
+    chain_jsonl   = _maybe_write_chain_jsonl(out_dir, local_pdb, designed_list, fixed_list)
 
     # 4) Build command
     cmd = [
@@ -285,7 +290,7 @@ def run_proteinmpnn(
         raise RuntimeError("ProteinMPNN run failed. See logs above.")
 
     # 6) Merge outputs -> FASTA
-    fasta_out, n = _merge_to_fasta(out_dir, Path(pdb_path).stem)
+    fasta_out, n = _merge_to_fasta(out_dir, Path(local_pdb).stem)
     print(f"✅ Merged FASTA: {fasta_out} (N={n} sequences)")
 
     # 7) Minimal A3M
@@ -293,7 +298,7 @@ def run_proteinmpnn(
     print(f"✅ Minimal A3M: {a3m_out}")
 
     # 8) Zip outputs (FASTA + A3M + raw)
-    zip_path = _zip_outputs(out_dir, base=Path(pdb_path).stem)
+    zip_path = _zip_outputs(out_dir, base=Path(local_pdb).stem)
     print(f"🗜️  Zipped outputs: {zip_path}")
 
     # Optional auto-download in Colab
@@ -305,7 +310,7 @@ def run_proteinmpnn(
             print(f"⚠️ Auto-download failed: {e}. You can manually download: {zip_path}")
 
     return {
-        "pdb_path": pdb_path,
+        "pdb_path": local_pdb,
         "out_dir": out_dir,
         "fasta": fasta_out,
         "a3m": a3m_out,
