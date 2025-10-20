@@ -361,7 +361,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
         return html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
 
     # Prefer uploaded file; if neither provided, show a helpful message
-    use_uploaded = bool(pdb_upload_path)
+    use_uploaded = bool(pdb_upload_path and str(pdb_upload_path).strip())
     if not use_uploaded and not (pdb or "").strip():
         return html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above." )
 
@@ -388,7 +388,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
             use_soluble_model=params.get("use_soluble_model", False),
             ca_only=params.get("ca_only", False),
             clean_workspace=True,
-            allow_upload=False,
+            allow_upload=True,
             auto_download=False,
         )
     except Exception as e:
