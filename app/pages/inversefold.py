@@ -377,6 +377,12 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
         "homomer": 1,
     })
 
+    # If user chose upload, validate the file actually exists on Colab backend
+    if use_uploaded:
+        _path = str(pdb_upload_path).strip()
+        if not os.path.isfile(_path):
+            return html.Div(f"❌ Uploaded file not found on backend: {_path}. Please re-upload or enter a PDB code.")
+
     try:
         params = colab_bridge.parse_params(qs)
         res = colab_bridge.run_proteinmpnn(
