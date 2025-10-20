@@ -13,6 +13,7 @@ import os, re, gc, glob, json, time, zipfile, subprocess
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, List, Optional
+import shutil
 
 # ---------- Utilities ----------
 
@@ -168,9 +169,15 @@ def ensure_proteinmpnn(root: str = "/content/ProteinMPNN") -> Dict:
     }
     os.makedirs(env["out_dir"], exist_ok=True)
 
+    weights_ready = {k: os.path.isdir(v) for k, v in env["weights"].items()}
+    if not all(weights_ready.values()):
+        # Try to fetch weights if any folder is missing
+        fetched = _ensure_model_weights(root)
+        weights_ready = fetched
+
     _print_json("=== Environment summary ===", {
         "repo_root": env["root"],
-        "weights_ready": {k: os.path.isdir(v) for k, v in env["weights"].items()},
+        "weights_ready": weights_ready,
         "out_dir": env["out_dir"],
         "cuda_available": env["cuda_available"],
     })
@@ -183,6 +190,74 @@ def _cuda_available() -> bool:
     except Exception:
         return False
 
+def _ensure_model_weights(root: str) -> Dict[str, bool]:
+    """
+    Best-effort: make sure weight folders exist by trying git LFS and the repo's helper script.
+    Returns a dict of {vanilla|soluble|ca: bool} after attempts.
+    """
+    vanilla = os.path.join(root, "vanilla_model_weights")
+    soluble = os.path.join(root, "soluble_model_weights")
+    ca      = os.path.join(root, "ca_model_weights")
+
+    def _exists() -> Dict[str, bool]:
+        return {
+            "vanilla": os.path.isdir(vanilla),
+            "soluble": os.path.isdir(soluble),
+            "ca": os.path.isdir(ca),
+        }
+
+    
+    ready = _exists()
+    if all(ready.values()):
+        return ready
+
+    
+    try:
+        subprocess.run(["git", "-C", root, "rev-parse", "HEAD"],
+                       check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception:
+        
+        try:
+            shutil.rmtree(root, ignore_errors=True)
+        except Exception:
+            pass
+        subprocess.run(["git", "clone", "-q", "https://github.com/dauparas/ProteinMPNN.git", root], check=True)
+
+   
+    try:
+        subprocess.run(["git", "-C", root, "lfs", "install"],  check=False,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        subprocess.run(["git", "-C", root, "lfs", "fetch", "--all"], check=False,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        subprocess.run(["git", "-C", root, "lfs", "pull"],     check=False,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        subprocess.run(["git", "-C", root, "lfs", "checkout"], check=False,
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception:
+        pass
+
+    
+    if not all(_exists().values()):
+        helper = os.path.join(root, "get_model_weights.sh")
+        if os.path.isfile(helper):
+            try:
+                subprocess.run(["bash", helper], check=False,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            except Exception:
+                pass
+
+    
+    ready = _exists()
+    try:
+       
+        print(">> weights present:", [p for p in [vanilla, soluble, ca] if os.path.isdir(p)])
+        subprocess.run(["bash", "-lc", f"du -h --max-depth=1 {root} | sort -h"],
+                       check=False)
+    except Exception:
+        pass
+
+    return ready
+
 def resolve_weights(env: Dict, use_soluble_model: bool, ca_only: bool) -> str:
     if ca_only:
         w = env["weights"]["ca"]
@@ -191,7 +266,13 @@ def resolve_weights(env: Dict, use_soluble_model: bool, ca_only: bool) -> str:
     else:
         w = env["weights"]["vanilla"]
     if not os.path.isdir(w):
-        raise RuntimeError(f"Model weights folder not found: {w}")
+        # One more best-effort attempt to fetch
+        ready = _ensure_model_weights(env["root"])
+        if not os.path.isdir(w):
+            raise RuntimeError(f"Model weights folder not found: {w}\n"
+                               f"weights_ready={ready}. "
+                               f"If cloning via git, ensure git-lfs is installed/enabled, "
+                               f"or run get_model_weights.sh inside {env['root']}.")
     return w
 
 def _maybe_write_chain_jsonl(out_dir: str, pdb_path: str,
