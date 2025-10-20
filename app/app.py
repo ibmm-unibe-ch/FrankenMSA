@@ -7,12 +7,11 @@ import os
 
 
 app = Dash(
+    __name__,
     use_pages=True,
     suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
-    prevent_initial_callbacks=True,
 )
-app.config["prevent_initial_callbacks"] = True
 
 # --- Colab download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
@@ -223,7 +222,18 @@ def launch(**kwargs):
 
 main = launch  # alias
 if __name__ == "__main__":
-    # Increase memory quota if running on a platform that supports it
-    os.environ["DASH_MAX_MEMORY"] = "1024"  # Set memory quota to 1024MB (1GB)
+    import os
+    # Disable Dash developer hot-reload tools to prevent auto-refreshes
+    app.enable_dev_tools(dev_tools_hot_reload=False, dev_tools_ui=False)
 
-    app.run(debug=True)
+    # Force production-like environment (no debug reloads)
+    os.environ["DASH_DEBUG_MODE"] = "0"
+    os.environ["FLASK_ENV"] = "production"
+    os.environ["DASH_MAX_MEMORY"] = "1024"  # 1GB
+
+    # Start server without debug and with explicit host/port (works well on Colab/ngrok)
+    app.run_server(
+        host=os.getenv("HOST", "0.0.0.0"),
+        port=int(os.getenv("PORT", "8050")),
+        debug=False,
+    )
