@@ -223,9 +223,29 @@ def launch(**kwargs):
     kwargs.setdefault("dev_tools_ui", False)
     kwargs.setdefault("dev_tools_props_check", False)
 
+    # Silence route logging and reduce access-log noise (keep startup lines visible)
+    kwargs.setdefault("dev_tools_silence_routes_logging", True)
+
+    import logging
+    try:
+        # Quiet common HTTP access noise
+        for _name in ("gunicorn.access", "gunicorn.error"):
+            logging.getLogger(_name).setLevel(logging.WARNING)
+        # Keep Dash app logs minimal but not fully silent
+        app.logger.setLevel(logging.WARNING)
+        # Do NOT touch app.server logger to preserve Flask/Werkzeug startup messages
+    except Exception:
+        pass
+
     # Host/port from env if provided
     kwargs.setdefault("host", os.getenv("HOST", "0.0.0.0"))
     kwargs.setdefault("port", int(os.getenv("PORT", "8050")))
+
+    # Explicit banner so users can see where to open the app
+    try:
+        print(f"Dash is starting on http://{kwargs['host']}:{kwargs['port']}")
+    except Exception:
+        pass
 
     # Optional memory hint
     os.environ["DASH_MAX_MEMORY"] = "1024"
