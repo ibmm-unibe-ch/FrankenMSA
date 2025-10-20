@@ -332,9 +332,17 @@ def run_proteinmpnn(
 
     if os.path.abspath(local_pdb) != os.path.abspath(staged_pdb_root):
         shutil.copy2(local_pdb, staged_pdb_root)
-    # Also copy to out_dir to be safe if the runner changes cwd
-    if not os.path.isfile(staged_pdb_out):
-        shutil.copy2(staged_pdb_root, staged_pdb_out)
+
+    # Also copy to out_dir to be safe if the runner changes cwd (best-effort)
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+        if not os.path.isfile(staged_pdb_out):
+            shutil.copy2(staged_pdb_root, staged_pdb_out)
+    except Exception as e:
+        print(f"\n⚠️ Could not copy PDB into out_dir '{out_dir}': {e}\nProceeding anyway; runner will use --pdb_path={staged_pdb_root}.")
+
+    if not os.path.isfile(staged_pdb_root):
+        raise RuntimeError(f"Staged PDB not found at {staged_pdb_root}. Original local_pdb={local_pdb}")
 
     # Use absolute path when calling the runner (even if the script normalizes to basename)
     pdb_arg_abs = os.path.abspath(staged_pdb_root)
