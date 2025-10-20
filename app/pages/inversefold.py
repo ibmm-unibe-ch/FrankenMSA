@@ -5,7 +5,12 @@ import dash_bootstrap_components as dbc
 from urllib.parse import urlencode
 import time
 import base64, re
+import os
 from pathlib import Path
+
+# Local upload directory inside Colab backend
+UPLOAD_DIR = "/content/ProteinMPNN/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 dash.register_page(
     __name__,
@@ -327,20 +332,18 @@ except Exception:
 )
 def _save_uploaded_pdb(contents, filename):
     if not contents or not filename:
-        raise dash.exceptions.PreventUpdate
+        return html.Small(""), ""
     try:
+        # sanitize filename to a safe subset
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", filename)
+        out_path = os.path.join(UPLOAD_DIR, safe)
+        # decode base64 payload
         header, b64data = contents.split(",", 1)
-        blob = base64.b64decode(b64data)
-        updir = Path("/content/ProteinMPNN/uploads")
-        updir.mkdir(parents=True, exist_ok=True)
-        # sanitize filename
-        safe = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
-        out_path = updir / safe
         with open(out_path, "wb") as f:
-            f.write(blob)
-        return f"📄 Uploaded: {safe}", str(out_path)
+            f.write(base64.b64decode(b64data))
+        return html.Small(f"📄 Uploaded: {safe}"), out_path
     except Exception as e:
-        return f"❌ Upload failed: {e}", ""
+        return html.Small(f"❌ Upload failed: {e}"), ""
 
 
 @callback(
@@ -388,7 +391,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
             use_soluble_model=params.get("use_soluble_model", False),
             ca_only=params.get("ca_only", False),
             clean_workspace=True,
-            allow_upload=True,
+            allow_upload=False,  # IMPORTANT: disable Colab files.upload(); use pdb_path instead when present
             auto_download=False,
         )
     except Exception as e:
