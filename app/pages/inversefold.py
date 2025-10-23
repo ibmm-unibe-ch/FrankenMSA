@@ -337,12 +337,20 @@ def _save_uploaded_pdb(contents, filename):
         # sanitize filename to a safe subset
         safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", filename)
         out_path = os.path.join(UPLOAD_DIR, safe)
-        # decode base64 payload
+
+        # decode base64 payload and write file
         header, b64data = contents.split(",", 1)
         with open(out_path, "wb") as f:
             f.write(base64.b64decode(b64data))
+
+        exists = os.path.isfile(out_path)
+        print(f"[UPLOAD] saved -> {out_path}, exists={exists}")  # diagnostic log
+        if not exists:
+            return html.Small("❌ Upload failed: file not found after save"), ""
+
         return html.Small(f"📄 Uploaded: {safe}"), out_path
     except Exception as e:
+        print("[UPLOAD][ERROR]", e)
         return html.Small(f"❌ Upload failed: {e}"), ""
 
 
@@ -385,6 +393,13 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
 
     try:
         params = colab_bridge.parse_params(qs)
+        # Diagnostic: confirm what we are about to send to the runner
+        print(
+            "[RUN]",
+            "code=", ("" if use_uploaded else params.get("pdb_code", "")),
+            "pdb_path=", (pdb_upload_path or ""),
+            "allow_upload=", False,
+        )
         res = colab_bridge.run_proteinmpnn(
             sampling_temp=params.get("sampling_temp", 1.0),
             num_seqs=params.get("num_seqs", 128),
