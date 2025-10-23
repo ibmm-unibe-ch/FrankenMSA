@@ -323,13 +323,28 @@ def run_proteinmpnn(
     # 1) PDB input (prefer explicit local path from Dash upload)
     code = (pdb_code or "").strip().upper()
     uploaded_path = (pdb_path or "").strip()
+    print(f"[Runner] incoming: code='{code}' uploaded_path='{uploaded_path}' allow_upload={allow_upload}")
+
+    local_pdb = ""
+    input_mode = ""
+
     if uploaded_path:
-        if not os.path.isfile(uploaded_path):
+        if os.path.isfile(uploaded_path):
+            local_pdb = uploaded_path
+            input_mode = "uploaded_file"
+            print(f"[Runner] Using uploaded file: {local_pdb}")
+        else:
             raise RuntimeError(f"Uploaded pdb_path not found: {uploaded_path}")
-        local_pdb = uploaded_path
-    else:
-        # Keep existing behavior for PDB code; this path remains unchanged
+    elif code:
         local_pdb = get_pdb_file(code, allow_upload=allow_upload)
+        input_mode = "pdb_code"
+    else:
+        if allow_upload:
+            # Fallback to Colab-side interactive upload only when explicitly allowed
+            local_pdb = get_pdb_file("", allow_upload=True)
+            input_mode = "colab_upload"
+        else:
+            raise RuntimeError("No PDB code or uploaded file provided (and uploads are disabled).")
 
     # 2) Setup env
     env = ensure_proteinmpnn()
@@ -426,6 +441,7 @@ def run_proteinmpnn(
         "homomer": homomer,
         "sampling_temp": float(sampling_temp),
         "num_seqs": int(num_seqs),
+        "input_mode": input_mode,
     }
 
 def _py_exe() -> str:
