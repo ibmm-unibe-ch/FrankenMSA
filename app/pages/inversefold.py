@@ -371,10 +371,16 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
     if colab_bridge is None:
         return html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
 
-    # Prefer uploaded file; if neither provided, show a helpful message
-    use_uploaded = bool(pdb_upload_path and str(pdb_upload_path).strip())
-    if not use_uploaded and not (pdb or "").strip():
-        return html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above." )
+    # Prefer uploaded file; consider it valid only if the path exists on backend
+    uploaded_path = (pdb_upload_path or "").strip()
+    code_clean = (pdb or "").strip().upper()
+    use_uploaded = bool(uploaded_path) and os.path.isfile(uploaded_path)
+
+    # Debug: print what we actually see before deciding
+    print(f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'")
+
+    if not use_uploaded and not code_clean:
+        return html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
 
     qs = "?" + urllib.parse.urlencode({
         "temp": temp or 1.0,
@@ -385,26 +391,23 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
         "homomer": 1,
     })
 
-    # If user chose upload, validate the file actually exists on Colab backend
-    if use_uploaded:
-        _path = str(pdb_upload_path).strip()
-        if not os.path.isfile(_path):
-            return html.Div(f"❌ Uploaded file not found on backend: {_path}. Please re-upload or enter a PDB code.")
+    # If user chose upload, we already validated existence above
+    _path = uploaded_path
 
     try:
         params = colab_bridge.parse_params(qs)
         # Diagnostic: confirm what we are about to send to the runner
         print(
             "[RUN]",
-            "code=", ("" if use_uploaded else params.get("pdb_code", "")),
-            "pdb_path=", (pdb_upload_path or ""),
+            "code=", ("" if use_uploaded else code_clean),
+            "pdb_path=", _path,
             "allow_upload=", False,
         )
         res = colab_bridge.run_proteinmpnn(
             sampling_temp=params.get("sampling_temp", 1.0),
             num_seqs=params.get("num_seqs", 128),
-            pdb_code=("" if use_uploaded else params.get("pdb_code", "")),
-            pdb_path=(pdb_upload_path or ""),
+            pdb_code=("" if use_uploaded else code_clean),
+            pdb_path=_path,
             design_csv=params.get("design_csv", ""),
             fixed_csv=params.get("fixed_csv", ""),
             homomer=params.get("homomer", True),
