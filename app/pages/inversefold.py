@@ -5,12 +5,33 @@ import dash_bootstrap_components as dbc
 from urllib.parse import urlencode
 import time
 import base64, re
-import os
+import os, tempfile
 from pathlib import Path
 
-# Local upload directory inside Colab backend
-UPLOAD_DIR = "/content/ProteinMPNN/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Robust, cross-environment upload directory selection
+def _pick_upload_dir():
+    # 1) Colab: prefer /content
+    if os.path.isdir("/content"):
+        base = Path("/content/ProteinMPNN/uploads")
+    else:
+        # 2) Allow override via env var
+        env = os.environ.get("FRANKENMSA_UPLOAD_DIR")
+        if env:
+            base = Path(env)
+        else:
+            # 3) Default to user's home (~/.frankenmsa/uploads)
+            base = Path.home() / ".frankenmsa" / "uploads"
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Fallback to system temp if anything goes wrong
+        base = Path(tempfile.gettempdir()) / "frankenmsa_uploads"
+        base.mkdir(parents=True, exist_ok=True)
+    return str(base)
+
+UPLOAD_DIR = _pick_upload_dir()
+print(f"[UPLOAD_DIR] using: {UPLOAD_DIR}")
 
 dash.register_page(
     __name__,
@@ -336,6 +357,8 @@ def _save_uploaded_pdb(contents, filename):
     try:
         # sanitize filename to a safe subset
         safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", filename)
+        # ensure directory exists at runtime
+        Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
         out_path = os.path.join(UPLOAD_DIR, safe)
 
         # decode base64 payload and write file
