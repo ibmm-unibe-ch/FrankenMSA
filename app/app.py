@@ -229,13 +229,10 @@ def launch(**kwargs):
     print(f"Dash is starting on http://{host}:{port}")
 
     # Launch the Dash server explicitly (no custom request handlers)
-    app.run_server(
+    app.run(
         host=host,
         port=port,
-        debug=False,
-        dev_tools_hot_reload=False,
-        dev_tools_ui=False,
-        dev_tools_props_check=False,
+        debug=False
     )
 
 

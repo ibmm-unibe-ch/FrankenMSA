@@ -26,7 +26,10 @@ def file_upload_layout():
         id="upload-data",
         children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
         className="upload-component",
-        multiple=False,  # Allow only a single file to be uploaded
+        multiple=False,
+        accept=".a3m,.fasta,.fa,.csv",
+        max_size=52428800,
+        style={"position": "relative", "zIndex": 10, "cursor": "pointer"}
     )
 
     return html.Div(
@@ -58,34 +61,30 @@ def file_upload_layout():
     prevent_initial_call=True,
 )
 def upload_file(contents, filename, msa_data):
-    if contents is not None:
-        # turn the octet-stream into a string
-        import base64
-        import io
-        from pathlib import Path
+    if contents is None or not filename:
+        return dash.no_update, dash.no_update, dash.no_update
 
+    import base64, io, sys, traceback
+    from pathlib import Path
+
+    try:
         content_type, content_string = contents.split(",")
-        decoded = base64.b64decode(content_string)
-        decoded = io.BytesIO(decoded)
-        decoded = decoded.read().decode("utf-8")
-        if (
-            filename.endswith(".fasta")
-            or filename.endswith(".a3m")
-            or filename.endswith(".fa")
-        ):
+        decoded_bytes = base64.b64decode(content_string)
+        decoded_text = io.BytesIO(decoded_bytes).read().decode("utf-8")
+        suffix = Path(filename).suffix.lower()
+
+        print(f"[UPLOAD] filename={filename} suffix={suffix} size={len(decoded_bytes)}", file=sys.stderr)
+
+        if suffix in {".fasta", ".a3m", ".fa"}:
             from frankenmsa.utils import read_a3m
-
-            with open("temp_file.a3m", "w") as f:
-                f.write(decoded)
-            msa = read_a3m("temp_file.a3m")
-
-            # Path("temp_file.a3m").unlink()
-
-        elif filename.endswith(".csv"):
+            tmp_path = "temp_file.a3m"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(decoded_text)
+            msa = read_a3m(tmp_path)
+        elif suffix == ".csv":
             import pandas as pd
             from io import StringIO
-
-            msa = pd.read_csv(StringIO(decoded), header=0)
+            msa = pd.read_csv(StringIO(decoded_text), header=0)
             if "sequence" not in msa.columns:
                 err = dcc.ConfirmDialog(
                     id="upload-error",
@@ -94,9 +93,6 @@ def upload_file(contents, filename, msa_data):
                 )
                 return err, dash.no_update, dash.no_update
         else:
-            from pathlib import Path
-
-            suffix = Path(filename).suffix
             err = dcc.ConfirmDialog(
                 id="upload-error",
                 message=f"Unsupported file format '{suffix}'. Please upload a .fasta, .a3m, or .csv file.",
@@ -112,8 +108,19 @@ def upload_file(contents, filename, msa_data):
             """
         )
         name = Path(filename).stem
+        msa_data = {} if msa_data is None else msa_data
         msa_data[name] = msa.to_dict("list")
         return success_message, name, msa_data
+
+    except Exception as e:
+        print("[UPLOAD][ERROR]", repr(e), file=sys.stderr)
+        traceback.print_exc()
+        err = dcc.ConfirmDialog(
+            id="upload-error",
+            message=f"Failed to parse file '{filename}': {e.__class__.__name__}: {e}",
+            displayed=True,
+        )
+        return err, dash.no_update, dash.no_update
 
     return dash.no_update, dash.no_update, dash.no_update
 
