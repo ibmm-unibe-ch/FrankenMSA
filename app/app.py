@@ -199,11 +199,13 @@ def make_notification():
 
 app.layout = html.Div(
     [
+        dcc.Location(id="url"),
         make_notification(),
         make_header(),
         dash.page_container,
         make_footer(),
         # empty stuff for the state
+        dcc.Store(id="inject-a3m", data=None, storage_type="session"),
         dcc.Store(id="main-msa", data=None, storage_type="memory"),
         dcc.Store(id="msa-data", data={}, storage_type="memory"),
         dcc.Store(id="afcluster-last-settings", data={}, storage_type="memory"),

@@ -300,7 +300,6 @@ def proteinmpnn_layout():
                     ),
                     # Keep the hidden dummy div (not used anymore, but harmless)
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
-                    dcc.Store(id="inject-a3m", data=None, storage_type="memory"),
                 ],
                 style={
                     "width": "56%",

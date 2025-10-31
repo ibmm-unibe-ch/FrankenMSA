@@ -224,36 +224,55 @@ def download_file(n_clicks, main_msa, msa_data, format, filename):
     return None
 
 
-# Register injected A3M as if uploaded by user
+
+# Register injected A3M (from InverseFold) as if uploaded by user; also trigger on page load
 @callback(
     Output("upload-status", "children", allow_duplicate=True),
     Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
+    Output("inject-a3m", "data", allow_duplicate=True),  # clear after consume
     Input("inject-a3m", "data"),
+    Input("url", "pathname"),  # fire when navigating to this page
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def register_injected_a3m(injected, msa_data):
-    if not injected or not injected.get("text"):
-        return dash.no_update, dash.no_update, dash.no_update
+def register_injected_a3m(injected, _pathname, msa_data):
+    import sys, traceback, tempfile, os
     from pathlib import Path
-    import os, tempfile, sys, traceback
+
+    # Only proceed when there is injected content
+    if not injected or not injected.get("text"):
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
     try:
         raw_name = injected.get("name") or "mpnn.a3m"
         name = Path(raw_name).stem or "mpnn"
+
+        # If already present, just switch selection and clear the store
+        msa_data = {} if msa_data is None else msa_data
+        if name in msa_data:
+            success_message = dcc.Markdown(
+                f"#### A3M '{name}.a3m' already available. Selected it for you.")
+            return success_message, name, msa_data, None
+
+        # Materialize text into a temp file and parse via existing reader
         tmp_dir = tempfile.gettempdir()
         tmp_path = os.path.join(tmp_dir, f"{name}.a3m")
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(injected["text"])
+
         from frankenmsa.utils import read_a3m
         msa = read_a3m(tmp_path)
         msa_length = len(msa)
-        success_message = dcc.Markdown(
-            f"#### File registered and MSA with {msa_length} entries loaded from ProteinMPNN."
-        )
-        msa_data = {} if msa_data is None else msa_data
+
+        # Merge into store and select it
         msa_data[name] = msa.to_dict("list")
-        return success_message, name, msa_data
+        success_message = dcc.Markdown(
+            f"#### Registered A3M '{name}.a3m' from ProteinMPNN with {msa_length} entries.")
+
+        # Clear inject store after consuming to avoid re-processing
+        return success_message, name, msa_data, None
+
     except Exception as e:
         print("[INJECT][ERROR]", repr(e), file=sys.stderr)
         traceback.print_exc()
@@ -262,4 +281,4 @@ def register_injected_a3m(injected, msa_data):
             message=f"Failed to register injected A3M '{injected.get('name','')}': {e.__class__.__name__}: {e}",
             displayed=True,
         )
-        return err, dash.no_update, dash.no_update
+        return err, dash.no_update, dash.no_update, dash.no_update
