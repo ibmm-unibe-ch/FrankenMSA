@@ -1,7 +1,7 @@
 import dash
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-from dash import callback, Input, Output, State
+from dash import callback, Input, Output, State, no_update
 import os
 
 
@@ -211,6 +211,67 @@ app.layout = html.Div(
         dcc.Store(id="afcluster-last-settings", data={}, storage_type="memory"),
     ],
 )
+
+
+# Callback to consume injected A3M data
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("main-msa", "data", allow_duplicate=True),
+    Output("inject-a3m", "data", allow_duplicate=True),
+    Input("inject-a3m", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def _consume_injected_a3m(injected, msa_data):
+    # Nothing to do
+    if not injected or not injected.get("text"):
+        return no_update, no_update, no_update
+
+    import tempfile
+    import os
+    from pathlib import Path
+    try:
+        from frankenmsa.utils import read_a3m
+    except Exception:
+        # Fallback: defer processing if utils unavailable
+        return no_update, no_update, no_update
+
+    raw_name = injected.get("name") or "mpnn.a3m"
+    name = (Path(raw_name).stem or "mpnn").strip()
+
+    # Ensure dict
+    msa_data = {} if msa_data is None else dict(msa_data)
+
+    # Drop duplicate name variants that include extensions
+    ext_variants = {
+        raw_name,
+        f"{name}.a3m",
+        f"{name}.fa",
+        f"{name}.fasta",
+        f"{name}.csv",
+    }
+    for k in list(msa_data.keys()):
+        if k in ext_variants and k != name:
+            msa_data.pop(k, None)
+
+    # If already present, select it and clear the one-shot store
+    if name in msa_data:
+        return msa_data, name, None
+
+    # Materialize text to a temp file and parse via existing reader
+    tmp_path = os.path.join(tempfile.gettempdir(), f"{name}.a3m")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write(injected["text"])
+
+    try:
+        msa = read_a3m(tmp_path)
+    except Exception:
+        return no_update, no_update, no_update
+
+    msa_data[name] = msa.to_dict("list")
+
+    # Update global stores and clear the one-shot injection store
+    return msa_data, name, None
 
 
 def launch(**kwargs):
