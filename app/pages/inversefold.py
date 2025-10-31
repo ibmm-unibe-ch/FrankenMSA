@@ -378,6 +378,8 @@ def _save_uploaded_pdb(contents, filename):
 
 
 @callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("main-msa", "data", allow_duplicate=True),
     Output("proteinmpnn-status", "children", allow_duplicate=True),
     Input("open-proteinmpnn-colab", "n_clicks"),
     State("proteinmpnn-sampling-temperature", "value"),
@@ -386,13 +388,14 @@ def _save_uploaded_pdb(contents, filename):
     State("proteinmpnn-fixed-chains", "value"),
     State("proteinmpnn-pdb-code", "value"),
     State("pdb-upload-path", "data"),
+    State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
+def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, msa_data_state):
     if not n:
-        return no_update
+        return no_update, no_update, no_update
     if colab_bridge is None:
-        return html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
+        return no_update, no_update, html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
 
     # Prefer uploaded file; consider it valid only if the path exists on backend
     uploaded_path = (pdb_upload_path or "").strip()
@@ -403,7 +406,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
     print(f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'")
 
     if not use_uploaded and not code_clean:
-        return html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
+        return no_update, no_update, html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
 
     qs = "?" + urllib.parse.urlencode({
         "temp": temp or 1.0,
@@ -442,7 +445,22 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
             auto_download=False,
         )
     except Exception as e:
-        return html.Div(f"❌ Run failed: {e}")
+        return no_update, no_update, html.Div(f"❌ Run failed: {e}")
+
+    # Prepare optional injection into MSA selector
+    new_msa_data = no_update
+    new_main_msa = no_update
+    try:
+        a3m_name = (res.get("a3m_name") or "").strip()
+        a3m_text = res.get("a3m_text")
+        if a3m_name and a3m_text:
+            current = msa_data_state if isinstance(msa_data_state, dict) else {}
+            current = dict(current)  # copy
+            current[a3m_name] = a3m_text
+            new_msa_data = current
+            new_main_msa = a3m_name
+    except Exception:
+        pass
 
     zip_name = os.path.basename(res["zip"])
     link = html.A("⬇️ Download results (ZIP)", href=f"/colab/download/{zip_name}", target="_blank")
@@ -458,7 +476,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path):
         f"📁 Input file used: {res.get('pdb_path', '(none)')}",
         style={"marginTop": "4px", "opacity": 0.85}
     )
-    return html.Div([
+    return new_msa_data, new_main_msa, html.Div([
         html.Div("✅ ProteinMPNN finished."),
         input_info,
         link,

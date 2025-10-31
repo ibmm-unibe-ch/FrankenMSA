@@ -414,6 +414,17 @@ def run_proteinmpnn(
     a3m_out = _fasta_to_a3m(fasta_out)
     print(f"✅ Minimal A3M: {a3m_out}")
 
+    # Expose A3M to the web UI: capture filename and contents so the frontend
+    # can inject it into the file selector without changing the download flow.
+    a3m_name = os.path.basename(a3m_out)
+    try:
+        with open(a3m_out, "r", encoding="utf-8") as _f:
+            a3m_text = _f.read()
+    except Exception:
+        # Fallback in case of encoding edge cases
+        with open(a3m_out, "r", errors="ignore") as _f:
+            a3m_text = _f.read()
+
     # 8) Zip outputs (FASTA + A3M + raw)
     zip_path = _zip_outputs(out_dir, base=Path(local_pdb).stem)
     print(f"🗜️  Zipped outputs: {zip_path}")
@@ -442,6 +453,9 @@ def run_proteinmpnn(
         "sampling_temp": float(sampling_temp),
         "num_seqs": int(num_seqs),
         "input_mode": input_mode,
+        "a3m_path": a3m_out,
+        "a3m_name": a3m_name,
+        "a3m_text": a3m_text,
     }
 
 def _py_exe() -> str:
