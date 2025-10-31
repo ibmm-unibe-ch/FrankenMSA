@@ -101,14 +101,27 @@ def upload_file(contents, filename, msa_data):
             return err, dash.no_update, dash.no_update
 
         msa_length = len(msa)
+        name = Path(filename).stem
+
+        # Normalize key and drop duplicates that include extensions
+        ext_variants = {
+            Path(filename).name,
+            f"{name}.a3m",
+            f"{name}.fa",
+            f"{name}.fasta",
+            f"{name}.csv",
+        }
+        msa_data = {} if msa_data is None else msa_data
+        for k in list(msa_data.keys()):
+            if k in ext_variants:
+                msa_data.pop(k, None)
+
         success_message = dcc.Markdown(
             f"""
             #### File uploaded successfully and MSA with {msa_length} entries loaded!
             You can now navigate to the other pages to perform operations on the MSA.
             """
         )
-        name = Path(filename).stem
-        msa_data = {} if msa_data is None else msa_data
         msa_data[name] = msa.to_dict("list")
         return success_message, name, msa_data
 
@@ -248,8 +261,21 @@ def register_injected_a3m(injected, _pathname, msa_data):
         raw_name = injected.get("name") or "mpnn.a3m"
         name = Path(raw_name).stem or "mpnn"
 
-        # If already present, just switch selection and clear the store
         msa_data = {} if msa_data is None else msa_data
+
+        # Deduplicate possible variants (with extensions) before insert
+        ext_variants = {
+            raw_name,
+            f"{name}.a3m",
+            f"{name}.fa",
+            f"{name}.fasta",
+            f"{name}.csv",
+        }
+        for k in list(msa_data.keys()):
+            if k in ext_variants and k != name:
+                msa_data.pop(k, None)
+
+        # If already present, just switch selection and clear the store
         if name in msa_data:
             success_message = dcc.Markdown(
                 f"#### A3M '{name}.a3m' already available. Selected it for you.")
