@@ -300,6 +300,7 @@ def proteinmpnn_layout():
                     ),
                     # Keep the hidden dummy div (not used anymore, but harmless)
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
+                    dcc.Store(id="inject-a3m", data=None, storage_type="memory"),
                 ],
                 style={
                     "width": "56%",
@@ -380,6 +381,7 @@ def _save_uploaded_pdb(contents, filename):
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Output("main-msa", "data", allow_duplicate=True),
+    Output("inject-a3m", "data", allow_duplicate=True),
     Output("proteinmpnn-status", "children", allow_duplicate=True),
     Input("open-proteinmpnn-colab", "n_clicks"),
     State("proteinmpnn-sampling-temperature", "value"),
@@ -393,20 +395,18 @@ def _save_uploaded_pdb(contents, filename):
 )
 def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, msa_data_state):
     if not n:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
     if colab_bridge is None:
-        return no_update, no_update, html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
+        return no_update, no_update, no_update, html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
 
-    # Prefer uploaded file; consider it valid only if the path exists on backend
     uploaded_path = (pdb_upload_path or "").strip()
     code_clean = (pdb or "").strip().upper()
     use_uploaded = bool(uploaded_path) and os.path.isfile(uploaded_path)
 
-    # Debug: print what we actually see before deciding
     print(f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'")
 
     if not use_uploaded and not code_clean:
-        return no_update, no_update, html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
+        return no_update, no_update, no_update, html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
 
     qs = "?" + urllib.parse.urlencode({
         "temp": temp or 1.0,
@@ -417,12 +417,10 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
         "homomer": 1,
     })
 
-    # If user chose upload, we already validated existence above
     _path = uploaded_path
 
     try:
         params = colab_bridge.parse_params(qs)
-        # Diagnostic: confirm what we are about to send to the runner
         print(
             "[RUN]",
             "code=", ("" if use_uploaded else code_clean),
@@ -441,24 +439,25 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
             use_soluble_model=params.get("use_soluble_model", False),
             ca_only=params.get("ca_only", False),
             clean_workspace=True,
-            allow_upload=False,  # IMPORTANT: disable Colab files.upload(); use pdb_path instead when present
+            allow_upload=False,
             auto_download=False,
         )
     except Exception as e:
-        return no_update, no_update, html.Div(f"❌ Run failed: {e}")
+        return no_update, no_update, no_update, html.Div(f"❌ Run failed: {e}")
 
-    # Prepare optional injection into MSA selector
     new_msa_data = no_update
     new_main_msa = no_update
+    inject_payload = None
     try:
         a3m_name = (res.get("a3m_name") or "").strip()
         a3m_text = res.get("a3m_text")
         if a3m_name and a3m_text:
             current = msa_data_state if isinstance(msa_data_state, dict) else {}
-            current = dict(current)  # copy
+            current = dict(current)
             current[a3m_name] = a3m_text
             new_msa_data = current
             new_main_msa = a3m_name
+            inject_payload = {"name": a3m_name, "text": a3m_text}
     except Exception:
         pass
 
@@ -476,7 +475,7 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
         f"📁 Input file used: {res.get('pdb_path', '(none)')}",
         style={"marginTop": "4px", "opacity": 0.85}
     )
-    return new_msa_data, new_main_msa, html.Div([
+    return new_msa_data, new_main_msa, inject_payload, html.Div([
         html.Div("✅ ProteinMPNN finished."),
         input_info,
         link,

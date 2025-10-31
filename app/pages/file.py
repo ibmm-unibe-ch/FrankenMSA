@@ -222,3 +222,44 @@ def download_file(n_clicks, main_msa, msa_data, format, filename):
             raise ValueError("Invalid file format")
         return dcc.send_file(filename)
     return None
+
+
+# Register injected A3M as if uploaded by user
+@callback(
+    Output("upload-status", "children", allow_duplicate=True),
+    Output("main-msa", "data", allow_duplicate=True),
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("inject-a3m", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def register_injected_a3m(injected, msa_data):
+    if not injected or not injected.get("text"):
+        return dash.no_update, dash.no_update, dash.no_update
+    from pathlib import Path
+    import os, tempfile, sys, traceback
+    try:
+        raw_name = injected.get("name") or "mpnn.a3m"
+        name = Path(raw_name).stem or "mpnn"
+        tmp_dir = tempfile.gettempdir()
+        tmp_path = os.path.join(tmp_dir, f"{name}.a3m")
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            f.write(injected["text"])
+        from frankenmsa.utils import read_a3m
+        msa = read_a3m(tmp_path)
+        msa_length = len(msa)
+        success_message = dcc.Markdown(
+            f"#### File registered and MSA with {msa_length} entries loaded from ProteinMPNN."
+        )
+        msa_data = {} if msa_data is None else msa_data
+        msa_data[name] = msa.to_dict("list")
+        return success_message, name, msa_data
+    except Exception as e:
+        print("[INJECT][ERROR]", repr(e), file=sys.stderr)
+        traceback.print_exc()
+        err = dcc.ConfirmDialog(
+            id="upload-error",
+            message=f"Failed to register injected A3M '{injected.get('name','')}': {e.__class__.__name__}: {e}",
+            displayed=True,
+        )
+        return err, dash.no_update, dash.no_update
