@@ -416,14 +416,13 @@ def run_proteinmpnn(
 
     # Expose A3M to the web UI: capture filename and contents so the frontend
     # can inject it into the file selector without changing the download flow.
-    a3m_name = os.path.basename(a3m_out)
+    a3m_path_obj = Path(a3m_out)
+    a3m_name = a3m_path_obj.name  # ensures the returned name includes the .a3m suffix
     try:
-        with open(a3m_out, "r", encoding="utf-8") as _f:
-            a3m_text = _f.read()
+        a3m_text = a3m_path_obj.read_text(encoding="utf-8")
     except Exception:
         # Fallback in case of encoding edge cases
-        with open(a3m_out, "r", errors="ignore") as _f:
-            a3m_text = _f.read()
+        a3m_text = a3m_path_obj.read_text(errors="ignore")
 
     # 8) Zip outputs (FASTA + A3M + raw)
     zip_path = _zip_outputs(out_dir, base=Path(local_pdb).stem)
