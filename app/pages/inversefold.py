@@ -447,11 +447,26 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
         a3m_name = (res.get("a3m_name") or "").strip()
         a3m_text = res.get("a3m_text")
         if a3m_name and a3m_text:
+            # Parse A3M text into dict-of-lists to match msa_data convention
+            # Expected keys elsewhere: "header" and "sequence"
+            lines = [l.strip() for l in a3m_text.splitlines() if l.strip()]
+            headers, sequences = [], []
+            current_header = None
+            for l in lines:
+                if l.startswith(">"):
+                    current_header = l[1:]  # drop leading '>'
+                elif current_header is not None:
+                    headers.append(current_header)
+                    sequences.append(l)
+                    current_header = None
+            parsed = {"header": headers, "sequence": sequences}
+
             current = msa_data_state if isinstance(msa_data_state, dict) else {}
             current = dict(current)
-            current[a3m_name] = a3m_text
+            current[a3m_name] = parsed
             new_msa_data = current
             new_main_msa = a3m_name
+            # Keep raw A3M for the injector so it can appear in the selector immediately
             inject_payload = {"name": a3m_name, "text": a3m_text}
     except Exception:
         pass
