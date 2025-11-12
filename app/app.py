@@ -16,19 +16,21 @@ app = Dash(
 # --- Colab download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
 
-DOWNLOAD_ROOTS = ["/content", "/content/ProteinMPNN/outputs_run"]
+# Only register this route when running in Colab
+if os.environ.get("IN_COLAB") == "1" or os.environ.get("FRANKEN_COLAB") == "1":
+    DOWNLOAD_ROOTS = ["/content", "/content/ProteinMPNN/outputs_run"]
 
-@app.server.route("/colab/download/<path:fname>")
-def colab_download(fname):
-    """
-    Serve files produced on the Colab VM so users can download from the web UI.
-    Only files under the whitelisted roots are served.
-    """
-    for root in DOWNLOAD_ROOTS:
-        path = os.path.join(root, fname)
-        if os.path.isfile(path):
-            return send_file(path, as_attachment=True)
-    return ("File not found", 404)
+    @app.server.route("/colab/download/<path:fname>")
+    def colab_download(fname):
+        """
+        Serve files produced on the Colab VM so users can download from the web UI.
+        Only files under the whitelisted roots are served.
+        """
+        for root in DOWNLOAD_ROOTS:
+            path = os.path.join(root, fname)
+            if os.path.isfile(path):
+                return send_file(path, as_attachment=True)
+        return ("File not found", 404)
 # --- end Colab download route ---
 
 
