@@ -413,19 +413,9 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
     if not use_uploaded and not code_clean:
         return no_update, no_update, no_update, html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
 
-    qs = "?" + urllib.parse.urlencode({
-        "temp": temp or 1.0,
-        "num": num or 128,
-        "design": (design or "").replace(" ", "").upper(),
-        "fixed": (fixed or "").replace(" ", "").upper(),
-        "pdb": (pdb or "").upper(),
-        "homomer": 1,
-    })
-
     _path = uploaded_path
 
     try:
-        params = colab_bridge.parse_params(qs)
         print(
             "[RUN]",
             "code=", ("" if use_uploaded else code_clean),
@@ -433,16 +423,16 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
             "allow_upload=", False,
         )
         res = colab_bridge.run_proteinmpnn(
-            sampling_temp=params.get("sampling_temp", 1.0),
-            num_seqs=params.get("num_seqs", 128),
+            sampling_temp=(temp or 1.0),
+            num_seqs=(num or 128),
             pdb_code=("" if use_uploaded else code_clean),
             pdb_path=_path,
-            design_csv=params.get("design_csv", ""),
-            fixed_csv=params.get("fixed_csv", ""),
-            homomer=params.get("homomer", True),
-            model_name=params.get("model_name", "v_48_020"),
-            use_soluble_model=params.get("use_soluble_model", False),
-            ca_only=params.get("ca_only", False),
+            design_csv=(design or "").replace(" ", "").upper(),
+            fixed_csv=(fixed or "").replace(" ", "").upper(),
+            homomer=True,
+            model_name="v_48_020",
+            use_soluble_model=False,
+            ca_only=False,
             clean_workspace=True,
             allow_upload=False,
             auto_download=False,
