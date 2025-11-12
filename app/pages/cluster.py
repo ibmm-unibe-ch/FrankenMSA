@@ -42,19 +42,64 @@ def layout():
                                                     multi=True,
                                                     className="dropdown-component",
                                                     placeholder="Select clusters to save",
+                                                    style={"height": "44px", "alignSelf": "center", "width": "280px", "margin": "0", "boxSizing": "border-box"},
                                                 ),
+                                                width=True,
                                             ),
                                             dbc.Col(
                                                 html.Button(
                                                     "Save Selected Clusters",
                                                     id="save-selected-clusters-button",
                                                     className="button-component",
-                                                    style={"margin-top": "20px"},
                                                     n_clicks=0,
+                                                    style={"height": "44px", "lineHeight": "44px", "alignSelf": "center", "padding": "0 18px", "width": "240px", "margin": "0", "boxSizing": "border-box"},
                                                 ),
+                                                width="auto",
                                             ),
-                                        ]
-                                    )
+                                        ],
+                                        style={
+                                            "alignItems": "center",
+                                            "justifyContent": "center",
+                                            "display": "flex",
+                                            "gap": "8px",
+                                            "marginTop": "4px",
+                                            "marginBottom": "4px",
+                                        },
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="ward-clusters-to-save-dropdown",
+                                                    options=[],
+                                                    value=[],
+                                                    multi=True,
+                                                    className="dropdown-component",
+                                                    placeholder="Select ward clusters to save",
+                                                    style={"height": "44px", "alignSelf": "center", "width": "280px", "margin": "0", "boxSizing": "border-box"},
+                                                ),
+                                                width=True,
+                                            ),
+                                            dbc.Col(
+                                                html.Button(
+                                                    "Save Ward Clusters",
+                                                    id="save-ward-selected-clusters-button",
+                                                    className="button-component",
+                                                    n_clicks=0,
+                                                    style={"height": "44px", "lineHeight": "44px", "alignSelf": "center", "padding": "0 18px", "width": "240px", "margin": "0", "boxSizing": "border-box"},
+                                                ),
+                                                width="auto",
+                                            ),
+                                        ],
+                                        style={
+                                            "alignItems": "center",
+                                            "justifyContent": "center",
+                                            "display": "flex",
+                                            "gap": "8px",
+                                            "marginTop": "4px",
+                                            "marginBottom": "4px",
+                                        },
+                                    ),
                                 ],
                                 id="save-clusters-container",
                                 className="shaded-bordered",
@@ -88,9 +133,99 @@ def afcluster_layout():
                 id="cluster-save-container",
                 # className="shaded-bordered",
             ),
+            ward_controls_layout(),
         ],
         className="shaded-bordered",
     )
+
+
+def ward_controls_layout():
+    header = html.H4("Ward-Linking")
+
+    explain = dcc.Markdown(
+        "After `AF-Cluster` assigns cluster_id, merge clusters hierarchically using "
+        "[Agglomerative (Ward) linkage](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html) "
+        "on cluster centroids. For an application to AF-based conformational ensembles, see "
+        "[Piomponi et al., 2025](https://pubs.acs.org/doi/10.1021/acs.jcim.5c01090)."
+    )
+
+    # centered controls: label + slider with min/max display
+    top_controls = dbc.Row(
+        [
+            dbc.Col(
+                dcc.Input(
+                    id="ward-n-clusters-min-box",
+                    type="number",
+                    value=2,
+                    disabled=True,
+                    style={"width": "80px"},
+                ),
+                width="auto",
+            ),
+            dbc.Col(
+                [
+                    html.Label(
+                        "Final number of clusters",
+                        style={
+                            "textAlign": "center",
+                            "display": "block",
+                            "marginBottom": "6px",
+                            "fontWeight": "600",
+                        },
+                    ),
+                    dcc.Slider(
+                        id="ward-n-clusters-slider",
+                        min=2,
+                        max=15,
+                        step=1,
+                        value=3,
+                        marks={2: "2", 8: "8", 15: "15"},
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                    dcc.Input(
+                        id="ward-n-clusters",
+                        type="number",
+                        value=3,
+                        min=2,
+                        max=15,
+                        step=1,
+                        style={"marginTop": "8px", "width": "100px"},
+                    ),
+                ],
+                width=True,
+            ),
+            dbc.Col(
+                dcc.Input(
+                    id="ward-n-clusters-max-box",
+                    type="number",
+                    value=15,
+                    disabled=True,
+                    style={"width": "80px"},
+                ),
+                width="auto",
+            ),
+        ],
+        style={
+            "margin": "20px",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "display": "flex",
+            "gap": "12px",
+        },
+    )
+
+    # big button below, full width (similar to Run AFCluster)
+    bottom_button = dbc.Row(
+        html.Button(
+            "Run Ward-Linking",
+            id="run-ward-linking-button",
+            className="button-component",
+            n_clicks=0,
+        ),
+        style={"width": "100%"},
+    )
+
+    return html.Div([html.Hr(), header, explain, top_controls, bottom_button])
 
 
 def no_msa_yet():
@@ -397,86 +532,132 @@ def run_afcluster(
     Input("msa-data", "data"),
     Input("main-msa", "data"),
 )
-def visualise_clusters(
-    msa_data,
-    main_msa,
-):
+def visualise_clusters(msa_data, main_msa):
     if not msa_data or not main_msa:
         return no_msa_yet()
-
-    msa = msa_data[main_msa]
-    msa = pd.DataFrame.from_dict(msa)
-    if "cluster_id" not in msa.columns:
+    df = pd.DataFrame.from_dict(msa_data[main_msa])
+    if "cluster_id" not in df.columns:
         return dbc.Alert("No clusters found. Please run AFCluster first.")
 
-    return pca_plot(msa)
+    graphs = []
+    graphs.append(pca_plot(df, graph_id="pca-af", title="PCA of AFCluster Clusters", color_col="cluster_id"))
+
+    if "ward_id" in df.columns:
+        graphs.append(pca_plot(df, graph_id="pca-ward", title="PCA of Ward-merged Clusters", color_col="ward_id"))
+
+    return html.Div(graphs)
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("run-ward-linking-button", "n_clicks"),
+    State("ward-n-clusters", "value"),
+    State("msa-data", "data"),
+    State("main-msa", "data"),
+    prevent_initial_call=True,
+)
+def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa):
+    if not (n_clicks or 0) > 0:
+        return dash.no_update
+    if not msa_data or not main_msa:
+        return dash.no_update
+
+    import numpy as np
+    from sklearn.cluster import AgglomerativeClustering
+    from afcluster.af_cluster import _seqs_to_onehot
+
+    df = pd.DataFrame.from_dict(msa_data[main_msa])
+    if "cluster_id" not in df.columns:
+        return dash.no_update
+
+    seq_len = len(df.iloc[0]["sequence"]) if len(df) else 0
+    if seq_len == 0:
+        return dash.no_update
+
+    centroids = []
+    cluster_keys = []
+    for cid, sub in df.groupby("cluster_id"):
+        X = _seqs_to_onehot(sub["sequence"].values, max_len=seq_len)
+        centroids.append(X.mean(axis=0))
+        cluster_keys.append(cid)
+    centroids = np.vstack(centroids)
+
+    if n_clusters is None or n_clusters < 1:
+        return dash.no_update
+
+    model = AgglomerativeClustering(n_clusters=int(n_clusters), linkage="ward")
+    ward_labels = model.fit_predict(centroids)
+
+    cid_to_wid = {cid: int(w) for cid, w in zip(cluster_keys, ward_labels)}
+    df["ward_id"] = df["cluster_id"].map(cid_to_wid)
+
+    msa_data[main_msa] = df.to_dict("list")
+    return msa_data
+@callback(
+    Output("ward-clusters-to-save-dropdown", "options"),
+    Input("msa-data", "data"),
+    State("main-msa", "data"),
+)
+def update_ward_clusters_to_save_options(msa_data, main_msa):
+    if not msa_data or not main_msa:
+        return dash.no_update
+    df = pd.DataFrame.from_dict(msa_data[main_msa])
+    if "ward_id" not in df.columns:
+        return dash.no_update
+    clusters = df["ward_id"].unique()
+    options = [{"label": f"Ward {c}", "value": int(c)} for c in clusters]
+    options.insert(0, {"label": "All", "value": "all"})
+    return options
 
 
-def pca_plot(msa):
+
+def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id"):
     from sklearn.decomposition import PCA
     from afcluster.af_cluster import _seqs_to_onehot
     import plotly.express as px
 
     df = msa.copy()
 
-    # prepare sequences
+    # separate query row (first row) if present
     query = df.iloc[:1]
-    df = df.iloc[1:]
-    seqs_onehot = _seqs_to_onehot(
-        df["sequence"].values,
-        max_len=len(query["sequence"].values[0]),
-    )
+    rest = df.iloc[1:]
 
-    # PCA
-    kwargs = {}
-    kwargs.pop("random_state", None)
-    kwargs.setdefault("n_components", 2)
-    pca = PCA(random_state=42, **kwargs)
-    embedding = pca.fit_transform(seqs_onehot)
+    seq_len = len(query["sequence"].values[0]) if len(query) else len(rest.iloc[0]["sequence"]) if len(rest) else 0
+    if seq_len == 0:
+        return dcc.Graph(id=graph_id)
 
-    df["PC 1"] = embedding[:, 0]
-    df["PC 2"] = embedding[:, 1]
+    rest_onehot = _seqs_to_onehot(rest["sequence"].values, max_len=seq_len)
 
-    query_onehot = _seqs_to_onehot(
-        query["sequence"].values,
-        max_len=len(query["sequence"].values[0]),
-    )
-    query_embedding = pca.transform(query_onehot)
-    query["PC 1"] = query_embedding[:, 0]
-    query["PC 2"] = query_embedding[:, 1]
+    pca = PCA(n_components=2, random_state=42)
+    embedding = pca.fit_transform(rest_onehot)
+    rest = rest.assign(**{"PC 1": embedding[:, 0], "PC 2": embedding[:, 1]})
+
+    # project query point with the same PCA
+    if len(query):
+        q_onehot = _seqs_to_onehot(query["sequence"].values, max_len=seq_len)
+        q_embed = pca.transform(q_onehot)
+        query = query.assign(**{"PC 1": q_embed[:, 0], "PC 2": q_embed[:, 1]})
 
     fig = px.scatter(
-        df,
+        rest,
         x="PC 1",
         y="PC 2",
-        color="cluster_id",
-        hover_name="header",
-        title="PCA of Clusters",
+        color=color_col if color_col in rest.columns else None,
+        hover_name="header" if "header" in rest.columns else None,
+        title=title,
         template="plotly_white",
         color_continuous_scale="deep",
     )
 
-    fig_query = px.scatter(
-        query,
-        x="PC 1",
-        y="PC 2",
-        hover_name="header",
-        color_discrete_sequence=["red"],
-        title="PCA of Clusters",
-        template="plotly_white",
-    )
-    fig_query.update_traces(
-        marker=dict(
-            size=20,
-        ),
-    )
-    fig.add_trace(
-        fig_query.data[0],
-    )
-    return dcc.Graph(
-        id="pca-plot",
-        figure=fig,
-    )
+    if len(query):
+        fig_query = px.scatter(
+            query,
+            x="PC 1",
+            y="PC 2",
+            hover_name="header" if "header" in query.columns else None,
+        )
+        fig_query.update_traces(marker=dict(size=20, color="red"))
+        fig.add_trace(fig_query.data[0])
+
+    return dcc.Graph(id=graph_id, figure=fig)
 
 
 @callback(
@@ -805,3 +986,57 @@ def save_selected_clusters(
 
     info = f"Saved {len(selected_clusters)} clusters to MSA data."
     return msa_data
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Input("save-ward-selected-clusters-button", "n_clicks"),
+    State("ward-clusters-to-save-dropdown", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def save_ward_selected_clusters(n_clicks, selected, main_msa, msa_data):
+    if not (n_clicks or 0) > 0:
+        return dash.no_update
+    if not msa_data or not main_msa:
+        return dash.no_update
+    df = pd.DataFrame.from_dict(msa_data[main_msa])
+    if "ward_id" not in df.columns:
+        return dash.no_update
+    if not selected:
+        return dash.no_update
+    if "all" in selected:
+        selected = df["ward_id"].unique()
+    for wid in selected:
+        subset = df[df["ward_id"] == wid]
+        name = f"{main_msa}_ward_cluster_{wid}"
+        msa_data[name] = subset.to_dict("list")
+    return msa_data
+
+
+# sync ward-n-clusters-slider to hidden input for compatibility
+@callback(
+    Output("ward-n-clusters", "value"),
+    Input("ward-n-clusters-slider", "value"),
+    prevent_initial_call=True,
+)
+def _sync_ward_slider_to_input(val):
+    return val
+
+
+# sync ward-n-clusters input to slider
+@callback(
+    Output("ward-n-clusters-slider", "value"),
+    Input("ward-n-clusters", "value"),
+    prevent_initial_call=True,
+)
+def _sync_ward_input_to_slider(val):
+    if val is None:
+        return dash.no_update
+    try:
+        v = int(val)
+    except Exception:
+        return dash.no_update
+    if v < 2 or v > 15:
+        return dash.no_update
+    return v
