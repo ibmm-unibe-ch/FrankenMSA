@@ -1113,18 +1113,20 @@ def _sync_ward_input_to_slider(val, min_box, max_box):
 @callback(
     Output("ward-n-clusters-slider", "min"),
     Output("ward-n-clusters-slider", "max"),
+    Output("ward-n-clusters", "min"),
+    Output("ward-n-clusters", "max"),
     Input("ward-n-clusters-min-box", "value"),
     Input("ward-n-clusters-max-box", "value"),
 )
 def update_ward_slider_min_max(min_box, max_box):
     # Ensure both boxes are present and form a valid range
     if min_box is None or max_box is None:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
     try:
         min_v = int(min_box)
         max_v = int(max_box)
     except Exception:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
     if min_v >= max_v:
-        return dash.no_update, dash.no_update
-    return min_v, max_v
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    return min_v, max_v, min_v, max_v
