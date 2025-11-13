@@ -472,23 +472,18 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
         pass
 
     zip_name = os.path.basename(res["zip"])
-    link = html.A("⬇️ Download results (ZIP)", href=f"/colab/download/{zip_name}", target="_blank")
-    summary = html.Pre(str({
-        "pdb": res["pdb_path"],
-        "num_sequences": res["num_sequences"],
-        "cuda_available": res["cuda_available"],
-        "fasta": os.path.basename(res["fasta"]),
-        "a3m": os.path.basename(res["a3m"]),
-        "zip": os.path.basename(res["zip"]),
-    }))
-    input_info = html.Div(
-        f"📁 Input file used: {res.get('pdb_path', '(none)')}",
-        style={"marginTop": "4px", "opacity": 0.85}
+    link = html.A(
+        "⬇️ Download results (ZIP)",
+        href=f"/colab/download/{zip_name}",
+        target="_blank",
     )
-    return new_msa_data, new_main_msa, inject_payload, html.Div([
-        html.Div("✅ ProteinMPNN finished."),
-        input_info,
-        link,
-        summary
-    ])
+    return (
+        new_msa_data,
+        new_main_msa,
+        inject_payload,
+        html.Div([
+            html.Div("✅ ProteinMPNN finished."),
+            link,
+        ]),
+    )
 # --- end Colab integration ---
