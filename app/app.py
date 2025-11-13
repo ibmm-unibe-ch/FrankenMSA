@@ -7,7 +7,7 @@ import os
 
 
 app = Dash(
-    "FrankenMSA",
+    __name__,
     use_pages=True,
     suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
