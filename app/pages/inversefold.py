@@ -301,7 +301,7 @@ def proteinmpnn_layout():
                         type="circle",
                         children=html.Div(
                             id="proteinmpnn-status",
-                            style={"marginTop": "14px", "textAlign": "left", "whiteSpace": "pre-wrap"}
+                            style={"marginTop": "14px", "textAlign": "center", "whiteSpace": "pre-wrap"}
                         ),
                     ),
                     # Keep the hidden dummy div (not used anymore, but harmless)
