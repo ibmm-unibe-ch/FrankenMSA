@@ -266,18 +266,20 @@ def proteinmpnn_layout():
             html.H1("Inverse Fold with ProteinMPNN"),
             html.Div(style={"height": "32px"}),
             html.P([
-                "Run inverse folding using ",
+                "You can run inverse folding using ",
                 html.B("ProteinMPNN"),
-                " on a ",
+                " either on a ",
                 html.B("Google Colab GPU"),
-                ". Set parameters here and click ",
+                " or on your own local machine. Set parameters here and click ",
                 html.B("Run ProteinMPNN"),
-                
-                ". If you are running this app locally (not on Colab), please open it instead via ",
-                html.A("this Colab link",
-                       href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/FrankenMSA_app_colab.ipynb",
-                       target="_blank"),
-                ". Note: currently FrankenMSA only supports homomers (single chain)."
+                ". If you prefer running on Colab, open the Colab version via ",
+                html.A(
+                    "this Colab link",
+                    href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/FrankenMSA_app_colab.ipynb",
+                    target="_blank"
+                ),
+                ". If you run FrankenMSA locally, ProteinMPNN will use your local environment instead.",
+                " Note: currently only homomers (single chain) are supported."
             ], style={"textAlign": "center", "marginBottom": "18px"}),
             options,
             structure,
@@ -292,7 +294,21 @@ def proteinmpnn_layout():
                         style={"width": "100%", "fontWeight": 700},
                     ),
                     html.Div(
-                        "Job will run on the Colab backend. Please wait here; when it finishes, a ZIP download link will appear below, and the generated A3M file will also automatically appear in the top-right file selector.",
+                        [
+                            html.P(
+                                "Job will run on the backend. Please wait here; when it finishes, a ZIP download link will appear below, and the generated A3M file will also automatically appear in the top-right file selector.",
+                                style={"marginBottom": "4px"}
+                            ),
+                            html.Small(
+                                [
+                                    "Note: Large ProteinMPNN jobs may exceed the browser timeout. ",
+                                    "If the loading spinner stops but no download link appears, please switch to a ",
+                                    html.Span("GPU runtime", style={"color": "#0b7285", "fontWeight": 600}),
+                                    
+                                ],
+                                style={"display": "block", "marginTop": "6px", "fontSize": "0.85rem", "opacity": 0.8},
+                            ),
+                        ],
                         style={"marginTop": "10px", "fontSize": "0.95rem", "opacity": 0.9}
                     ),
                     # Visible status area (shows progress/errors/results)
