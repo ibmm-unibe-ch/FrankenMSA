@@ -1,12 +1,30 @@
-import dash
-from dash import Dash, html, dcc
-import dash_bootstrap_components as dbc
-from dash import callback, Input, Output, State, no_update
 import os
 
+import dash
+from dash import Dash, html, dcc, callback, Input, Output, State, no_update
+import dash_bootstrap_components as dbc
+
+try:
+    from jupyter_dash import JupyterDash
+except ImportError:
+    JupyterDash = None
+
+RENDER_MODE = os.environ.get("FRANKEN_RENDER_MODE", "external").strip().lower()
+if RENDER_MODE not in {"inline", "external"}:
+    RENDER_MODE = "external"
+
+AppFactory = Dash
+if RENDER_MODE == "inline":
+    if JupyterDash is None:
+        print(
+            "⚠️ FRANKEN_RENDER_MODE=inline but jupyter_dash is not installed; falling back to external mode."
+        )
+        RENDER_MODE = "external"
+    else:
+        AppFactory = JupyterDash
 
 
-app = Dash(
+app = AppFactory(
     __name__,
     use_pages=True,
     suppress_callback_exceptions=True,
@@ -31,6 +49,8 @@ if os.environ.get("IN_COLAB") == "1" or os.environ.get("FRANKEN_COLAB") == "1":
             if os.path.isfile(path):
                 return send_file(path, as_attachment=True)
         return ("File not found", 404)
+
+
 # --- end Colab download route ---
 
 
@@ -232,6 +252,7 @@ def _consume_injected_a3m(injected, msa_data):
     import tempfile
     import os
     from pathlib import Path
+
     try:
         from frankenmsa.utils import read_a3m
     except Exception:
@@ -280,8 +301,6 @@ def launch(**kwargs):
     """Main function to run the Dash app.
     Stable, production-like settings; no hot-reload; explicit host/port.
     """
-    import os
-
     # Honor HOST/PORT env if provided
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8050"))
@@ -290,15 +309,27 @@ def launch(**kwargs):
     os.environ["DASH_DEBUG_MODE"] = "0"
     os.environ["FLASK_ENV"] = "production"
 
-    # Friendly banner
-    print(f"Dash is starting on http://{host}:{port}")
+    render_mode = os.environ.get("FRANKEN_RENDER_MODE", RENDER_MODE).strip().lower()
+    if render_mode not in {"inline", "external"}:
+        render_mode = "external"
+    if render_mode == "inline" and JupyterDash is None:
+        print(
+            "⚠️ FRANKEN_RENDER_MODE=inline but jupyter_dash is not installed; defaulting to external mode."
+        )
+        render_mode = "external"
 
-    # Launch the Dash server explicitly (no custom request handlers)
-    app.run(
-        host=host,
-        port=port,
-        debug=False
-    )
+    tunnel = os.environ.get("COLAB_TUNNEL_URL")
+
+    if render_mode == "inline":
+        print(f"JupyterDash is starting inline on http://{host}:{port}")
+        if tunnel:
+            print(f"🌐 Public tunnel (unused in inline mode): {tunnel}")
+        return app.run_server(mode="inline", host=host, port=port, debug=False)
+
+    print(f"Dash is starting on http://{host}:{port}")
+    if tunnel:
+        print(f"🌐 Public tunnel: {tunnel}")
+    return app.run_server(host=host, port=port, debug=False)
 
 
 main = launch  # alias
