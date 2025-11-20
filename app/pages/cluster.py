@@ -594,22 +594,17 @@ def visualise_clusters(msa_data, main_msa):
     return html.Div(graphs)
 
     if "ward_id" in df.columns:
-        graphs.append(pca_plot(df, graph_id="pca-ward", title="PCA of Ward-merged Clusters", color_col="ward_id"))
+        graphs.append(
+            pca_plot(
+                df,
+                graph_id="pca-ward",
+                title="PCA of Ward-merged Clusters",
+                color_col="ward_id",
+            )
+        )
 
     return html.Div(graphs)
-@callback(
-    Output("msa-data", "data", allow_duplicate=True),
-    Input("run-ward-linking-button", "n_clicks"),
-    State("ward-n-clusters", "value"),
-    State("msa-data", "data"),
-    State("main-msa", "data"),
-    prevent_initial_call=True,
-)
-def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa):
-    if not (n_clicks or 0) > 0:
-        return dash.no_update
-    if not msa_data or not main_msa:
-        return dash.no_update
+
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
