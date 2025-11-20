@@ -2,7 +2,7 @@ import os, sys
 
 from pathlib import Path
 
-helpers_dir = Path(__file__).parent / "helpers"
+helpers_dir = Path(__file__).parent
 sys.path.append(str(helpers_dir.resolve()))
 
 import dash
