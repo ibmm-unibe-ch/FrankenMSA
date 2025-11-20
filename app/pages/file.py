@@ -29,7 +29,7 @@ def file_upload_layout():
         multiple=False,
         accept=".a3m,.fasta,.fa,.csv",
         max_size=52428800,
-        style={"position": "relative", "zIndex": 10, "cursor": "pointer"}
+        style={"position": "relative", "zIndex": 10, "cursor": "pointer"},
     )
 
     return html.Div(
@@ -54,7 +54,7 @@ def file_upload_layout():
 @callback(
     Output("upload-status", "children"),
     Output("main-msa", "data"),
-    Output("msa-data", "data"),
+    Output("msa-data", "data", allow_duplicate=True),
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
     State("msa-data", "data"),
@@ -73,10 +73,14 @@ def upload_file(contents, filename, msa_data):
         decoded_text = io.BytesIO(decoded_bytes).read().decode("utf-8")
         suffix = Path(filename).suffix.lower()
 
-        print(f"[UPLOAD] filename={filename} suffix={suffix} size={len(decoded_bytes)}", file=sys.stderr)
+        print(
+            f"[UPLOAD] filename={filename} suffix={suffix} size={len(decoded_bytes)}",
+            file=sys.stderr,
+        )
 
         if suffix in {".fasta", ".a3m", ".fa"}:
             from frankenmsa.utils import read_a3m
+
             tmp_path = "temp_file.a3m"
             with open(tmp_path, "w", encoding="utf-8") as f:
                 f.write(decoded_text)
@@ -84,6 +88,7 @@ def upload_file(contents, filename, msa_data):
         elif suffix == ".csv":
             import pandas as pd
             from io import StringIO
+
             msa = pd.read_csv(StringIO(decoded_text), header=0)
             if "sequence" not in msa.columns:
                 err = dcc.ConfirmDialog(
@@ -237,7 +242,6 @@ def download_file(n_clicks, main_msa, msa_data, format, filename):
     return None
 
 
-
 # Register injected A3M (from InverseFold) as if uploaded by user; also trigger on page load
 @callback(
     Output("upload-status", "children", allow_duplicate=True),
@@ -278,7 +282,8 @@ def register_injected_a3m(injected, _pathname, msa_data):
         # If already present, just switch selection and clear the store
         if name in msa_data:
             success_message = dcc.Markdown(
-                f"#### A3M '{name}.a3m' already available. Selected it for you.")
+                f"#### A3M '{name}.a3m' already available. Selected it for you."
+            )
             return success_message, name, msa_data, None
 
         # Materialize text into a temp file and parse via existing reader
@@ -288,13 +293,15 @@ def register_injected_a3m(injected, _pathname, msa_data):
             f.write(injected["text"])
 
         from frankenmsa.utils import read_a3m
+
         msa = read_a3m(tmp_path)
         msa_length = len(msa)
 
         # Merge into store and select it
         msa_data[name] = msa.to_dict("list")
         success_message = dcc.Markdown(
-            f"#### Registered A3M '{name}.a3m' from ProteinMPNN with {msa_length} entries.")
+            f"#### Registered A3M '{name}.a3m' from ProteinMPNN with {msa_length} entries."
+        )
 
         # Clear inject store after consuming to avoid re-processing
         return success_message, name, msa_data, None
