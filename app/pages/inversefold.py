@@ -30,6 +30,7 @@ def _pick_upload_dir():
         base.mkdir(parents=True, exist_ok=True)
     return str(base)
 
+
 UPLOAD_DIR = _pick_upload_dir()
 print(f"[UPLOAD_DIR] using: {UPLOAD_DIR}")
 
@@ -89,59 +90,79 @@ def proteinmpnn_layout():
     )
 
     # --- Structure input (moved out of Advanced) ---
-    structure = html.Div([
-        html.Div(
-            html.H5(
-                "Provide structure: upload a file or enter a PDB code",
-                style={
-                    "textAlign": "center",
-                    "fontWeight": 700,
-                    "fontSize": "1.05rem",
-                    "opacity": 0.9,
-                    "margin": "6px 0 8px 0",
-                },
-            ),
-            style={"width": "100%"},
-        ),
-        dbc.Row([
-            dbc.Col([
-                dcc.Input(
-                    id="proteinmpnn-pdb-code",
-                    type="text",
-                    value="",
-                    placeholder="e.g., 2NNC",
-                    className="input-component",
-                    style={"width": "100%"},
-                ),
-            ], md=6),
-            dbc.Col([
-                dcc.Upload(
-                    id="pdb-upload",
-                    children=html.Div([
-                        html.Span("Click or drag & drop a .pdb/.cif file")
-                    ]),
-                    multiple=False,
-                    accept=".pdb,.ent,.cif,.mmcif,.gz,.bz2,.txt",
+    structure = html.Div(
+        [
+            html.Div(
+                html.H5(
+                    "Provide structure: upload a file or enter a PDB code",
                     style={
-                        "border": "1px dashed #bbb",
-                        "padding": "6px 10px",
-                        "marginTop": "6px",
                         "textAlign": "center",
-                        "borderRadius": "8px",
+                        "fontWeight": 700,
+                        "fontSize": "1.05rem",
                         "opacity": 0.9,
-                        "cursor": "pointer",
-                        "minHeight": "40px",
-                        "width": "90%",
-                        "marginLeft": "auto",
-                        "marginRight": "auto",
-                        "backgroundColor": "rgba(255,255,255,0.35)",
+                        "margin": "6px 0 8px 0",
                     },
                 ),
-                html.Small(id="pdb-upload-status", style={"display": "block", "marginTop": "6px", "opacity": 0.75}),
-                dcc.Store(id="pdb-upload-path", data=""),
-            ], md=6),
-        ], className="g-2", style={"alignItems": "center"}),
-    ], style={"marginTop": "10px", "marginBottom": "8px"})
+                style={"width": "100%"},
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dcc.Input(
+                                id="proteinmpnn-pdb-code",
+                                type="text",
+                                value="",
+                                placeholder="e.g., 2NNC",
+                                className="input-component",
+                                style={"width": "100%"},
+                            ),
+                        ],
+                        md=6,
+                    ),
+                    dbc.Col(
+                        [
+                            dcc.Upload(
+                                id="pdb-upload",
+                                children=html.Div(
+                                    [html.Span("Click or drag & drop a .pdb/.cif file")]
+                                ),
+                                multiple=False,
+                                accept=".pdb,.ent,.cif,.mmcif,.gz,.bz2,.txt",
+                                style={
+                                    "border": "1px dashed #bbb",
+                                    "padding": "6px 10px",
+                                    "marginTop": "6px",
+                                    "textAlign": "center",
+                                    "borderRadius": "8px",
+                                    "opacity": 0.9,
+                                    "cursor": "pointer",
+                                    "minHeight": "40px",
+                                    "width": "90%",
+                                    "marginLeft": "auto",
+                                    "marginRight": "auto",
+                                    "backgroundColor": "rgba(255,255,255,0.35)",
+                                },
+                            ),
+                            html.Small(
+                                id="pdb-upload-status",
+                                style={
+                                    "display": "block",
+                                    "marginTop": "6px",
+                                    "opacity": 0.75,
+                                },
+                            ),
+                            dcc.Store(id="pdb-upload-path", data=""),
+                        ],
+                        md=6,
+                    ),
+                ],
+                className="g-2",
+                style={"alignItems": "center"},
+            ),
+        ],
+        style={"marginTop": "10px", "marginBottom": "8px"},
+    )
 
     advanced = html.Div(
         [
@@ -212,7 +233,11 @@ def proteinmpnn_layout():
                 [
                     dbc.Col(
                         [
-                            dbc.Label("Design chains (e.g., A or A,B)", className="mb-1", style={"fontWeight": 500}),
+                            dbc.Label(
+                                "Design chains (e.g., A or A,B)",
+                                className="mb-1",
+                                style={"fontWeight": 500},
+                            ),
                             dcc.Input(
                                 id="proteinmpnn-design-chains",
                                 type="text",
@@ -226,7 +251,11 @@ def proteinmpnn_layout():
                     ),
                     dbc.Col(
                         [
-                            dbc.Label("Fixed chains (optional)", className="mb-1", style={"fontWeight": 500}),
+                            dbc.Label(
+                                "Fixed chains (optional)",
+                                className="mb-1",
+                                style={"fontWeight": 500},
+                            ),
                             dcc.Input(
                                 id="proteinmpnn-fixed-chains",
                                 type="text",
@@ -243,44 +272,58 @@ def proteinmpnn_layout():
                 style={"alignItems": "center", "marginBottom": "6px"},
             ),
         ],
-        style={"paddingTop": "1px"}
+        style={"paddingTop": "1px"},
     )
 
-    advanced_collapse = html.Div([
-        html.Hr(style={"margin": "6px 0 12px 0"}),
-        html.Div(
-            html.Button("Advanced (optional) ▼", id="toggle-advanced", n_clicks=0,
-                        style={"background":"none","border":"none","fontWeight":700,"fontSize":"1.2rem"}),
-            style={"textAlign":"center","marginBottom":"10px"}
-        ),
-        dbc.Collapse(
-            advanced, 
-            id="collapse-advanced", 
-            is_open=False,
-            style={"overflow": "hidden"}
-        )
-    ])
+    advanced_collapse = html.Div(
+        [
+            html.Hr(style={"margin": "6px 0 12px 0"}),
+            html.Div(
+                html.Button(
+                    "Advanced (optional) ▼",
+                    id="toggle-advanced",
+                    n_clicks=0,
+                    style={
+                        "background": "none",
+                        "border": "none",
+                        "fontWeight": 700,
+                        "fontSize": "1.2rem",
+                    },
+                ),
+                style={"textAlign": "center", "marginBottom": "10px"},
+            ),
+            dbc.Collapse(
+                advanced,
+                id="collapse-advanced",
+                is_open=False,
+                style={"overflow": "hidden"},
+            ),
+        ]
+    )
 
     page_container = html.Div(
         [
             html.H1("Inverse Fold with ProteinMPNN"),
             html.Div(style={"height": "32px"}),
-            html.P([
-                "You can run inverse folding using ",
-                html.B("ProteinMPNN"),
-                " either on a ",
-                html.B("Google Colab GPU"),
-                " or on your own local machine. Set parameters here and click ",
-                html.B("Run ProteinMPNN"),
-                ". If you prefer running on Colab, open the Colab version via ",
-                html.A(
-                    "this Colab link",
-                    href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/FrankenMSA_app_colab.ipynb",
-                    target="_blank"
-                ),
-                ". If you run FrankenMSA locally, ProteinMPNN will use your local environment instead.",
-                " Note: currently only homomers (single chain) are supported."
-            ], style={"textAlign": "center", "marginBottom": "18px"}),
+            html.P(
+                [
+                    "You can run inverse folding using ",
+                    html.B("ProteinMPNN"),
+                    " either on a ",
+                    html.B("Google Colab GPU"),
+                    " or on your own local machine. Set parameters here and click ",
+                    html.B("Run ProteinMPNN"),
+                    ". If you prefer running on Colab, open the Colab version via ",
+                    html.A(
+                        "this Colab link",
+                        href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/FrankenMSA_app_colab.ipynb",
+                        target="_blank",
+                    ),
+                    ". If you run FrankenMSA locally, ProteinMPNN will use your local environment instead.",
+                    " Note: currently only homomers (single chain) are supported.",
+                ],
+                style={"textAlign": "center", "marginBottom": "18px"},
+            ),
             options,
             structure,
             advanced_collapse,
@@ -297,19 +340,30 @@ def proteinmpnn_layout():
                         [
                             html.P(
                                 "Job will run on the backend. Please wait here; when it finishes, a ZIP download link will appear below, and the generated A3M file will also automatically appear in the top-right file selector.",
-                                style={"marginBottom": "4px"}
+                                style={"marginBottom": "4px"},
                             ),
                             html.Small(
                                 [
                                     "Note: Large ProteinMPNN jobs may exceed the browser timeout. ",
                                     "If the loading spinner stops but no download link appears, please switch to a ",
-                                    html.Span("GPU runtime", style={"color": "#0b7285", "fontWeight": 600}),
-                                    
+                                    html.Span(
+                                        "GPU runtime",
+                                        style={"color": "#0b7285", "fontWeight": 600},
+                                    ),
                                 ],
-                                style={"display": "block", "marginTop": "6px", "fontSize": "0.85rem", "opacity": 0.8},
+                                style={
+                                    "display": "block",
+                                    "marginTop": "6px",
+                                    "fontSize": "0.85rem",
+                                    "opacity": 0.8,
+                                },
                             ),
                         ],
-                        style={"marginTop": "10px", "fontSize": "0.95rem", "opacity": 0.9}
+                        style={
+                            "marginTop": "10px",
+                            "fontSize": "0.95rem",
+                            "opacity": 0.9,
+                        },
                     ),
                     # Visible status area (shows progress/errors/results)
                     dcc.Loading(
@@ -317,7 +371,11 @@ def proteinmpnn_layout():
                         type="circle",
                         children=html.Div(
                             id="proteinmpnn-status",
-                            style={"marginTop": "14px", "textAlign": "center", "whiteSpace": "pre-wrap"}
+                            style={
+                                "marginTop": "14px",
+                                "textAlign": "center",
+                                "whiteSpace": "pre-wrap",
+                            },
                         ),
                     ),
                     # Keep the hidden dummy div (not used anymore, but harmless)
@@ -335,23 +393,29 @@ def proteinmpnn_layout():
         style={"width": "80%", "maxWidth": "1000px"},
     )
 
-    return html.Div([page_container], style={"display": "flex", "justifyContent": "center", "width": "100%"})
+    return html.Div(
+        [page_container],
+        style={"display": "flex", "justifyContent": "center", "width": "100%"},
+    )
 
 
 @callback(
     Output("collapse-advanced", "is_open"),
     Output("toggle-advanced", "children"),
     Input("toggle-advanced", "n_clicks"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
-
 def toggle_advanced(n):
     if n and n % 2 == 1:
         return True, "Advanced (optional) ▲"
     return False, "Advanced (optional) ▼"
 
 
-from dash.dependencies import Input as _Input, Output as _Output, State as _State  # ensure alias not required, but keep for clarity
+from dash.dependencies import (
+    Input as _Input,
+    Output as _Output,
+    State as _State,
+)  # ensure alias not required, but keep for clarity
 
 
 # --- Removed old clientside_callback that opens Google Colab in a new tab ---
@@ -361,10 +425,9 @@ from dash.dependencies import Input as _Input, Output as _Output, State as _Stat
 from dash import no_update
 import urllib.parse, os
 
-try:
-    import colab_bridge  # Provided by Colab notebook (Cell 1)
-except Exception:
-    colab_bridge = None
+
+from helpers import proteinmpnn_runner as proteinmpnn
+
 
 @callback(
     Output("pdb-upload-status", "children"),
@@ -414,31 +477,41 @@ def _save_uploaded_pdb(contents, filename):
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, msa_data_state):
+def run_proteinmpnn_in_colab(
+    n, temp, num, design, fixed, pdb, pdb_upload_path, msa_data_state
+):
     if not n:
         return no_update, no_update, no_update, no_update
-    if colab_bridge is None:
-        return no_update, no_update, no_update, html.Div("❌ Colab bridge not available. Please start the Colab launcher notebook (Cell 1 & Cell 2) and refresh this page.")
+    if proteinmpnn is None:
+        return (
+            no_update,
+            no_update,
+            no_update,
+            html.Div(
+                "❌ It seems that the ProteinMPNN runner script is not available."
+            ),
+        )
 
     uploaded_path = (pdb_upload_path or "").strip()
     code_clean = (pdb or "").strip().upper()
     use_uploaded = bool(uploaded_path) and os.path.isfile(uploaded_path)
 
-    print(f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'")
+    print(
+        f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'"
+    )
 
     if not use_uploaded and not code_clean:
-        return no_update, no_update, no_update, html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above.")
+        return (
+            no_update,
+            no_update,
+            no_update,
+            html.Div("❌ Please provide a PDB code or upload a PDB/MMCIF file above."),
+        )
 
     _path = uploaded_path
 
     try:
-        print(
-            "[RUN]",
-            "code=", ("" if use_uploaded else code_clean),
-            "pdb_path=", _path,
-            "allow_upload=", False,
-        )
-        res = colab_bridge.run_proteinmpnn(
+        res = proteinmpnn.run_proteinmpnn(
             sampling_temp=(temp or 1.0),
             num_seqs=(num or 128),
             pdb_code=("" if use_uploaded else code_clean),
@@ -497,9 +570,13 @@ def run_proteinmpnn_in_colab(n, temp, num, design, fixed, pdb, pdb_upload_path, 
         new_msa_data,
         new_main_msa,
         inject_payload,
-        html.Div([
-            html.Div("✅ ProteinMPNN finished."),
-            link,
-        ]),
+        html.Div(
+            [
+                html.Div("✅ ProteinMPNN finished."),
+                link,
+            ]
+        ),
     )
+
+
 # --- end Colab integration ---

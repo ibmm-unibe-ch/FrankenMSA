@@ -65,7 +65,7 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
     Using an existing ProteinMPNN installation
     ------------------------------------------
     - If you have a local copy of the ProteinMPNN repository already in your system you can set the path as an environment variable:
-    `export ProteinMPNN=/path/to/ProteinMPNN` to make it automatically detectable.
+    `export ProteinMPNN_DIR=/path/to/ProteinMPNN` to make it automatically detectable.
     - Alternatively, you can set the path after the class is initialized using `protein_mpnn_instance.local_path = "/path/to/ProteinMPNN"`, or use the `from_directory` method to create the instance from a local directory.
     """
 
