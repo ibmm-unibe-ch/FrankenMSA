@@ -1,4 +1,9 @@
-import os
+import os, sys
+
+from pathlib import Path
+
+helpers_dir = Path(__file__).parent / "helpers"
+sys.path.append(str(helpers_dir.resolve()))
 
 import dash
 from dash import Dash, html, dcc, callback, Input, Output, State, no_update
@@ -304,7 +309,7 @@ def launch(**kwargs):
     # Honor HOST/PORT env if provided
     host = kwargs.get("host", None)
     if host is None:
-        host = os.getenv("HOST", "0.0.0.0")
+        host = os.getenv("HOST", "127.0.0.1")
     port = kwargs.get("port", None)
     if port is None:
         port = int(os.getenv("PORT", "8050"))

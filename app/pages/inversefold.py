@@ -425,10 +425,8 @@ from dash.dependencies import (
 from dash import no_update
 import urllib.parse, os
 
-try:
-    from app.helpers import proteinmpnn_runner as proteinmpnn
-except Exception:
-    proteinmpnn = None
+
+from helpers import proteinmpnn_runner as proteinmpnn
 
 
 @callback(
