@@ -1,17 +1,37 @@
 import dash
 from dash import Dash, html, dcc
 import dash_bootstrap_components as dbc
-from dash import callback, Input, Output, State
+from dash import callback, Input, Output, State, no_update
 import os
 
 
+
 app = Dash(
+    __name__,
     use_pages=True,
     suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
-    prevent_initial_callbacks=True,
 )
-app.config["prevent_initial_callbacks"] = True
+
+# --- Colab download route (serve result files like ZIP/FASTA/A3M) ---
+from flask import send_file
+
+# Only register this route when running in Colab
+if os.environ.get("IN_COLAB") == "1" or os.environ.get("FRANKEN_COLAB") == "1":
+    DOWNLOAD_ROOTS = ["/content", "/content/ProteinMPNN/outputs_run"]
+
+    @app.server.route("/colab/download/<path:fname>")
+    def colab_download(fname):
+        """
+        Serve files produced on the Colab VM so users can download from the web UI.
+        Only files under the whitelisted roots are served.
+        """
+        for root in DOWNLOAD_ROOTS:
+            path = os.path.join(root, fname)
+            if os.path.isfile(path):
+                return send_file(path, as_attachment=True)
+        return ("File not found", 404)
+# --- end Colab download route ---
 
 
 def icon_link(icon, href, tooltip_text):
@@ -181,11 +201,13 @@ def make_notification():
 
 app.layout = html.Div(
     [
+        dcc.Location(id="url"),
         make_notification(),
         make_header(),
         dash.page_container,
         make_footer(),
         # empty stuff for the state
+        dcc.Store(id="inject-a3m", data=None, storage_type="session"),
         dcc.Store(id="main-msa", data=None, storage_type="memory"),
         dcc.Store(id="msa-data", data={}, storage_type="memory"),
         dcc.Store(id="afcluster-last-settings", data={}, storage_type="memory"),
@@ -193,16 +215,92 @@ app.layout = html.Div(
 )
 
 
+# Callback to consume injected A3M data
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("main-msa", "data", allow_duplicate=True),
+    Output("inject-a3m", "data", allow_duplicate=True),
+    Input("inject-a3m", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def _consume_injected_a3m(injected, msa_data):
+    # Nothing to do
+    if not injected or not injected.get("text"):
+        return no_update, no_update, no_update
+
+    import tempfile
+    import os
+    from pathlib import Path
+    try:
+        from frankenmsa.utils import read_a3m
+    except Exception:
+        # Fallback: defer processing if utils unavailable
+        return no_update, no_update, no_update
+
+    raw_name = injected.get("name") or "mpnn.a3m"
+    name = (Path(raw_name).stem or "mpnn").strip()
+
+    # Ensure dict
+    msa_data = {} if msa_data is None else dict(msa_data)
+
+    # Drop duplicate name variants that include extensions
+    ext_variants = {
+        raw_name,
+        f"{name}.a3m",
+        f"{name}.fa",
+        f"{name}.fasta",
+        f"{name}.csv",
+    }
+    for k in list(msa_data.keys()):
+        if k in ext_variants and k != name:
+            msa_data.pop(k, None)
+
+    # If already present, select it and clear the one-shot store
+    if name in msa_data:
+        return msa_data, name, None
+
+    # Materialize text to a temp file and parse via existing reader
+    tmp_path = os.path.join(tempfile.gettempdir(), f"{name}.a3m")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write(injected["text"])
+
+    try:
+        msa = read_a3m(tmp_path)
+    except Exception:
+        return no_update, no_update, no_update
+
+    msa_data[name] = msa.to_dict("list")
+
+    # Update global stores and clear the one-shot injection store
+    return msa_data, name, None
+
+
 def launch(**kwargs):
     """Main function to run the Dash app.
-    Add any keyword arguments to the app.run() method.
+    Stable, production-like settings; no hot-reload; explicit host/port.
     """
-    app.run(**kwargs)
+    import os
+
+    # Honor HOST/PORT env if provided
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8050"))
+
+    # Ensure production-ish mode
+    os.environ["DASH_DEBUG_MODE"] = "0"
+    os.environ["FLASK_ENV"] = "production"
+
+    # Friendly banner
+    print(f"Dash is starting on http://{host}:{port}")
+
+    # Launch the Dash server explicitly (no custom request handlers)
+    app.run(
+        host=host,
+        port=port,
+        debug=False
+    )
 
 
 main = launch  # alias
 if __name__ == "__main__":
-    # Increase memory quota if running on a platform that supports it
-    os.environ["DASH_MAX_MEMORY"] = "1024"  # Set memory quota to 1024MB (1GB)
-
-    app.run(debug=True)
+    launch()

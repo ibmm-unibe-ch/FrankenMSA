@@ -943,6 +943,39 @@ def shuffle_columns_layout():
         labelStyle={"marginRight": "16px"},
         inline=True,
     )
+    # Collapsible seed input section
+    seed_toggle = html.Button(
+        "Advanced (optional) ▼",
+        id="toggle-seed-btn",
+        n_clicks=0,
+        style={
+            "background": "none",
+            "border": "none",
+            "fontWeight": "bold",
+            "fontSize": "1rem",
+            "cursor": "pointer",
+            "marginBottom": "6px",
+        },
+    )
+    seed_collapse = dbc.Collapse(
+        html.Div(
+            [
+                dbc.Label("Random seed:", className="mb-1"),
+                dcc.Input(
+                    id="shuffle-seed",
+                    type="number",
+                    placeholder="e.g. 42",
+                    min=0,
+                    step=1,
+                    debounce=True,
+                    style={"width": "120px"}
+                ),
+            ],
+            style={"marginTop": "4px"},
+        ),
+        id="seed-collapse",
+        is_open=False,
+    )
     button = html.Button(
         "Apply Column Shuffle",
         id="apply-shuffle-button",
@@ -969,6 +1002,8 @@ def shuffle_columns_layout():
                 style={"display": "flex", "alignItems": "center", "marginBottom": "12px"},
             ),
             html.Div(checklist, style={"marginBottom": "10px"}),
+            seed_toggle,
+            seed_collapse,
             html.Div(button, style={"textAlign": "center"}),
         ],
         className="shaded-bordered",
@@ -1030,6 +1065,17 @@ def sync_shuffle_slider_and_inputs(slider_value, start_value, end_value):
         return [start_value, end_value], start_value, end_value
     else:
         return no_update, no_update, no_update
+
+# Callback to toggle the seed collapse section
+@callback(
+    Output("seed-collapse", "is_open"),
+    Output("toggle-seed-btn", "children"),
+    Input("toggle-seed-btn", "n_clicks"),
+)
+def toggle_seed(n):
+    if (n or 0) % 2 == 1:
+        return True, "Advanced (optional) ▲"
+    return False, "Advanced (optional) ▼"
 
 def sort_by_layout():
     return html.Div(
@@ -1288,6 +1334,13 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
         s = int(start) if start not in (None, "") else None
         e = int(end) if end not in (None, "") else None
 
+        # Read seed value from kwargs (dash supplies all States as kwargs; fallback to dash.callback_context.inputs if needed)
+        seed_value = dash.callback_context.inputs.get("shuffle-seed.value", None)
+        if seed_value is None or seed_value == "":
+            random_state = None
+        else:
+            random_state = int(seed_value)
+
         # Do the column-wise shuffle (row 0 kept fixed)
         shuffled = shuffle_msa_cols(
             df,
@@ -1295,6 +1348,7 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
             end=e,
             preserve_gaps=preserve_gaps,
             inplace=False,
+            random_state=random_state
         )
 
         # Write back to store
