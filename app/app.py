@@ -330,12 +330,12 @@ def launch(**kwargs):
         print(f"JupyterDash is starting inline on http://{host}:{port}")
         if tunnel:
             print(f"🌐 Public tunnel (unused in inline mode): {tunnel}")
-        return app.run_server(mode="inline", host=host, port=port, debug=False)
+        return app.run(mode="inline", host=host, port=port, debug=False)
 
     print(f"Dash is starting on http://{host}:{port}")
     if tunnel:
         print(f"🌐 Public tunnel: {tunnel}")
-    return app.run_server(host=host, port=port, debug=False)
+    return app.run(host=host, port=port, debug=False)
 
 
 main = launch  # alias
