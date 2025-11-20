@@ -53,7 +53,7 @@ def file_upload_layout():
 
 @callback(
     Output("upload-status", "children"),
-    Output("main-msa", "data"),
+    Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
