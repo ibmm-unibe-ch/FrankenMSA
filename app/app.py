@@ -302,14 +302,20 @@ def launch(**kwargs):
     Stable, production-like settings; no hot-reload; explicit host/port.
     """
     # Honor HOST/PORT env if provided
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8050"))
+    host = kwargs.get("host", None)
+    if host is None:
+        host = os.getenv("HOST", "0.0.0.0")
+    port = kwargs.get("port", None)
+    if port is None:
+        port = int(os.getenv("PORT", "8050"))
 
     # Ensure production-ish mode
     os.environ["DASH_DEBUG_MODE"] = "0"
     os.environ["FLASK_ENV"] = "production"
 
-    render_mode = os.environ.get("FRANKEN_RENDER_MODE", RENDER_MODE).strip().lower()
+    render_mode = kwargs.get("render_mode", None)
+    if render_mode is None:
+        render_mode = os.environ.get("FRANKEN_RENDER_MODE", RENDER_MODE).strip().lower()
     if render_mode not in {"inline", "external"}:
         render_mode = "external"
     if render_mode == "inline" and JupyterDash is None:
