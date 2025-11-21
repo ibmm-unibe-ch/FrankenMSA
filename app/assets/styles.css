@@ -43,7 +43,7 @@ body {
 }
 
 .gradient-background {
-    background: linear-gradient(87deg,#eaeaea,#e0fff7,#ebfffa);
+    /* background: white linear-gradient(87deg,#eaeaea,#e0fff7,#ebfffa); */
     background-size: 180% 180%;
     animation: gradient-animation 21s ease infinite;
     align-items: center;

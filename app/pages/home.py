@@ -7,6 +7,31 @@ dash.register_page(
     path="/",
 )
 
+import os
+
+IS_COLAB = os.environ.get("IS_COLAB", False) == "1"
+
+try:
+    import torch
+
+    HAS_TORCH = True
+    HAS_GPU = torch.cuda.is_available()
+except Exception:
+    HAS_GPU = False
+    HAS_TORCH = False
+
+
+def _runtime_badge_config():
+    base = "colab" if IS_COLAB else "local"
+    gpu_state = "gpu" if HAS_GPU else "no_gpu"
+    icon_src = f"assets/icon_{base}_{gpu_state}.png"
+    runtime_label = "on Google Colab" if IS_COLAB else "in a Local Environment"
+    gpu_label = "with GPU available" if HAS_GPU else "but no GPU was detected"
+    if not HAS_TORCH:
+        gpu_label = "but GPU status is unknown as PyTorch is not installed"
+    tooltip = f"The app is running {runtime_label} {gpu_label}."
+    return icon_src, tooltip
+
 
 def layout():
 
@@ -24,10 +49,46 @@ So if you have some basic Python knowledge, you can also use the frankenMSA libr
 The frankenMSA library is available on PyPI and can be freely installed.
 """
 
+    icon_src, tooltip_text = _runtime_badge_config()
+    runtime_indicator = html.Div(
+        [
+            html.Img(
+                id="runtime-indicator-home",
+                src=icon_src,
+                style={
+                    "width": "54px",
+                    "height": "54px",
+                    # "borderRadius": "20%",
+                    # "boxShadow": "0 2px 6px rgba(0,0,0,0.25)",
+                    "cursor": "pointer",
+                    "maxWidth": "100%",
+                    "maxHeight": "100%",
+                    "objectFit": "contain",
+                    "display": "block",
+                },
+                title=tooltip_text,
+                alt="Runtime indicator",
+            ),
+            dbc.Tooltip(
+                tooltip_text,
+                target="runtime-indicator-home",
+                placement="left",
+            ),
+        ],
+        style={
+            "position": "absolute",
+            "top": "24px",
+            "right": "30px",
+            "zIndex": 10,
+        },
+    )
+
     # Add a class to the Div to apply the animated background
     return html.Div(
         className="gradient-background",
+        style={"position": "relative"},
         children=[
+            runtime_indicator,
             html.Img(
                 src="assets/frankenmsa_dark_v2.png",
                 className="logo-main",
