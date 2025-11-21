@@ -9,7 +9,7 @@ dash.register_page(
 
 import os
 
-IS_COLAB = os.environ.get("IS_COLAB", False) == "1"
+ON_COLAB = os.environ.get("ON_COLAB", False) == "1"
 
 try:
     import torch
@@ -22,10 +22,10 @@ except Exception:
 
 
 def _runtime_badge_config():
-    base = "colab" if IS_COLAB else "local"
+    base = "colab" if ON_COLAB else "local"
     gpu_state = "gpu" if HAS_GPU else "no_gpu"
     icon_src = f"assets/icon_{base}_{gpu_state}.png"
-    runtime_label = "on Google Colab" if IS_COLAB else "in a Local Environment"
+    runtime_label = "on Google Colab" if ON_COLAB else "in a Local Environment"
     gpu_label = "with GPU available" if HAS_GPU else "but no GPU was detected"
     if not HAS_TORCH:
         gpu_label = "but GPU status is unknown as PyTorch is not installed"

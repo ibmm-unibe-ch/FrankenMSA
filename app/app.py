@@ -44,7 +44,7 @@ def _collect_download_roots():
     roots = []
 
     if (
-        os.environ.get("IS_COLAB") == "1"
+        os.environ.get("ON_COLAB") == "1"
         or os.environ.get("IN_COLAB") == "1"
         or os.environ.get("FRANKEN_COLAB") == "1"
     ):

@@ -8,8 +8,8 @@ import base64, re
 import os, tempfile
 from pathlib import Path
 
-IS_COLAB = os.environ.get("IS_COLAB", False) == "1"
-if not IS_COLAB and (Path(__file__).parents[2] / ".git").exists():
+ON_COLAB = os.environ.get("ON_COLAB", False) == "1"
+if not ON_COLAB and (Path(__file__).parents[2] / ".git").exists():
     import git
 
     try:
@@ -446,9 +446,9 @@ from dash import no_update
 import urllib.parse, os
 
 
-IS_COLAB = os.environ.get("IS_COLAB") == "1"
+ON_COLAB = os.environ.get("ON_COLAB") == "1"
 
-if IS_COLAB:
+if ON_COLAB:
     from helpers import proteinmpnn_colab_runner as proteinmpnn
 else:
     from helpers import proteinmpnn_local_runner as proteinmpnn
@@ -592,7 +592,7 @@ def run_proteinmpnn_in_colab(
         target="_blank",
     )
     status_children = [html.Div("✅ ProteinMPNN finished."), link]
-    if not IS_COLAB:
+    if not ON_COLAB:
         status_children.append(
             html.Small(
                 f"Stored at {res['zip']}",
