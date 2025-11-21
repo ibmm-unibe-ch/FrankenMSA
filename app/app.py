@@ -340,19 +340,13 @@ def launch(**kwargs):
         render_mode = "external"
 
     tunnel = os.environ.get("COLAB_TUNNEL_URL")
-
-    # Inline custom embedding (no JupyterDash): start background thread and display iframe
-    if render_mode == "inline":
-        print(f"JupyterDash (inline) starting on http://{host}:{port}")
-        if tunnel:
-            print(f"🌐 Public tunnel (unused in inline mode): {tunnel}")
-        return app.run(mode="inline", host=host, port=port, debug=False)
-
-    # Fallback: plain Dash
-    print(f"Dash starting on http://{host}:{port}")
-    if tunnel:
+    if tunnel and render_mode == "inline":
+        print(f"🌐 Public tunnel is unused in 'inline' mode: {tunnel}")
+    elif tunnel:
         print(f"🌐 Public tunnel: {tunnel}")
-    return app.run(host=host, port=port, debug=False)
+
+    print(f"Dash starting on http://{host}:{port}")
+    return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
 
 
 main = launch  # alias
