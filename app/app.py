@@ -36,27 +36,55 @@ app = AppFactory(
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
 )
 
-# --- Colab download route (serve result files like ZIP/FASTA/A3M) ---
+# --- Download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
 
-# Only register this route when running in Colab
-if os.environ.get("IN_COLAB") == "1" or os.environ.get("FRANKEN_COLAB") == "1":
-    DOWNLOAD_ROOTS = ["/content", "/content/ProteinMPNN/outputs_run"]
 
-    @app.server.route("/colab/download/<path:fname>")
-    def colab_download(fname):
-        """
-        Serve files produced on the Colab VM so users can download from the web UI.
-        Only files under the whitelisted roots are served.
-        """
-        for root in DOWNLOAD_ROOTS:
-            path = os.path.join(root, fname)
-            if os.path.isfile(path):
-                return send_file(path, as_attachment=True)
-        return ("File not found", 404)
+def _collect_download_roots():
+    roots = []
+
+    if (
+        os.environ.get("IS_COLAB") == "1"
+        or os.environ.get("IN_COLAB") == "1"
+        or os.environ.get("FRANKEN_COLAB") == "1"
+    ):
+        roots.extend(["/content", "/content/ProteinMPNN/outputs_run"])
+
+    project_root = Path(__file__).resolve().parent.parent
+    local_repo = project_root / "ProteinMPNN"
+    roots.append(str(local_repo / "outputs_run"))
+    roots.append(str(local_repo / "outputs_local"))
+
+    out_override = os.environ.get("PROTEINMPNN_OUT_DIR")
+    if out_override:
+        roots.append(out_override)
+
+    deduped = []
+    seen = set()
+    for root in roots:
+        if not root:
+            continue
+        normalized = str(Path(root).expanduser())
+        if normalized not in seen:
+            seen.add(normalized)
+            deduped.append(normalized)
+    return deduped
 
 
-# --- end Colab download route ---
+DOWNLOAD_ROOTS = _collect_download_roots()
+
+
+@app.server.route("/colab/download/<path:fname>")
+def serve_proteinmpnn_download(fname):
+    """Serve ProteinMPNN output artifacts produced by Colab or local runs."""
+    for root in DOWNLOAD_ROOTS:
+        path = os.path.join(root, fname)
+        if os.path.isfile(path):
+            return send_file(path, as_attachment=True)
+    return ("File not found", 404)
+
+
+# --- end download route ---
 
 
 def icon_link(icon, href, tooltip_text):

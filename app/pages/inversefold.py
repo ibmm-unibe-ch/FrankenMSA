@@ -8,6 +8,26 @@ import base64, re
 import os, tempfile
 from pathlib import Path
 
+IS_COLAB = os.environ.get("IS_COLAB", False) == "1"
+if not IS_COLAB and (Path(__file__).parents[2] / ".git").exists():
+    import git
+
+    try:
+        repo_root = Path(__file__).parents[2]
+        print("repo:", repo_root)
+        repo = git.Repo(repo_root)
+        try:
+            CURRENT_BRANCH = repo.active_branch.name
+        except TypeError:
+            # Detached HEAD -> fall back to short commit SHA
+            CURRENT_BRANCH = repo.git.rev_parse("--short", "HEAD")
+        del repo
+    except Exception:
+        CURRENT_BRANCH = "main"
+else:
+    CURRENT_BRANCH = "main"
+COLAB_LINK = f"https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/{CURRENT_BRANCH}/FrankenMSA_app_colab.ipynb"
+
 
 # Robust, cross-environment upload directory selection
 def _pick_upload_dir():
@@ -316,7 +336,7 @@ def proteinmpnn_layout():
                     ". If you prefer running on Colab, open the Colab version via ",
                     html.A(
                         "this Colab link",
-                        href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/feature/colab-runner/FrankenMSA_app_colab.ipynb",
+                        href=COLAB_LINK,
                         target="_blank",
                     ),
                     ". If you run FrankenMSA locally, ProteinMPNN will use your local environment instead.",
@@ -426,7 +446,12 @@ from dash import no_update
 import urllib.parse, os
 
 
-from helpers import proteinmpnn_runner as proteinmpnn
+IS_COLAB = os.environ.get("IS_COLAB") == "1"
+
+if IS_COLAB:
+    from helpers import proteinmpnn_colab_runner as proteinmpnn
+else:
+    from helpers import proteinmpnn_local_runner as proteinmpnn
 
 
 @callback(
@@ -566,16 +591,19 @@ def run_proteinmpnn_in_colab(
         href=f"/colab/download/{zip_name}",
         target="_blank",
     )
+    status_children = [html.Div("✅ ProteinMPNN finished."), link]
+    if not IS_COLAB:
+        status_children.append(
+            html.Small(
+                f"Stored at {res['zip']}",
+                style={"display": "block", "marginTop": "6px", "opacity": 0.7},
+            )
+        )
     return (
         new_msa_data,
         new_main_msa,
         inject_payload,
-        html.Div(
-            [
-                html.Div("✅ ProteinMPNN finished."),
-                link,
-            ]
-        ),
+        html.Div(status_children),
     )
 
 
