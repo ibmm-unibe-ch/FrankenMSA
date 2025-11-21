@@ -9,27 +9,11 @@ import dash
 from dash import Dash, html, dcc, callback, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 
-try:
-    from jupyter_dash import JupyterDash
-except ImportError:
-    JupyterDash = None
-
 RENDER_MODE = os.environ.get("FRANKEN_RENDER_MODE", "external").strip().lower()
-if RENDER_MODE not in {"inline", "external"}:
+if RENDER_MODE not in {"external", "inline"}:
     RENDER_MODE = "external"
 
-AppFactory = Dash
-if RENDER_MODE == "inline":
-    if JupyterDash is None:
-        print(
-            "⚠️ FRANKEN_RENDER_MODE=inline but jupyter_dash is not installed; falling back to external mode."
-        )
-        RENDER_MODE = "external"
-    else:
-        AppFactory = JupyterDash
-
-
-app = AppFactory(
+app = Dash(
     __name__,
     use_pages=True,
     suppress_callback_exceptions=True,
@@ -346,26 +330,26 @@ def launch(**kwargs):
     os.environ["DASH_DEBUG_MODE"] = "0"
     os.environ["FLASK_ENV"] = "production"
 
-    render_mode = kwargs.get("render_mode", None)
-    if render_mode is None:
-        render_mode = os.environ.get("FRANKEN_RENDER_MODE", RENDER_MODE).strip().lower()
+    # Decide render mode (inline/external) again
+    render_mode = (
+        kwargs.get("render_mode", os.environ.get("FRANKEN_RENDER_MODE", RENDER_MODE))
+        .strip()
+        .lower()
+    )
     if render_mode not in {"inline", "external"}:
-        render_mode = "external"
-    if render_mode == "inline" and JupyterDash is None:
-        print(
-            "⚠️ FRANKEN_RENDER_MODE=inline but jupyter_dash is not installed; defaulting to external mode."
-        )
         render_mode = "external"
 
     tunnel = os.environ.get("COLAB_TUNNEL_URL")
 
+    # Inline custom embedding (no JupyterDash): start background thread and display iframe
     if render_mode == "inline":
-        print(f"JupyterDash is starting inline on http://{host}:{port}")
+        print(f"JupyterDash (inline) starting on http://{host}:{port}")
         if tunnel:
             print(f"🌐 Public tunnel (unused in inline mode): {tunnel}")
         return app.run(mode="inline", host=host, port=port, debug=False)
 
-    print(f"Dash is starting on http://{host}:{port}")
+    # Fallback: plain Dash
+    print(f"Dash starting on http://{host}:{port}")
     if tunnel:
         print(f"🌐 Public tunnel: {tunnel}")
     return app.run(host=host, port=port, debug=False)
