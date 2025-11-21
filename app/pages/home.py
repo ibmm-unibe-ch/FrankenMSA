@@ -90,7 +90,7 @@ The frankenMSA library is available on PyPI and can be freely installed.
         children=[
             runtime_indicator,
             html.Img(
-                src="assets/frankenmsa_dark_v2.png",
+                src="assets/frankenmsa_colored_v1.png",
                 className="logo-main",
             ),
             html.P(main_text, style={"margin-top": "4%"}),
