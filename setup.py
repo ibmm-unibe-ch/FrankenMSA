@@ -39,6 +39,7 @@ setup(
         "matplotlib",
         "plotly",
         "dash-bootstrap-components",
+        "gitpython",
     ],
     extras_require=extras_require,
     classifiers=[
