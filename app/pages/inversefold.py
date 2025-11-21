@@ -14,7 +14,6 @@ if not ON_COLAB and (Path(__file__).parents[2] / ".git").exists():
 
     try:
         repo_root = Path(__file__).parents[2]
-        print("repo:", repo_root)
         repo = git.Repo(repo_root)
         try:
             CURRENT_BRANCH = repo.active_branch.name
