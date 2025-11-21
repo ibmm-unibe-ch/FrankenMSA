@@ -337,7 +337,7 @@ def launch(**kwargs):
     # Honor HOST/PORT env if provided
     host = kwargs.get("host", None)
     if host is None:
-        host = os.getenv("HOST", "127.0.0.1")
+        host = os.getenv("HOST", "0.0.0.0")
     port = kwargs.get("port", None)
     if port is None:
         port = int(os.getenv("PORT", "8050"))
