@@ -7,16 +7,6 @@ extras_require = {
     ],
 }
 
-with open("app/requirements.txt", "r") as f:
-    app = []
-    for line in f:
-        line = line.strip()
-        if line and not line.startswith("#"):
-            # Ignore comments and empty lines
-            package = line.split("==")[0]  # Get the package name
-            app.append(package)
-    extras_require["app"] = app
-
 
 extras_require["all"] = []
 for k, v in extras_require.items():
@@ -49,6 +39,7 @@ setup(
         "matplotlib",
         "plotly",
         "dash-bootstrap-components",
+        "gitpython",
     ],
     extras_require=extras_require,
     classifiers=[

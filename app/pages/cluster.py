@@ -42,7 +42,13 @@ def layout():
                                                     multi=True,
                                                     className="dropdown-component",
                                                     placeholder="Select clusters to save",
-                                                    style={"height": "44px", "alignSelf": "center", "width": "280px", "margin": "0", "boxSizing": "border-box"},
+                                                    style={
+                                                        "height": "44px",
+                                                        "alignSelf": "center",
+                                                        "width": "280px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
                                                 ),
                                                 width=True,
                                             ),
@@ -52,7 +58,15 @@ def layout():
                                                     id="save-selected-clusters-button",
                                                     className="button-component",
                                                     n_clicks=0,
-                                                    style={"height": "44px", "lineHeight": "44px", "alignSelf": "center", "padding": "0 18px", "width": "240px", "margin": "0", "boxSizing": "border-box"},
+                                                    style={
+                                                        "height": "44px",
+                                                        "lineHeight": "44px",
+                                                        "alignSelf": "center",
+                                                        "padding": "0 18px",
+                                                        "width": "240px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
                                                 ),
                                                 width="auto",
                                             ),
@@ -76,7 +90,13 @@ def layout():
                                                     multi=True,
                                                     className="dropdown-component",
                                                     placeholder="Select ward clusters to save",
-                                                    style={"height": "44px", "alignSelf": "center", "width": "280px", "margin": "0", "boxSizing": "border-box"},
+                                                    style={
+                                                        "height": "44px",
+                                                        "alignSelf": "center",
+                                                        "width": "280px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
                                                 ),
                                                 width=True,
                                             ),
@@ -86,7 +106,15 @@ def layout():
                                                     id="save-ward-selected-clusters-button",
                                                     className="button-component",
                                                     n_clicks=0,
-                                                    style={"height": "44px", "lineHeight": "44px", "alignSelf": "center", "padding": "0 18px", "width": "240px", "margin": "0", "boxSizing": "border-box"},
+                                                    style={
+                                                        "height": "44px",
+                                                        "lineHeight": "44px",
+                                                        "alignSelf": "center",
+                                                        "padding": "0 18px",
+                                                        "width": "240px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
                                                 ),
                                                 width="auto",
                                             ),
@@ -157,7 +185,8 @@ def ward_controls_layout():
                     id="ward-n-clusters-min-box",
                     type="number",
                     value=2,
-                    disabled=True,
+                    min=2,
+                    max=100,
                     style={"width": "80px"},
                 ),
                 width="auto",
@@ -179,7 +208,7 @@ def ward_controls_layout():
                         max=15,
                         step=1,
                         value=3,
-                        marks={2: "2", 8: "8", 15: "15"},
+                        marks={2: "2", 50: "50", 100: "100"},
                         tooltip={"placement": "bottom", "always_visible": True},
                     ),
                     dcc.Input(
@@ -199,7 +228,10 @@ def ward_controls_layout():
                     id="ward-n-clusters-max-box",
                     type="number",
                     value=15,
-                    disabled=True,
+                    min=3,
+                    max=200,
+                    # allow user to edit max so slider bounds follow both boxes
+                    disabled=False,
                     style={"width": "80px"},
                 ),
                 width="auto",
@@ -540,12 +572,40 @@ def visualise_clusters(msa_data, main_msa):
         return dbc.Alert("No clusters found. Please run AFCluster first.")
 
     graphs = []
-    graphs.append(pca_plot(df, graph_id="pca-af", title="PCA of AFCluster Clusters", color_col="cluster_id"))
+    graphs.append(
+        pca_plot(
+            df,
+            graph_id="pca-af",
+            title="PCA of AFCluster Clusters",
+            color_col="cluster_id",
+        )
+    )
 
     if "ward_id" in df.columns:
-        graphs.append(pca_plot(df, graph_id="pca-ward", title="PCA of Ward-merged Clusters", color_col="ward_id"))
+        graphs.append(
+            pca_plot(
+                df,
+                graph_id="pca-ward",
+                title="PCA of Ward-merged Clusters",
+                color_col="ward_id",
+            )
+        )
 
     return html.Div(graphs)
+
+    if "ward_id" in df.columns:
+        graphs.append(
+            pca_plot(
+                df,
+                graph_id="pca-ward",
+                title="PCA of Ward-merged Clusters",
+                color_col="ward_id",
+            )
+        )
+
+    return html.Div(graphs)
+
+
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("run-ward-linking-button", "n_clicks"),
@@ -591,6 +651,8 @@ def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa):
 
     msa_data[main_msa] = df.to_dict("list")
     return msa_data
+
+
 @callback(
     Output("ward-clusters-to-save-dropdown", "options"),
     Input("msa-data", "data"),
@@ -608,7 +670,6 @@ def update_ward_clusters_to_save_options(msa_data, main_msa):
     return options
 
 
-
 def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id"):
     from sklearn.decomposition import PCA
     from afcluster.af_cluster import _seqs_to_onehot
@@ -620,7 +681,11 @@ def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="clust
     query = df.iloc[:1]
     rest = df.iloc[1:]
 
-    seq_len = len(query["sequence"].values[0]) if len(query) else len(rest.iloc[0]["sequence"]) if len(rest) else 0
+    seq_len = (
+        len(query["sequence"].values[0])
+        if len(query)
+        else len(rest.iloc[0]["sequence"]) if len(rest) else 0
+    )
     if seq_len == 0:
         return dcc.Graph(id=graph_id)
 
@@ -987,6 +1052,7 @@ def save_selected_clusters(
     info = f"Saved {len(selected_clusters)} clusters to MSA data."
     return msa_data
 
+
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("save-ward-selected-clusters-button", "n_clicks"),
@@ -1028,15 +1094,51 @@ def _sync_ward_slider_to_input(val):
 @callback(
     Output("ward-n-clusters-slider", "value"),
     Input("ward-n-clusters", "value"),
+    State("ward-n-clusters-min-box", "value"),
+    State("ward-n-clusters-max-box", "value"),
     prevent_initial_call=True,
 )
-def _sync_ward_input_to_slider(val):
+def _sync_ward_input_to_slider(val, min_box, max_box):
+    # Validate using the dynamic min/max from the boxes
     if val is None:
         return dash.no_update
     try:
         v = int(val)
     except Exception:
         return dash.no_update
-    if v < 2 or v > 15:
+
+    # fall back to sensible defaults if boxes are missing
+    try:
+        min_v = int(min_box) if min_box is not None else 2
+    except Exception:
+        min_v = 2
+    try:
+        max_v = int(max_box) if max_box is not None else 100
+    except Exception:
+        max_v = 100
+
+    if v < min_v or v > max_v:
         return dash.no_update
     return v
+
+
+@callback(
+    Output("ward-n-clusters-slider", "min"),
+    Output("ward-n-clusters-slider", "max"),
+    Output("ward-n-clusters", "min"),
+    Output("ward-n-clusters", "max"),
+    Input("ward-n-clusters-min-box", "value"),
+    Input("ward-n-clusters-max-box", "value"),
+)
+def update_ward_slider_min_max(min_box, max_box):
+    # Ensure both boxes are present and form a valid range
+    if min_box is None or max_box is None:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    try:
+        min_v = int(min_box)
+        max_v = int(max_box)
+    except Exception:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    if min_v >= max_v:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    return min_v, max_v, min_v, max_v

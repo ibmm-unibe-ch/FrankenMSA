@@ -1,10 +1,17 @@
+import os, sys
+
+from pathlib import Path
+
+helpers_dir = Path(__file__).parent
+sys.path.append(str(helpers_dir.resolve()))
+
 import dash
-from dash import Dash, html, dcc
+from dash import Dash, html, dcc, callback, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
-from dash import callback, Input, Output, State, no_update
-import os
 
-
+RENDER_MODE = os.environ.get("FRANKEN_RENDER_MODE", "external").strip().lower()
+if RENDER_MODE not in {"external", "inline"}:
+    RENDER_MODE = "external"
 
 app = Dash(
     __name__,
@@ -13,23 +20,55 @@ app = Dash(
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
 )
 
-# --- Colab download route (serve result files like ZIP/FASTA/A3M) ---
+# --- Download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
 
-DOWNLOAD_ROOTS = ["/content", "/content/ProteinMPNN/outputs_run"]
+
+def _collect_download_roots():
+    roots = []
+
+    if (
+        os.environ.get("ON_COLAB") == "1"
+        or os.environ.get("IN_COLAB") == "1"
+        or os.environ.get("FRANKEN_COLAB") == "1"
+    ):
+        roots.extend(["/content", "/content/ProteinMPNN/outputs_run"])
+
+    project_root = Path(__file__).resolve().parent.parent
+    local_repo = project_root / "ProteinMPNN"
+    roots.append(str(local_repo / "outputs_run"))
+    roots.append(str(local_repo / "outputs_local"))
+
+    out_override = os.environ.get("PROTEINMPNN_OUT_DIR")
+    if out_override:
+        roots.append(out_override)
+
+    deduped = []
+    seen = set()
+    for root in roots:
+        if not root:
+            continue
+        normalized = str(Path(root).expanduser())
+        if normalized not in seen:
+            seen.add(normalized)
+            deduped.append(normalized)
+    return deduped
+
+
+DOWNLOAD_ROOTS = _collect_download_roots()
+
 
 @app.server.route("/colab/download/<path:fname>")
-def colab_download(fname):
-    """
-    Serve files produced on the Colab VM so users can download from the web UI.
-    Only files under the whitelisted roots are served.
-    """
+def serve_proteinmpnn_download(fname):
+    """Serve ProteinMPNN output artifacts produced by Colab or local runs."""
     for root in DOWNLOAD_ROOTS:
         path = os.path.join(root, fname)
         if os.path.isfile(path):
             return send_file(path, as_attachment=True)
     return ("File not found", 404)
-# --- end Colab download route ---
+
+
+# --- end download route ---
 
 
 def icon_link(icon, href, tooltip_text):
@@ -230,6 +269,7 @@ def _consume_injected_a3m(injected, msa_data):
     import tempfile
     import os
     from pathlib import Path
+
     try:
         from frankenmsa.utils import read_a3m
     except Exception:
@@ -278,25 +318,35 @@ def launch(**kwargs):
     """Main function to run the Dash app.
     Stable, production-like settings; no hot-reload; explicit host/port.
     """
-    import os
-
     # Honor HOST/PORT env if provided
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8050"))
+    host = kwargs.get("host", None)
+    if host is None:
+        host = os.getenv("HOST", "0.0.0.0")
+    port = kwargs.get("port", None)
+    if port is None:
+        port = int(os.getenv("PORT", "8050"))
 
     # Ensure production-ish mode
     os.environ["DASH_DEBUG_MODE"] = "0"
     os.environ["FLASK_ENV"] = "production"
 
-    # Friendly banner
-    print(f"Dash is starting on http://{host}:{port}")
-
-    # Launch the Dash server explicitly (no custom request handlers)
-    app.run(
-        host=host,
-        port=port,
-        debug=False
+    # Decide render mode (inline/external) again
+    render_mode = (
+        kwargs.get("render_mode", os.environ.get("FRANKEN_RENDER_MODE", RENDER_MODE))
+        .strip()
+        .lower()
     )
+    if render_mode not in {"inline", "external"}:
+        render_mode = "external"
+
+    tunnel = os.environ.get("COLAB_TUNNEL_URL")
+    if tunnel and render_mode == "inline":
+        print(f"🌐 Public tunnel is unused in 'inline' mode: {tunnel}")
+    elif tunnel:
+        print(f"🌐 Public tunnel: {tunnel}")
+
+    print(f"Dash starting on http://{host}:{port}")
+    return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
 
 
 main = launch  # alias
