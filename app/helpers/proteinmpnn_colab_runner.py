@@ -24,7 +24,7 @@ from helpers.proteinmpnn_common import (
     merge_outputs_to_fasta,
     read_text_safe,
     split_chain_list,
-    write_chain_jsonl, # Used for Heteromer logic
+    write_chain_jsonl,
     zip_outputs,
 )
 
@@ -115,6 +115,13 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 
 # ---------- ProteinMPNN setup & run ----------
 
+def _cuda_available() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
+
 def _ensure_model_weights(root: str) -> Dict[str, bool]:
     """
     Robustly ensure model weights exist. If missing, force run the download script.
@@ -127,7 +134,6 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
         # Check if directory exists AND contains .pt files
         def valid(p):
             if not os.path.isdir(p): return False
-            # Check if it's not empty
             return len(os.listdir(p)) > 0
             
         return {
@@ -143,7 +149,7 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
 
     print("⚠️ Model weights missing or incomplete. Attempting to download...")
 
-    # 1. Try git lfs pull first (fastest if repo is configured right)
+    # 1. Try git lfs pull first
     try:
         print("   Attempting 'git lfs pull'...")
         subprocess.run(
@@ -165,13 +171,12 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
     if os.path.isfile(helper):
         print(f"   Running download script: {helper}")
         try:
-            # Run the bash script and SHOW OUTPUT so we know if it hangs/fails
             subprocess.run(
                 ["bash", helper], 
-                cwd=root, # Important: Run inside the repo folder
+                cwd=root, 
                 check=True,
-                stdout=None, # This will print to console
-                stderr=None  # This will print to console
+                stdout=None, 
+                stderr=None
             )
             print("✅ Download script finished.")
         except subprocess.CalledProcessError as e:
@@ -181,6 +186,39 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
 
     return _exists()
 
+def ensure_proteinmpnn(root: str = "/content/ProteinMPNN") -> Dict:
+    """
+    Clone ProteinMPNN if missing; install deps; detect weights paths; return env info.
+    """
+    if not os.path.isdir(root):
+        print("📥 Cloning ProteinMPNN...")
+        subprocess.run(
+            ["git", "clone", "-q", "https://github.com/dauparas/ProteinMPNN.git", root],
+            check=True,
+        )
+
+    print("📦 Installing Python deps (quiet)...")
+    subprocess.run(
+        ["pip", "install", "-q", "biopython==1.83", "einops==0.7.0"], check=True
+    )
+
+    vanilla = os.path.join(root, "vanilla_model_weights")
+    soluble = os.path.join(root, "soluble_model_weights")
+    ca = os.path.join(root, "ca_model_weights")
+
+    env = {
+        "root": root,
+        "weights": {"vanilla": vanilla, "soluble": soluble, "ca": ca},
+        "out_dir": os.path.join(root, "outputs_run"),
+        "cuda_available": _cuda_available(),
+    }
+    os.makedirs(env["out_dir"], exist_ok=True)
+
+    # Check and fetch weights if needed
+    weights_ready = _ensure_model_weights(root)
+
+    return env
+
 def resolve_weights(env: Dict, use_soluble_model: bool, ca_only: bool) -> str:
     if ca_only:
         w = env["weights"]["ca"]
@@ -189,17 +227,20 @@ def resolve_weights(env: Dict, use_soluble_model: bool, ca_only: bool) -> str:
     else:
         w = env["weights"]["vanilla"]
     
-    if not os.path.isdir(w):
-        raise RuntimeError(f"Model weights folder not found: {w}")
+    if not os.path.isdir(w) or len(os.listdir(w)) == 0:
+        # One last desperate attempt
+        _ensure_model_weights(env["root"])
+        if not os.path.isdir(w):
+            raise RuntimeError(f"Model weights folder not found or empty: {w}")
     return w
 
 def run_proteinmpnn(
     sampling_temp: float = 1.0,
     num_seqs: int = 128,
     pdb_code: str = "",
-    design_chains: str = "",  # Updated parameter name
-    fixed_chains: str = "",   # Updated parameter name
-    homomer: bool = True,     # Updated parameter name
+    design_chains: str = "",  
+    fixed_chains: str = "",   
+    homomer: bool = True,     
     model_name: str = "v_48_020",
     use_soluble_model: bool = False,
     ca_only: bool = False,
@@ -252,24 +293,19 @@ def run_proteinmpnn(
     pdb_basename = os.path.basename(local_pdb)
     staged_pdb_root = os.path.join(root, pdb_basename)
     
-    # Clean copy
     if os.path.abspath(local_pdb) != os.path.abspath(staged_pdb_root):
         shutil.copy2(local_pdb, staged_pdb_root)
     
     pdb_arg_abs = os.path.abspath(staged_pdb_root)
 
-    # 3) Prepare Chain Controls & Helper Scripts
-    
-    # Locate helper scripts in the cloned repo
+    # 3) Prepare Chain Controls
     helper_parse = os.path.join(root, "helper_scripts", "parse_multiple_chains.py")
     helper_tie = os.path.join(root, "helper_scripts", "make_tied_positions_dict.py")
     helper_assign = os.path.join(root, "helper_scripts", "assign_fixed_chains.py")
     
-    # Parse inputs into lists
     designed_list = split_chain_list(design_chains)
     fixed_list = split_chain_list(fixed_chains)
     
-    # Path variables for JSONLs
     jsonl_parsed = os.path.join(out_dir, "parsed_pdbs.jsonl")
     jsonl_tied = os.path.join(out_dir, "tied_pdbs.jsonl")
     jsonl_assigned = os.path.join(out_dir, "assigned_pdbs.jsonl")
@@ -277,10 +313,7 @@ def run_proteinmpnn(
     use_jsonl_mode = False
     
     if os.path.exists(helper_parse):
-        # Step A: Always parse chains first (needed for both modes if using JSONL)
         print("🧬 Parsing PDB chains...")
-        # parse_multiple_chains.py requires an input FOLDER, not file.
-        # So we create a temp folder with just our PDB.
         temp_pdb_dir = os.path.join(out_dir, "temp_pdbs")
         os.makedirs(temp_pdb_dir, exist_ok=True)
         shutil.copy2(pdb_arg_abs, os.path.join(temp_pdb_dir, pdb_basename))
@@ -291,7 +324,6 @@ def run_proteinmpnn(
         )
         
         if homomer and os.path.exists(helper_tie):
-            # --- Homomer Mode (Example 6) ---
             print("🔗 Generating tied positions for Homomer...")
             subprocess.run(
                 [_py_exe(), helper_tie, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_tied}", "--homooligomer", "1"], 
@@ -300,23 +332,11 @@ def run_proteinmpnn(
             use_jsonl_mode = True
             
         elif not homomer and os.path.exists(helper_assign):
-            # --- Heteromer/Fixed Mode (Example 2) ---
             print("🧩 Configuring chains for Heteromer/Fixed design...")
-            
-            # If design_chains is empty but fixed is not, we need to infer design chains?
-            # The script assign_fixed_chains.py usually takes --chain_list "A B" (chains to design)
-            # If user left design empty, we might assume all chains minus fixed?
-            # For simplicity, let's construct the string.
-            
             chains_to_design_str = ""
             if designed_list:
                 chains_to_design_str = " ".join(designed_list)
-            else:
-                # Fallback: if no design list provided, we might rely on global design 
-                # but the helper script usually requires explicit chains.
-                # Let's try using our own python helper to write the JSONL directly if this fails.
-                pass
-
+            
             if chains_to_design_str:
                 subprocess.run(
                     [_py_exe(), helper_assign, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_assigned}", "--chain_list", chains_to_design_str],
@@ -324,11 +344,9 @@ def run_proteinmpnn(
                 )
                 use_jsonl_mode = True
             else:
-                # Fallback to simple python generation if we can't use the script easily
                 chain_jsonl_path = write_chain_jsonl(out_dir, local_pdb, designed_list, fixed_list)
                 if chain_jsonl_path:
                     jsonl_assigned = chain_jsonl_path
-                    # We still use the parsed_jsonl from step A
                     use_jsonl_mode = True
 
     # 4) Build Command
@@ -348,7 +366,6 @@ def run_proteinmpnn(
     if ca_only:
         cmd.append("--ca_only")
 
-    # Argument Branching
     if use_jsonl_mode:
         cmd.extend(["--jsonl_path", jsonl_parsed])
         if homomer:
@@ -356,10 +373,8 @@ def run_proteinmpnn(
         else:
             cmd.extend(["--chain_id_jsonl", jsonl_assigned])
     else:
-        # Basic fallback (Simple Homomer without ties, or if scripts failed)
         cmd.extend(["--pdb_path", pdb_arg_abs])
         if not homomer:
-             # Try to use the python-generated jsonl if available
              chain_jsonl_path = write_chain_jsonl(out_dir, local_pdb, designed_list, fixed_list)
              if chain_jsonl_path:
                  cmd.extend(["--chain_id_jsonl", chain_jsonl_path])
@@ -368,10 +383,9 @@ def run_proteinmpnn(
     print("🔧 Command:\n ", " ".join(cmd))
     proc = subprocess.run(cmd, cwd=root, capture_output=True, text=True)
     
-    # Log output slightly cleaner
     if proc.stdout:
         print("=== STDOUT ===")
-        print(proc.stdout[-2000:]) # Print last 2000 chars
+        print(proc.stdout[-2000:])
     if proc.stderr:
         print("\n=== STDERR ===")
         print(proc.stderr[-2000:])
@@ -380,8 +394,6 @@ def run_proteinmpnn(
         raise RuntimeError("ProteinMPNN run failed. See logs above.")
 
     # 6) Merge outputs -> FASTA
-    # Note: When using jsonl, the output filename matches the 'name' field in jsonl.
-    # The helper scripts usually use the PDB filename (without extension) as the name.
     pdb_name = Path(local_pdb).stem
     fasta_out, n = merge_outputs_to_fasta(out_dir, pdb_name)
     print(f"✅ Merged FASTA: {fasta_out} (N={n} sequences)")
@@ -417,6 +429,3 @@ def run_proteinmpnn(
         "a3m_name": a3m_name,
         "a3m_text": a3m_text,
     }
-
-def _py_exe() -> str:
-    return os.environ.get("PYTHON", "python3")
