@@ -102,16 +102,39 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 # ---------- Splitting Logic ----------
 
 def _get_chain_lengths(pdb_path):
+    """
+    Parses PDB to get the order and length of chains.
+    Strictly filters for residues containing Alpha Carbons (CA) AND a minimum length.
+    """
+    from Bio import PDB # Ensure PDB is available for this function
+    
     parser = PDB.PDBParser(QUIET=True)
     structure = parser.get_structure("input", pdb_path)
     chain_info = []
+    
+    MIN_RESIDUE_COUNT = 10 # Only count chains longer than 10 residues
+
     for model in structure:
         for chain in model:
-            residues = [r for r in chain if PDB.is_aa(r, standard=False) and 'CA' in r]
-            if residues:
-                chain_info.append((chain.id, len(residues)))
+            # 1. Filter out non-protein/junk residues (water, ions, etc.)
+            valid_residues = []
+            for r in chain:
+                # Check: Is it an amino acid AND does it have a CA atom?
+                if PDB.is_aa(r, standard=False) and 'CA' in r:
+                    valid_residues.append(r)
+            
+            # 2. Final check: Only add this chain if it is long enough
+            if len(valid_residues) > MIN_RESIDUE_COUNT:
+                print(f"      ✅ Keeping chain {chain.id} (Length {len(valid_residues)})")
+                chain_info.append((chain.id, len(valid_residues)))
+            else:
+                if len(valid_residues) > 0:
+                     print(f"      🗑️ Dropping chain {chain.id} (Length {len(valid_residues)} < {MIN_RESIDUE_COUNT})")
+        
+        # Only parse the first model
         break 
-    print(f"🔍 PDB Chain Analysis: {chain_info}")
+        
+    print(f"🏁 [DEBUG] Final Chains for ProteinMPNN: {chain_info}")
     return chain_info
 
 def _split_fasta_and_generate_a3m(full_fasta_path, chain_info, out_dir, base_name):
