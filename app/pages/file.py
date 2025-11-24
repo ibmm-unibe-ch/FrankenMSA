@@ -88,6 +88,125 @@ def _build_multimer_csv(msa_data, selected_msas):
     return pd.concat(combined_dfs, ignore_index=True)
 
 
+def _is_multimer_a3m(text: str) -> bool:
+    """
+    Check if A3M text starts with multimer header line.
+    Format: #<lengths>\t<cardinalities>
+    Example: #142,150\t1,1
+    """
+    import re
+
+    lines = text.strip().split("\n")
+    if not lines:
+        return False
+    first_line = lines[0].strip()
+    # Match pattern like: #123,456\t1,1 or #142\t1
+    return bool(re.match(r"^#\d+[,\d]*\t\d+[,\d]*$", first_line))
+
+
+def _split_multimer_a3m(tmp_path: str, base_name: str):
+    """
+    Split a multimer A3M file into separate chain MSAs.
+
+    Args:
+        tmp_path: Path to the temporary A3M file
+        base_name: Base name for the output MSAs
+
+    Returns:
+        Dictionary of {chain_name: DataFrame} for each chain
+    """
+    import pandas as pd
+    import re
+
+    # Parse the multimer A3M
+    records = _parse_a3m_simple(tmp_path)
+
+    if not records:
+        raise ValueError("Empty A3M file")
+
+    # Read first line to get chain lengths
+    with open(tmp_path, "r") as f:
+        first_line = f.readline().strip()
+
+    if not first_line.startswith("#"):
+        raise ValueError("Not a valid multimer A3M")
+
+    # Parse header: #142,150\t1,1 -> lengths=[142, 150]
+    parts = first_line[1:].split("\t")
+    if len(parts) < 1:
+        raise ValueError("Invalid multimer header format")
+
+    lengths = [int(x) for x in parts[0].split(",")]
+    num_chains = len(lengths)
+
+    # Skip anchor sequences (headers like >101, >102, etc.)
+    # They are typically at the start, one per chain
+    filtered_records = []
+    for header, seq in records:
+        # Skip anchor sequences (e.g., >101, >102)
+        if re.match(r"^>\d+$", header.strip()):
+            continue
+        filtered_records.append((header, seq))
+
+    # Now split sequences by chain
+    # Each sequence in multimer format has gaps padding for other chains
+    # Chain 0: residues [0:lengths[0]], rest are gaps
+    # Chain 1: gaps [0:lengths[0]], residues [lengths[0]:lengths[0]+lengths[1]], etc.
+
+    chain_msas = {}
+    cumulative_lengths = [0]
+    for l in lengths:
+        cumulative_lengths.append(cumulative_lengths[-1] + l)
+
+    for chain_idx in range(num_chains):
+        start = cumulative_lengths[chain_idx]
+        end = cumulative_lengths[chain_idx + 1]
+        chain_label = _chain_label(chain_idx)
+
+        chain_records = []
+        for header, seq in filtered_records:
+            # Extract the portion for this chain and remove gaps
+            chain_seq = seq[start:end].replace("-", "")
+            if chain_seq:  # Only include non-empty sequences
+                chain_records.append({"header": header, "sequence": chain_seq})
+
+        if chain_records:
+            chain_name = f"{base_name}{chain_label}"
+            chain_msas[chain_name] = pd.DataFrame(chain_records)
+
+    return chain_msas
+
+
+def _split_multimer_csv(df, base_name: str):
+    """
+    Split a CSV with 'chain' column into separate chain MSAs.
+
+    Args:
+        df: pandas DataFrame with 'chain' column
+        base_name: Base name for the output MSAs
+
+    Returns:
+        Dictionary of {chain_name: DataFrame} for each chain
+    """
+    import pandas as pd
+
+    if "chain" not in df.columns:
+        raise ValueError("CSV does not have a 'chain' column")
+
+    chain_msas = {}
+    unique_chains = sorted(df["chain"].unique())
+
+    for chain_value in unique_chains:
+        chain_df = df[df["chain"] == chain_value].copy()
+        # Remove the chain column for individual MSAs
+        chain_df = chain_df.drop(columns=["chain"])
+
+        chain_name = f"{base_name}{chain_value}"
+        chain_msas[chain_name] = chain_df
+
+    return chain_msas
+
+
 def file_upload_layout():
 
     upload_component = dcc.Upload(
@@ -134,37 +253,90 @@ def upload_file(contents, filename, msa_data):
 
     import base64, io, sys, traceback
     from pathlib import Path
+    import pandas as pd
+    from io import StringIO
 
     try:
         content_type, content_string = contents.split(",")
         decoded_bytes = base64.b64decode(content_string)
         decoded_text = io.BytesIO(decoded_bytes).read().decode("utf-8")
         suffix = Path(filename).suffix.lower()
+        name = Path(filename).stem
 
         print(
             f"[UPLOAD] filename={filename} suffix={suffix} size={len(decoded_bytes)}",
             file=sys.stderr,
         )
 
+        msa_data = {} if msa_data is None else msa_data
+
+        # Check for multimer formats
+        is_multimer = False
+        chain_msas = {}
+
         if suffix in {".fasta", ".a3m", ".fa"}:
-            from frankenmsa.utils import read_a3m
+            # Check if it's a multimer A3M
+            if _is_multimer_a3m(decoded_text):
+                print(f"[UPLOAD] Detected multimer A3M", file=sys.stderr)
+                is_multimer = True
 
-            tmp_path = "temp_file.a3m"
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                f.write(decoded_text)
-            msa = read_a3m(tmp_path)
+                tmp_path = "temp_file.a3m"
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    f.write(decoded_text)
+
+                try:
+                    chain_msas = _split_multimer_a3m(tmp_path, name)
+                except Exception as e:
+                    print(
+                        f"[UPLOAD] Failed to split multimer A3M: {e}", file=sys.stderr
+                    )
+                    traceback.print_exc()
+                    # Fall back to regular parsing
+                    is_multimer = False
+                    from frankenmsa.utils import read_a3m
+
+                    msa = read_a3m(tmp_path)
+            else:
+                # Regular monomer A3M/FASTA
+                from frankenmsa.utils import read_a3m
+
+                tmp_path = "temp_file.a3m"
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    f.write(decoded_text)
+                msa = read_a3m(tmp_path)
+
         elif suffix == ".csv":
-            import pandas as pd
-            from io import StringIO
+            df = pd.read_csv(StringIO(decoded_text), header=0)
 
-            msa = pd.read_csv(StringIO(decoded_text), header=0)
-            if "sequence" not in msa.columns:
+            if "sequence" not in df.columns:
                 err = dcc.ConfirmDialog(
                     id="upload-error",
                     message="The uploaded CSV file does not contain a 'sequence' column.",
                     displayed=True,
                 )
                 return err, dash.no_update, dash.no_update
+
+            # Check if it's a multimer CSV (has 'chain' column)
+            if "chain" in df.columns:
+                print(
+                    f"[UPLOAD] Detected multimer CSV with chain column", file=sys.stderr
+                )
+                is_multimer = True
+
+                try:
+                    chain_msas = _split_multimer_csv(df, name)
+                except Exception as e:
+                    print(
+                        f"[UPLOAD] Failed to split multimer CSV: {e}", file=sys.stderr
+                    )
+                    traceback.print_exc()
+                    # Fall back to treating as regular CSV (without splitting)
+                    is_multimer = False
+                    msa = df
+            else:
+                # Regular monomer CSV
+                msa = df
+
         else:
             err = dcc.ConfirmDialog(
                 id="upload-error",
@@ -173,30 +345,60 @@ def upload_file(contents, filename, msa_data):
             )
             return err, dash.no_update, dash.no_update
 
-        msa_length = len(msa)
-        name = Path(filename).stem
-
-        # Normalize key and drop duplicates that include extensions
-        ext_variants = {
-            Path(filename).name,
-            f"{name}.a3m",
-            f"{name}.fa",
-            f"{name}.fasta",
-            f"{name}.csv",
-        }
-        msa_data = {} if msa_data is None else msa_data
-        for k in list(msa_data.keys()):
-            if k in ext_variants:
+        # Handle multimer: add each chain separately to cache
+        if is_multimer and chain_msas:
+            # Clean up any existing entries with same base name
+            keys_to_remove = [k for k in msa_data.keys() if k.startswith(name)]
+            for k in keys_to_remove:
                 msa_data.pop(k, None)
 
-        success_message = dcc.Markdown(
-            f"""
-            #### File uploaded successfully and MSA with {msa_length} entries loaded!
-            You can now navigate to the other pages to perform operations on the MSA.
-            """
-        )
-        msa_data[name] = msa.to_dict("list")
-        return success_message, name, msa_data
+            # Add all chains
+            total_entries = 0
+            chain_names = []
+            for chain_name, chain_df in chain_msas.items():
+                msa_data[chain_name] = chain_df.to_dict("list")
+                total_entries += len(chain_df)
+                chain_names.append(chain_name)
+
+            # Select the first chain
+            first_chain = list(chain_msas.keys())[0] if chain_msas else name
+
+            success_message = dcc.Markdown(
+                f"""
+                #### Multimer file uploaded successfully!
+                Detected {len(chain_msas)} chains with {total_entries} total entries.
+                
+                Chains loaded: {', '.join(chain_names)}
+                
+                You can now use these chains individually and combine them again in the Export layout.
+                """
+            )
+            return success_message, first_chain, msa_data
+
+        # Handle regular monomer
+        else:
+            msa_length = len(msa)
+
+            # Normalize key and drop duplicates that include extensions
+            ext_variants = {
+                Path(filename).name,
+                f"{name}.a3m",
+                f"{name}.fa",
+                f"{name}.fasta",
+                f"{name}.csv",
+            }
+            for k in list(msa_data.keys()):
+                if k in ext_variants:
+                    msa_data.pop(k, None)
+
+            success_message = dcc.Markdown(
+                f"""
+                #### File uploaded successfully and MSA with {msa_length} entries loaded!
+                You can now navigate to the other pages to perform operations on the MSA.
+                """
+            )
+            msa_data[name] = msa.to_dict("list")
+            return success_message, name, msa_data
 
     except Exception as e:
         print("[UPLOAD][ERROR]", repr(e), file=sys.stderr)
