@@ -13,7 +13,7 @@ def layout():
         dbc.Row(
             [
                 dbc.Col(file_upload_layout()),
-                dbc.Col(html.Div([file_download_layout(), multimer_builder_layout()])),
+                dbc.Col(html.Div([file_download_layout()])),
             ]
         ),
         className="gradient-background",
@@ -198,88 +198,8 @@ def file_download_layout():
     return body
 
 
-def _parse_a3m_simple(path: str):
-    """
-    Minimal A3M reader that also handles ColabFold multimer A3M.
-    Returns a list of (header, sequence) tuples.
-    It skips a leading '#' header line and concatenates wrapped sequence lines.
-    """
-    records = []
-    header = None
-    seq_buf = []
-    with open(path, "r", encoding="utf-8") as fh:
-        for raw in fh:
-            line = raw.rstrip("\n")
-            if not line:
-                continue
-            if line.startswith("#"):
-                # multimer header line like "#12,10\t1,1"
-                # ignore, real sequences start at the first '>'
-                continue
-            if line.startswith(">"):
-                if header is not None:
-                    records.append((header, "".join(seq_buf)))
-                header = line.strip()
-                seq_buf = []
-            else:
-                seq_buf.append(line)
-    if header is not None:
-        records.append((header, "".join(seq_buf)))
-    return records
 
 
-def multimer_builder_layout():
-    return html.Div(
-        [
-            html.H1("Build a multimer A3M"),
-            html.P(
-                "Select 2 or more MSAs (unpaired). The selection order defines chain order (A, B, C, …). We will generate a ColabFold multimer A3M.",
-                style={"marginBottom": "8px"},
-            ),
-            dcc.Dropdown(
-                id="multimer-chains",
-                options=[],
-                multi=True,
-                placeholder="Pick 2+ MSAs in order (A, B, C, …)",
-                className="dropdown-component",
-                style={"width": "90%", "maxWidth": "680px", "margin": "0 auto"},
-                persistence=True,
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        dcc.Input(
-                            id="multimer-name",
-                            type="text",
-                            placeholder="Output filename",
-                            className="input-component",
-                            style={"width": "100%", "maxWidth": "420px"},
-                            persistence=True,
-                        ),
-                        md="auto",
-                    ),
-                    dbc.Col(
-                        html.Button(
-                            "Build Multimer",
-                            id="multimer-build",
-                            className="button-component",
-                            style={"height": "42px", "padding": "0 16px"},
-                        ),
-                        md="auto",
-                    ),
-                ],
-                className="g-2 justify-content-center align-items-center",
-                style={"marginTop": "8px", "textAlign": "center"},
-            ),
-            html.Small(
-                "Tip: If left blank, the filename will be auto-generated as <chain1>_<chain2>_... .a3m",
-                className="text-muted",
-                style={"display": "block", "marginTop": "6px"},
-            ),
-            html.Div(id="multimer-status"),
-        ],
-        className="shaded-bordered",
-    )
 
 
 @callback(
@@ -403,111 +323,5 @@ def register_injected_a3m(injected, _pathname, msa_data):
         return err, dash.no_update, dash.no_update, dash.no_update
 
 
-@callback(
-    Output("multimer-chains", "options"),
-    Input("msa-data", "data"),
-)
-def _populate_multimer_options(msa_data):
-    if not msa_data:
-        return []
-    keys = sorted(msa_data.keys())
-    return [{"label": k, "value": k} for k in keys]
 
 
-@callback(
-    Output("multimer-status", "children"),
-    Output("msa-data", "data", allow_duplicate=True),
-    Output("main-msa", "data", allow_duplicate=True),
-    Input("multimer-build", "n_clicks"),
-    State("multimer-chains", "value"),
-    State("multimer-name", "value"),
-    State("msa-data", "data"),
-    prevent_initial_call=True,
-)
-def _build_multimer(n_clicks, chains_multi, out_name, msa_data):
-    import os, re, tempfile, sys, traceback
-    from pathlib import Path
-    import pandas as pd
-
-    if not n_clicks:
-        return dash.no_update, dash.no_update, dash.no_update
-    if not msa_data:
-        return dcc.Markdown("Please select two source MSAs."), dash.no_update, dash.no_update
-
-    # Validate list of chains
-    if not chains_multi or not isinstance(chains_multi, list) or len(chains_multi) < 2:
-        return dcc.Markdown("Please pick at least two MSAs in order (A, B, ...)."), dash.no_update, dash.no_update
-    # Ensure all unique
-    if len(set(chains_multi)) != len(chains_multi):
-        return dcc.Markdown("Duplicate selections detected. Please choose unique MSAs."), dash.no_update, dash.no_update
-
-    chain_list = chains_multi
-
-    try:
-        # Build a safe filename (no path separators, ascii-only whitelist) and ensure .a3m
-        base_default = "_".join(chain_list)
-        safe = (out_name or base_default).strip()
-        safe = re.sub(r"[\\/]+", "_", safe)                     # collapse any slashes
-        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", safe) or base_default
-        safe = safe.lstrip(".").strip("_") or base_default
-        if not safe.lower().endswith(".a3m"):
-            safe += ".a3m"
-
-        from frankenmsa.utils import write_a3m
-        from frankenmsa.utils.multimer_a3m import combine_unpaired_a3m
-
-        # Stable temp workspace
-        tmpdir = Path(tempfile.gettempdir()) / "frankenmsa"
-        tmpdir.mkdir(parents=True, exist_ok=True)
-
-        # Materialize input chains into temp A3Ms
-        in_paths = []
-        for idx, cname in enumerate(chain_list):
-            df_i = pd.DataFrame(msa_data[cname])
-            p = tmpdir / f"{cname}.a3m"
-            write_a3m(df_i, str(p))
-            if not p.is_file():
-                return dcc.Markdown(f"Input {idx+1} is not a file: `{p}`"), dash.no_update, dash.no_update
-            in_paths.append(str(p))
-        out_path = tmpdir / safe  # always a file inside tmpdir
-
-        # Debug prints to stderr
-        print(f"[MULTIMER][DEBUG] tmpdir={tmpdir}", file=sys.stderr)
-        print(f"[MULTIMER][DEBUG] in_paths={in_paths}", file=sys.stderr)
-        print(f"[MULTIMER][DEBUG] out_path={out_path}", file=sys.stderr)
-
-        # Build multimer file on disk
-        combine_unpaired_a3m(in_paths, str(out_path))
-
-        # Parse back and register in store (use local parser that supports multimer A3M)
-        combined_records = _parse_a3m_simple(str(out_path))
-        headers = [h for (h, s) in combined_records]
-        sequences = [s for (h, s) in combined_records]
-        new_msa_df = pd.DataFrame({"header": headers, "sequence": sequences})
-
-        msa_key = out_path.stem
-        msa_data = {} if msa_data is None else dict(msa_data)
-        msa_data[msa_key] = new_msa_df.to_dict("list")
-
-        chains_str = " + ".join(chain_list)
-        msg = dbc.Alert(
-            f"Built multimer A3M '{out_path.name}' from {chains_str}. It is now available in the file selector.",
-            color="success",
-            className="py-2",
-            style={"fontSize": "14px", "marginTop": "8px"},
-        )
-        return msg, msa_data, msa_key
-
-    except Exception as e:
-        # Provide rich debug info to help diagnose path issues
-        err_md = f"""
-        **Failed to build multimer**: {e.__class__.__name__}: {e}
-
-        Debug paths:
-
-        - inputs : `
-""" + "\n".join(f"  - `{p}`" for p in locals().get("in_paths", [])) + """
-`
-        - output : `{locals().get('out_path','')}`
-        """
-        return dcc.Markdown(err_md), dash.no_update, dash.no_update

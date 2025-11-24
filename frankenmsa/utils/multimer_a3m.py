@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Tuple
 
+print("[DEBUG] multimer_a3m loaded from:", __file__)
 def parse_a3m(path: str) -> List[Tuple[str, str]]:
     records = []
     header = None
