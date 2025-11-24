@@ -41,11 +41,6 @@ def make_siderbar():
                     dbc.NavLink("Filter", id="edit-filter", active="exact"),
                     dbc.NavLink("Sort & Shuffle", id="edit-sort", active="exact"),
                     dbc.NavLink("Slice & Crop", id="edit-crop", active="exact"),
-                    dbc.NavLink(
-                        "Build Multimer",
-                        id="edit-multimer",
-                        active="exact",
-                    ),
                     # dbc.NavLink(
                     #     "Free Table Editor", id="edit-table-editor", active="exact"
                     # ),
@@ -165,7 +160,6 @@ def delete_msa_data(n_clicks, msa_name, main_msa, msa_data):
     Output("edit-main-content", "children"),
     Input("edit-filter", "n_clicks"),
     Input("edit-crop", "n_clicks"),
-    Input("edit-multimer", "n_clicks"),
     Input("edit-sort", "n_clicks"),
     Input("edit-rename", "n_clicks"),
     # Input("edit-table-editor", "n_clicks"),
@@ -176,7 +170,6 @@ def delete_msa_data(n_clicks, msa_name, main_msa, msa_data):
 def update_edit_content(
     filter_clicks,
     crop_clicks,
-    multimer_clicks,
     sort_clicks,
     rename_clicks,
     # table_editor_clicks,
@@ -195,8 +188,6 @@ def update_edit_content(
         return filter_layout()
     elif triggered_id == "edit-crop":
         return slice_crop_layout()
-    elif triggered_id == "edit-multimer":
-        return multimer_builder_layout()
     elif triggered_id == "edit-sort":
         return sort_by_layout()
     elif triggered_id == "edit-rename":
@@ -209,179 +200,6 @@ def update_edit_content(
         return no_msa_yet()
     else:
         return html.Div("Please select an option from the sidebar to edit the MSA.")
-    
-# ================= Multimer Builder Layout and Callbacks =================
-def multimer_builder_layout():
-    return html.Div(
-        [
-            html.H1("Build a multimer A3M"),
-            html.P(
-                "Select 2 or more MSAs (unpaired). The selection order defines chain order (A, B, C, …). We will generate a ColabFold multimer A3M.",
-                style={"marginBottom": "8px"},
-            ),
-            dcc.Dropdown(
-                id="multimer-chains",
-                options=[],
-                multi=True,
-                placeholder="Pick 2+ MSAs in order (A, B, C, …)",
-                className="dropdown-component",
-                style={"width": "90%", "maxWidth": "680px", "margin": "0 auto"},
-                persistence=True,
-            ),
-            html.Div(
-                html.Button(
-                    "Build Multimer",
-                    id="multimer-build",
-                    className="button-component",
-                    style={"height": "42px", "padding": "0 16px"},
-                ),
-                style={"textAlign": "center", "marginTop": "12px"},
-            ),
-            html.Div(id="multimer-status"),
-        ],
-        className="shaded-bordered",
-    )
-
-
-def _parse_a3m_simple(path: str):
-    """
-    Minimal A3M reader that also handles ColabFold multimer A3M.
-    Returns a list of (header, sequence) tuples.
-    It skips a leading '#' header line and concatenates wrapped sequence lines.
-    """
-    records = []
-    header = None
-    seq_buf = []
-    with open(path, "r", encoding="utf-8") as fh:
-        for raw in fh:
-            line = raw.rstrip("\n")
-            if not line:
-                continue
-            if line.startswith("#"):
-                # multimer header line like "#12,10\t1,1"
-                # ignore, real sequences start at the first '>'
-                continue
-            if line.startswith(">"):
-                if header is not None:
-                    records.append((header, "".join(seq_buf)))
-                header = line.strip()
-                seq_buf = []
-            else:
-                seq_buf.append(line)
-    if header is not None:
-        records.append((header, "".join(seq_buf)))
-    return records
-
-
-from dash import callback, Output, Input, State
-@callback(
-    Output("multimer-chains", "options"),
-    Input("msa-data", "data"),
-)
-def _populate_multimer_options(msa_data):
-    if not msa_data:
-        return []
-    keys = sorted(msa_data.keys())
-    return [{"label": k, "value": k} for k in keys]
-
-
-@callback(
-    Output("multimer-status", "children"),
-    Output("msa-data", "data", allow_duplicate=True),
-    Output("main-msa", "data", allow_duplicate=True),
-    Input("multimer-build", "n_clicks"),
-    State("multimer-chains", "value"),
-    State("msa-data", "data"),
-    prevent_initial_call=True,
-)
-def _build_multimer(n_clicks, chains_multi, msa_data):
-    import os, re, tempfile, sys, traceback
-    from pathlib import Path
-    import pandas as pd
-
-    if not n_clicks:
-        return dash.no_update, dash.no_update, dash.no_update
-    if not msa_data:
-        return dcc.Markdown("Please select two source MSAs."), dash.no_update, dash.no_update
-
-    # Validate list of chains
-    if not chains_multi or not isinstance(chains_multi, list) or len(chains_multi) < 2:
-        return dcc.Markdown("Please pick at least two MSAs in order (A, B, ...)."), dash.no_update, dash.no_update
-    # Ensure all unique
-    if len(set(chains_multi)) != len(chains_multi):
-        return dcc.Markdown("Duplicate selections detected. Please choose unique MSAs."), dash.no_update, dash.no_update
-
-    chain_list = chains_multi
-
-    try:
-        # Build a safe filename (no path separators, ascii-only whitelist) and ensure .a3m
-        base_default = "_".join(chain_list)
-        safe = base_default.strip()
-        safe = re.sub(r"[\\/]+", "_", safe)                     # collapse any slashes
-        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", safe) or base_default
-        safe = safe.lstrip(".").strip("_") or base_default
-        if not safe.lower().endswith(".a3m"):
-            safe += ".a3m"
-
-        from frankenmsa.utils import write_a3m
-        from frankenmsa.utils.multimer_a3m import combine_unpaired_a3m
-
-        # Stable temp workspace
-        tmpdir = Path(tempfile.gettempdir()) / "frankenmsa"
-        tmpdir.mkdir(parents=True, exist_ok=True)
-
-        # Materialize input chains into temp A3Ms
-        in_paths = []
-        for idx, cname in enumerate(chain_list):
-            df_i = pd.DataFrame(msa_data[cname])
-            p = tmpdir / f"{cname}.a3m"
-            write_a3m(df_i, str(p))
-            if not p.is_file():
-                return dcc.Markdown(f"Input {idx+1} is not a file: `{p}`"), dash.no_update, dash.no_update
-            in_paths.append(str(p))
-        out_path = tmpdir / safe  # always a file inside tmpdir
-
-        # Debug prints to stderr
-        print(f"[MULTIMER][DEBUG] tmpdir={tmpdir}", file=sys.stderr)
-        print(f"[MULTIMER][DEBUG] in_paths={in_paths}", file=sys.stderr)
-        print(f"[MULTIMER][DEBUG] out_path={out_path}", file=sys.stderr)
-
-        # Build multimer file on disk
-        combine_unpaired_a3m(in_paths, str(out_path))
-
-        # Parse back and register in store (use local parser that supports multimer A3M)
-        combined_records = _parse_a3m_simple(str(out_path))
-        headers = [h for (h, s) in combined_records]
-        sequences = [s for (h, s) in combined_records]
-        new_msa_df = pd.DataFrame({"header": headers, "sequence": sequences})
-
-        msa_key = out_path.stem
-        msa_data = {} if msa_data is None else dict(msa_data)
-        msa_data[msa_key] = new_msa_df.to_dict("list")
-
-        chains_str = " + ".join(chain_list)
-        msg = dbc.Alert(
-            f"Built multimer A3M '{out_path.name}' from {chains_str}. It is now available in the file selector.",
-            color="success",
-            className="py-2",
-            style={"fontSize": "14px", "marginTop": "8px"},
-        )
-        return msg, msa_data, msa_key
-
-    except Exception as e:
-        # Provide rich debug info to help diagnose path issues
-        err_md = f"""
-        **Failed to build multimer**: {e.__class__.__name__}: {e}
-
-        Debug paths:
-
-        - inputs : `
-""" + "\n".join(f"  - `{p}`" for p in locals().get("in_paths", [])) + """
-`
-        - output : `{locals().get('out_path','')}`
-        """
-        return dcc.Markdown(err_md), dash.no_update, dash.no_update
-
 
 
 def no_msa_yet():
@@ -1034,6 +852,7 @@ def drop_duplicates(n_clicks, main_msa, msa_data):
 # Sort layout
 # ======================================================================
 
+
 def sort_special_layout():
     return html.Div(
         [
@@ -1079,15 +898,17 @@ def sort_special_layout():
                     "display": "flex",
                     "flex-direction": "row",
                     "align-items": "center",
-                    "justify-content": "center",   
-                    "gap": "40px",                 
+                    "justify-content": "center",
+                    "gap": "40px",
                 },
             ),
         ],
         className="shaded-bordered",
     )
+
+
 def shuffle_columns_layout():
-    
+
     start_input = dcc.Input(
         id="shuffle-range-start",
         type="number",
@@ -1104,11 +925,11 @@ def shuffle_columns_layout():
         step=1,
         style={"width": "120px", "marginLeft": "8px"},
     )
-    
+
     range_slider = dcc.RangeSlider(
         id="shuffle-range-slider",
         min=0,
-        max=0, 
+        max=0,
         step=1,
         value=[0, 0],
         marks={0: "0"},
@@ -1150,7 +971,7 @@ def shuffle_columns_layout():
                     min=0,
                     step=1,
                     debounce=True,
-                    style={"width": "120px"}
+                    style={"width": "120px"},
                 ),
             ],
             style={"marginTop": "4px"},
@@ -1181,7 +1002,11 @@ def shuffle_columns_layout():
                     html.Div(range_slider, style={"flex": 1, "margin": "0 12px"}),
                     end_input,
                 ],
-                style={"display": "flex", "alignItems": "center", "marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "marginBottom": "12px",
+                },
             ),
             html.Div(checklist, style={"marginBottom": "10px"}),
             seed_toggle,
@@ -1191,9 +1016,11 @@ def shuffle_columns_layout():
         className="shaded-bordered",
     )
 
+
 from dash import callback, Output, Input, State
 import dash
 from pandas import DataFrame
+
 
 @callback(
     Output("shuffle-range-slider", "max"),
@@ -1214,7 +1041,7 @@ def update_shuffle_range_slider(main_msa, msa_data):
     msa = DataFrame.from_dict(msa)
     if msa.empty or "sequence" not in msa:
         return 0, {0: "0"}, [0, 0], 0, 0, 0, 0
-    
+
     if "sequence" in msa and len(msa["sequence"]) > 0:
         n_cols = len(msa["sequence"].iloc[0])
     else:
@@ -1224,8 +1051,9 @@ def update_shuffle_range_slider(main_msa, msa_data):
     return n_cols, marks, [0, n_cols], 0, n_cols, n_cols, n_cols
 
 
-
 from dash import callback, no_update, ctx
+
+
 @callback(
     Output("shuffle-range-slider", "value", allow_duplicate=True),
     Output("shuffle-range-start", "value", allow_duplicate=True),
@@ -1248,6 +1076,7 @@ def sync_shuffle_slider_and_inputs(slider_value, start_value, end_value):
     else:
         return no_update, no_update, no_update
 
+
 # Callback to toggle the seed collapse section
 @callback(
     Output("seed-collapse", "is_open"),
@@ -1259,12 +1088,13 @@ def toggle_seed(n):
         return True, "Advanced (optional) ▲"
     return False, "Advanced (optional) ▼"
 
+
 def sort_by_layout():
     return html.Div(
         [
-            sort_special_layout(), 
-            shuffle_columns_layout(),          
-            sort_by_column_layout(),    
+            sort_special_layout(),
+            shuffle_columns_layout(),
+            sort_by_column_layout(),
         ],
     )
 
@@ -1473,10 +1303,11 @@ def shuffle_msa(n_clicks, main_msa, msa_data):
     else:
         # print("No button click detected.")
         return dash.no_update, dash.no_update, False
-    
+
 
 from dash import callback, Input, Output, State
-import dash  
+import dash
+
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
@@ -1530,7 +1361,7 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
             end=e,
             preserve_gaps=preserve_gaps,
             inplace=False,
-            random_state=random_state
+            random_state=random_state,
         )
 
         # Write back to store
@@ -1548,9 +1379,6 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
         return dash.no_update, f"Shuffle failed: {ex}", True
 
 
-
-
-    
 # ======================================================================
 # Slice & Crop layout
 # ======================================================================
