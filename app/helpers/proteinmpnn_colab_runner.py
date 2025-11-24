@@ -30,7 +30,7 @@ from helpers.proteinmpnn_common import (
     merge_outputs_to_fasta,
     read_text_safe,
     split_chain_list,
-    write_chain_jsonl,
+    write_chain_jsonl, # We will use this heavily now
     zip_outputs,
 )
 
@@ -102,33 +102,16 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 # ---------- Splitting Logic ----------
 
 def _get_chain_lengths(pdb_path):
-    """
-    Parses PDB to get the order and length of chains.
-    Strictly filters for residues containing Alpha Carbons (CA) to match ProteinMPNN logic.
-    """
     parser = PDB.PDBParser(QUIET=True)
     structure = parser.get_structure("input", pdb_path)
     chain_info = []
-    
     for model in structure:
         for chain in model:
-            # ProteinMPNN only cares about residues with backbone atoms (specifically CA)
-            valid_residues = []
-            for r in chain:
-                # Check 1: Is it an amino acid?
-                # Check 2: Does it have a CA atom? (Filters water/ions)
-                if PDB.is_aa(r, standard=False) and 'CA' in r:
-                    valid_residues.append(r)
-            
-            # Only add this chain if it has valid protein residues
-            if valid_residues:
-                chain_info.append((chain.id, len(valid_residues)))
-        
-        # Only parse the first model
+            residues = [r for r in chain if PDB.is_aa(r, standard=False) and 'CA' in r]
+            if residues:
+                chain_info.append((chain.id, len(residues)))
         break 
-        
-    # Debug print to see what we found
-    print(f"🔍 Detected Chains: {chain_info}")
+    print(f"🔍 PDB Chain Analysis: {chain_info}")
     return chain_info
 
 def _split_fasta_and_generate_a3m(full_fasta_path, chain_info, out_dir, base_name):
@@ -154,15 +137,26 @@ def _split_fasta_and_generate_a3m(full_fasta_path, chain_info, out_dir, base_nam
             headers.append(current_h)
             seqs.append("".join(current_s))
 
-    print(f"🔪 Splitting {len(seqs)} sequences into {len(chain_info)} chains...")
+    # Validate length
+    total_len_pdb = sum(c[1] for c in chain_info)
+    if not seqs: return {}
+    
+    # If the output is shorter than expected, we print a warning but try to split anyway
+    if len(seqs[0]) != total_len_pdb:
+        print(f"⚠️ Length Mismatch! PDB has {total_len_pdb} residues, but ProteinMPNN output has {len(seqs[0])}.")
+        print("   This usually means ProteinMPNN dropped a chain.")
     
     cumulative_start = 0
     for chain_id, length in chain_info:
+        # Safety check
+        if cumulative_start >= len(seqs[0]):
+            print(f"❌ Skipping chain {chain_id}: Output sequence ended prematurely.")
+            continue
+            
         chain_fasta_path = os.path.join(out_dir, f"{base_name}_chain{chain_id}.fasta")
         
         with open(chain_fasta_path, 'w') as f_out:
             for h, s in zip(headers, seqs):
-                # Safe slicing
                 segment = s[cumulative_start : cumulative_start + length]
                 f_out.write(f"{h}_chain{chain_id}\n{segment}\n")
         
@@ -208,7 +202,6 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
     
     if all(_exists().values()): return _exists()
 
-    # Plan C: Direct Download
     print("   [Plan C] Direct download...")
     import urllib.request
     base_url = "https://github.com/dauparas/ProteinMPNN/raw/main"
@@ -303,49 +296,7 @@ def run_proteinmpnn(
         shutil.copy2(local_pdb, staged_pdb_root)
     pdb_arg_abs = os.path.abspath(staged_pdb_root)
 
-    # 3) Prepare Chain Controls
-    helper_parse = os.path.join(root, "helper_scripts", "parse_multiple_chains.py")
-    helper_assign = os.path.join(root, "helper_scripts", "assign_fixed_chains.py")
-    
-    jsonl_parsed = os.path.join(out_dir, "parsed_pdbs.jsonl")
-    jsonl_assigned = os.path.join(out_dir, "assigned_pdbs.jsonl")
-    
-    use_jsonl_mode = False
-    
-    # --- [CORE FIX]: Only use complex logic for Heteromers ---
-    if not homomer:
-        # Heteromer Mode
-        if os.path.exists(helper_parse) and os.path.exists(helper_assign):
-            print("🧩 Configuring Heteromer mode...")
-            temp_pdb_dir = os.path.join(out_dir, "temp_pdbs")
-            os.makedirs(temp_pdb_dir, exist_ok=True)
-            shutil.copy2(pdb_arg_abs, os.path.join(temp_pdb_dir, pdb_basename))
-            
-            try:
-                # Step 1: Parse
-                subprocess.run([_py_exe(), helper_parse, f"--input_path={temp_pdb_dir}", f"--output_path={jsonl_parsed}"], check=True)
-                
-                # Step 2: Assign
-                d_list = split_chain_list(design_chains)
-                if d_list:
-                    subprocess.run([_py_exe(), helper_assign, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_assigned}", "--chain_list", " ".join(d_list)], check=True)
-                    use_jsonl_mode = True
-                else:
-                    # Fallback to simple python helper
-                    c_path = write_chain_jsonl(out_dir, local_pdb, d_list, split_chain_list(fixed_chains))
-                    if c_path:
-                        jsonl_assigned = c_path
-                        use_jsonl_mode = True
-            except Exception as e:
-                print(f"⚠️ Scripts failed: {e}. Fallback to simple mode.")
-                use_jsonl_mode = False
-    else:
-        # Homomer Mode: Skip all scripts, just run simple
-        print("🧬 Running Simple Homomer Mode...")
-        use_jsonl_mode = False
-
-
-    # 4) Build Command
+    # Build Command
     cmd = [
         _py_exe(), f"{root}/protein_mpnn_run.py",
         "--out_folder", out_dir,
@@ -358,29 +309,44 @@ def run_proteinmpnn(
     if use_soluble_model: cmd.append("--use_soluble_model")
     if ca_only: cmd.append("--ca_only")
 
-    if use_jsonl_mode:
-        cmd.extend(["--jsonl_path", jsonl_parsed])
-        cmd.extend(["--chain_id_jsonl", jsonl_assigned])
-    else:
-        # Fallback / Homomer Path
+    # --- [FIXED LOGIC FOR HETEROMERS] ---
+    if homomer:
+        # Homomer Mode: Simple
+        print("🧬 Homomer Mode: Using standard PDB input.")
         cmd.extend(["--pdb_path", pdb_arg_abs])
+    else:
+        # Heteromer Mode: Use Python helper to FORCE explicit chain config
+        print("🧩 Heteromer Mode: Generating JSONL configuration...")
         
-        # Attempt to add chain logic via simple argument if needed (for Heteromer fallback)
-        if not homomer:
-            c_path = write_chain_jsonl(out_dir, local_pdb, split_chain_list(design_chains), split_chain_list(fixed_chains))
-            if c_path: cmd.extend(["--chain_id_jsonl", c_path])
+        # Clean inputs
+        d_list = split_chain_list(design_chains)
+        f_list = split_chain_list(fixed_chains)
+        
+        # Call internal python helper (more reliable than subprocess script)
+        # This generates a JSONL that tells ProteinMPNN exactly which chains to see and design
+        chain_jsonl_path = write_chain_jsonl(out_dir, local_pdb, d_list, f_list)
+        
+        if chain_jsonl_path:
+            print(f"   ✅ JSONL config created: {chain_jsonl_path}")
+            cmd.extend(["--chain_id_jsonl", chain_jsonl_path])
+            # Note: When using chain_id_jsonl, ProteinMPNN usually also needs --pdb_path 
+            # OR a parsed jsonl. But the standard run script often accepts PDB + chain_id_jsonl.
+            # Let's include pdb_path to be safe, as some versions require it.
+            cmd.extend(["--pdb_path", pdb_arg_abs])
+        else:
+            print("⚠️ Failed to generate JSONL. Falling back to basic PDB input.")
+            cmd.extend(["--pdb_path", pdb_arg_abs])
 
-    # 5) Execute
+    # Execute
     print("🔧 Command:", " ".join(cmd))
     proc = subprocess.run(cmd, cwd=root, capture_output=True, text=True)
-    
     if proc.stdout: print("=== STDOUT ===", proc.stdout[-1000:])
     if proc.stderr: print("\n=== STDERR ===", proc.stderr[-1000:])
 
     if proc.returncode != 0:
         raise RuntimeError(f"ProteinMPNN run failed (code {proc.returncode})")
 
-    # 6) Merge & Split
+    # Merge
     pdb_name = Path(local_pdb).stem
     fasta_out, n = merge_outputs_to_fasta(out_dir, pdb_name)
     print(f"✅ Merged FASTA: {fasta_out}")
@@ -388,7 +354,7 @@ def run_proteinmpnn(
     a3m_out = fasta_to_a3m(fasta_out)
     a3m_text_full = read_text_safe(Path(a3m_out))
     
-    # Split chains (Try/Except to safe guard)
+    # Split Chains
     split_chains_map = {}
     try:
         chain_info = _get_chain_lengths(local_pdb)
@@ -398,7 +364,7 @@ def run_proteinmpnn(
     except Exception as e:
         print(f"⚠️ Split warning: {e}")
 
-    # 7) Zip
+    # Zip
     zip_path = zip_outputs(out_dir, base=pdb_name, destination="/content")
     
     if auto_download:
