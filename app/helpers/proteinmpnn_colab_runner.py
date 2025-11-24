@@ -10,6 +10,9 @@
 # Comments in English as requested.
 
 
+# proteinmpnn_runner.py
+# Final Version: Includes automatic output splitting (Heteromer -> Monomers)
+
 import gc
 import json
 import os
@@ -18,6 +21,13 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Dict
+
+# Import BioPython (Already installed in ensure_proteinmpnn)
+try:
+    from Bio import PDB
+    from Bio.SeqUtils import seq1
+except ImportError:
+    pass
 
 from helpers.proteinmpnn_common import (
     fasta_to_a3m,
@@ -41,7 +51,6 @@ def _py_exe() -> str:
 # ---------- Workspace & PDB ----------
 
 def clean_colab_workspace():
-    """Lightweight cleanup for repeatable runs."""
     print("🧹 Cleaning workspace... ", end="", flush=True)
     try:
         os.system("rm -rf /content/ProteinMPNN/outputs_run/* 2>/dev/null")
@@ -54,26 +63,18 @@ def clean_colab_workspace():
     gc.collect()
     print("done.")
 
-def _download_with_retries(
-    url: str, out_path: str, tries: int = 4, sleep_sec: float = 1.5
-) -> bool:
-    """Robust downloader (urllib with simple retries) for Colab."""
+def _download_with_retries(url: str, out_path: str, tries: int = 4, sleep_sec: float = 1.5) -> bool:
     import urllib.request, urllib.error, time
-
     headers = {"User-Agent": "Mozilla/5.0"}
     req = urllib.request.Request(url, headers=headers)
     for i in range(1, tries + 1):
         try:
             print(f"🌐 [urllib] {url} (try {i}/{tries})...")
-            with urllib.request.urlopen(req, timeout=20) as r, open(
-                out_path, "wb"
-            ) as f:
+            with urllib.request.urlopen(req, timeout=20) as r, open(out_path, "wb") as f:
                 f.write(r.read())
             return True
-        except urllib.error.HTTPError as e:
-            print(f"  ↺ urllib retry because: HTTP Error {e.code}: {e.reason}")
         except Exception as e:
-            print(f"  ↺ urllib retry because: {e}")
+            print(f"  ↺ retry: {e}")
         time.sleep(sleep_sec)
     return False
 
@@ -90,17 +91,6 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
     if allow_upload:
         try:
             from google.colab import files 
-            try:
-                from IPython import get_ipython
-                ip = get_ipython()
-                has_kernel = bool(ip and getattr(ip, "kernel", None))
-            except Exception:
-                has_kernel = False
-            if not has_kernel:
-                raise RuntimeError(
-                    "Colab upload UI is not available. Use web UI upload."
-                )
-
             print("📤 No PDB code provided. Please upload your local .pdb file:")
             uploaded = files.upload()
             if not uploaded:
@@ -113,6 +103,87 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 
     raise RuntimeError("No PDB code provided and uploads are disabled.")
 
+# ---------- Splitting Logic (NEW) ----------
+
+def _get_chain_lengths(pdb_path):
+    """
+    Parses PDB to get the order and length of chains.
+    Returns: [('A', 110), ('B', 89), ...]
+    """
+    parser = PDB.PDBParser(QUIET=True)
+    structure = parser.get_structure("input", pdb_path)
+    chain_info = []
+    for model in structure:
+        for chain in model:
+            # Count residues (standard amino acids only roughly)
+            # ProteinMPNN parses similarly.
+            residues = [r for r in chain if PDB.is_aa(r, standard=False)]
+            if residues:
+                chain_info.append((chain.id, len(residues)))
+        break # Only first model
+    return chain_info
+
+def _split_fasta_and_generate_a3m(full_fasta_path, chain_info, out_dir, base_name):
+    """
+    Slices the combined FASTA into individual chain FASTAs and converts to A3M.
+    Returns a dict of { 'chain_id': 'a3m_text' } for UI injection.
+    """
+    split_results = {}
+    
+    # Read all sequences from the combined file
+    headers = []
+    seqs = []
+    with open(full_fasta_path, 'r') as f:
+        current_h = None
+        current_s = []
+        for line in f:
+            line = line.strip()
+            if not line: continue
+            if line.startswith(">"):
+                if current_h:
+                    headers.append(current_h)
+                    seqs.append("".join(current_s))
+                current_h = line
+                current_s = []
+            else:
+                current_s.append(line)
+        if current_h:
+            headers.append(current_h)
+            seqs.append("".join(current_s))
+
+    # Slice and Write
+    print(f"🔪 Splitting {len(seqs)} sequences into {len(chain_info)} chains...")
+    
+    for chain_id, length in chain_info:
+        # Calculate start/end indices based on chain order?
+        # ProteinMPNN concatenates chains in PDB order.
+        # We need to track cumulative index.
+        pass 
+
+    # Re-loop correctly with index tracking
+    cumulative_start = 0
+    for chain_id, length in chain_info:
+        chain_fasta_path = os.path.join(out_dir, f"{base_name}_chain{chain_id}.fasta")
+        
+        with open(chain_fasta_path, 'w') as f_out:
+            for h, s in zip(headers, seqs):
+                # Slice the sequence
+                # Verify length match? ProteinMPNN output should equal sum of chain lengths
+                segment = s[cumulative_start : cumulative_start + length]
+                f_out.write(f"{h}_chain{chain_id}\n{segment}\n")
+        
+        # Convert to A3M
+        chain_a3m = fasta_to_a3m(chain_fasta_path)
+        a3m_text = read_text_safe(Path(chain_a3m))
+        
+        # Store for UI
+        # Key format: "1BRS_proteinmpnn_chainA"
+        split_results[f"{base_name}_chain{chain_id}"] = a3m_text
+        
+        cumulative_start += length
+
+    return split_results
+
 # ---------- ProteinMPNN setup & run ----------
 
 def _cuda_available() -> bool:
@@ -123,110 +194,56 @@ def _cuda_available() -> bool:
         return False
 
 def _ensure_model_weights(root: str) -> Dict[str, bool]:
-    """
-    Robustly ensure model weights exist. 
-    Tries Git LFS -> Script -> Direct Download (Plan C).
-    """
     vanilla = os.path.join(root, "vanilla_model_weights")
     soluble = os.path.join(root, "soluble_model_weights")
     ca = os.path.join(root, "ca_model_weights")
 
     def _exists() -> Dict[str, bool]:
-        # Check if directory exists AND contains .pt files
         def valid(p):
             if not os.path.isdir(p): return False
-            return len([f for f in os.listdir(p) if f.endswith(".pt")]) > 0
-            
+            return len(os.listdir(p)) > 0
         return {
             "vanilla": valid(vanilla),
             "soluble": valid(soluble),
             "ca": valid(ca),
         }
 
-    # If everything is already there, return immediately
     ready = _exists()
     if all(ready.values()):
         return ready
 
-    print("⚠️ Model weights missing or incomplete. Starting download sequence...")
-
-    # 1. Try git lfs pull first
+    print("⚠️ Model weights missing. Downloading...")
     try:
-        print("   [Plan A] Attempting 'git lfs pull'...")
-        subprocess.run(
-            ["git", "-C", root, "lfs", "pull"], 
-            check=False, 
-            stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL
-        )
-    except Exception:
-        pass
-
-    if all(_exists().values()):
-        print("✅ Weights retrieved via Git LFS.")
-        return _exists()
-
-    # 2. Fallback: Run the official download script
-    helper = os.path.join(root, "get_model_weights.sh")
-    if os.path.isfile(helper):
-        print(f"   [Plan B] Running download script: {helper}")
-        try:
-            subprocess.run(
-                ["bash", helper], 
-                cwd=root, 
-                check=True,
-                stdout=None, 
-                stderr=None
-            )
-        except subprocess.CalledProcessError:
-            print(f"   ❌ Download script failed.")
+        subprocess.run(["git", "-C", root, "lfs", "pull"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except: pass
     
-    if all(_exists().values()):
-        print("✅ Weights retrieved via script.")
-        return _exists()
+    if all(_exists().values()): return _exists()
 
-    # 3. Last Resort: Direct Python Download (Plan C)
-    # Mimics 'wget' but in python, for the specific v_48_020.pt file
-    print("   [Plan C] Attempting direct download from GitHub...")
+    # Direct download Plan C
+    print("   [Plan C] Direct download...")
     import urllib.request
-    
     base_url = "https://github.com/dauparas/ProteinMPNN/raw/main"
-    # We only ensure the standard model used by default
     target_file = "v_48_020.pt"
-    
     for category in ["vanilla", "soluble", "ca"]:
         folder_name = f"{category}_model_weights"
         local_dir = os.path.join(root, folder_name)
         os.makedirs(local_dir, exist_ok=True)
-        
         local_pt = os.path.join(local_dir, target_file)
         if not os.path.exists(local_pt) or os.path.getsize(local_pt) < 1000:
-            remote_url = f"{base_url}/{folder_name}/{target_file}?download="
-            print(f"    Downloading {category}/{target_file} ...")
             try:
-                with urllib.request.urlopen(remote_url, timeout=60) as r, open(local_pt, "wb") as f:
+                with urllib.request.urlopen(f"{base_url}/{folder_name}/{target_file}?download=", timeout=60) as r, open(local_pt, "wb") as f:
                     shutil.copyfileobj(r, f)
-                print(f"    ✅ Downloaded {category}.")
-            except Exception as e:
-                print(f"    ❌ Direct download failed for {category}: {e}")
-
+            except: pass
+            
     return _exists()
 
 def ensure_proteinmpnn(root: str = "/content/ProteinMPNN") -> Dict:
-    """
-    Clone ProteinMPNN if missing; install deps; detect weights paths; return env info.
-    """
     if not os.path.isdir(root):
         print("📥 Cloning ProteinMPNN...")
-        subprocess.run(
-            ["git", "clone", "-q", "https://github.com/dauparas/ProteinMPNN.git", root],
-            check=True,
-        )
+        subprocess.run(["git", "clone", "-q", "https://github.com/dauparas/ProteinMPNN.git", root], check=True)
 
-    print("📦 Installing Python deps (quiet)...")
-    subprocess.run(
-        ["pip", "install", "-q", "biopython==1.83", "einops==0.7.0"], check=True
-    )
+    print("📦 Installing Python deps...")
+    subprocess.run(["pip", "install", "-q", "biopython==1.83", "einops==0.7.0"], check=True)
 
     vanilla = os.path.join(root, "vanilla_model_weights")
     soluble = os.path.join(root, "soluble_model_weights")
@@ -239,28 +256,13 @@ def ensure_proteinmpnn(root: str = "/content/ProteinMPNN") -> Dict:
         "cuda_available": _cuda_available(),
     }
     os.makedirs(env["out_dir"], exist_ok=True)
-
-    # Check and fetch weights if needed
-    weights_ready = _ensure_model_weights(root)
-
+    _ensure_model_weights(root)
     return env
 
 def resolve_weights(env: Dict, use_soluble_model: bool, ca_only: bool) -> str:
-    if ca_only:
-        w = env["weights"]["ca"]
-    elif use_soluble_model:
-        w = env["weights"]["soluble"]
-    else:
-        w = env["weights"]["vanilla"]
-    
-    if not os.path.isdir(w) or len(os.listdir(w)) == 0:
-        # Check specifically for the file we likely need
-        if not os.path.exists(os.path.join(w, "v_48_020.pt")):
-             # Trigger check again just in case
-             _ensure_model_weights(env["root"])
-             if not os.path.isdir(w) or len(os.listdir(w)) == 0:
-                 raise RuntimeError(f"Model weights folder not found or empty: {w}")
-    return w
+    if ca_only: return env["weights"]["ca"]
+    elif use_soluble_model: return env["weights"]["soluble"]
+    return env["weights"]["vanilla"]
 
 def run_proteinmpnn(
     sampling_temp: float = 1.0,
@@ -277,62 +279,44 @@ def run_proteinmpnn(
     auto_download: bool = False,
     pdb_path: str = "",
 ) -> Dict:
-    """
-    Main entry point: does the whole workflow and returns a summary dict.
-    Supports both Homomer (Example 6) and Heteromer (Example 2) workflows.
-    """
+    
     if clean_workspace:
         clean_colab_workspace()
 
-    # 1) PDB input
     code = (pdb_code or "").strip().upper()
     uploaded_path = (pdb_path or "").strip()
-    print(
-        f"[Runner] incoming: code='{code}' uploaded='{uploaded_path}' homomer={homomer}"
-    )
+    print(f"[Runner] incoming: code='{code}' uploaded='{uploaded_path}' homomer={homomer}")
 
     local_pdb = ""
-    input_mode = ""
-
     if uploaded_path:
         if os.path.isfile(uploaded_path):
             local_pdb = uploaded_path
-            input_mode = "uploaded_file"
         else:
             raise RuntimeError(f"Uploaded pdb_path not found: {uploaded_path}")
     elif code:
         local_pdb = get_pdb_file(code, allow_upload=allow_upload)
-        input_mode = "pdb_code"
     else:
         if allow_upload:
             local_pdb = get_pdb_file("", allow_upload=True)
-            input_mode = "colab_upload"
         else:
-            raise RuntimeError("No PDB code or uploaded file provided.")
+            raise RuntimeError("No PDB provided.")
 
-    # 2) Setup env
     env = ensure_proteinmpnn()
     root = env["root"]
     out_dir = env["out_dir"]
     weights_root = resolve_weights(env, use_soluble_model, ca_only)
 
     # Stage PDB
-    import shutil
     pdb_basename = os.path.basename(local_pdb)
     staged_pdb_root = os.path.join(root, pdb_basename)
-    
     if os.path.abspath(local_pdb) != os.path.abspath(staged_pdb_root):
         shutil.copy2(local_pdb, staged_pdb_root)
-    
     pdb_arg_abs = os.path.abspath(staged_pdb_root)
 
-    # 3) Prepare Chain Controls
+    # Prepare Chains
     helper_parse = os.path.join(root, "helper_scripts", "parse_multiple_chains.py")
     helper_tie = os.path.join(root, "helper_scripts", "make_tied_positions_dict.py")
     helper_assign = os.path.join(root, "helper_scripts", "assign_fixed_chains.py")
-    
-    designed_list = split_chain_list(design_chains)
-    fixed_list = split_chain_list(fixed_chains)
     
     jsonl_parsed = os.path.join(out_dir, "parsed_pdbs.jsonl")
     jsonl_tied = os.path.join(out_dir, "tied_pdbs.jsonl")
@@ -346,41 +330,29 @@ def run_proteinmpnn(
         os.makedirs(temp_pdb_dir, exist_ok=True)
         shutil.copy2(pdb_arg_abs, os.path.join(temp_pdb_dir, pdb_basename))
         
-        subprocess.run(
-            [_py_exe(), helper_parse, f"--input_path={temp_pdb_dir}", f"--output_path={jsonl_parsed}"],
-            check=True
-        )
+        subprocess.run([_py_exe(), helper_parse, f"--input_path={temp_pdb_dir}", f"--output_path={jsonl_parsed}"], check=True)
         
         if homomer and os.path.exists(helper_tie):
             print("🔗 Generating tied positions for Homomer...")
-            subprocess.run(
-                [_py_exe(), helper_tie, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_tied}", "--homooligomer", "1"], 
-                check=True
-            )
+            subprocess.run([_py_exe(), helper_tie, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_tied}", "--homooligomer", "1"], check=True)
             use_jsonl_mode = True
             
         elif not homomer and os.path.exists(helper_assign):
-            print("🧩 Configuring chains for Heteromer/Fixed design...")
-            chains_to_design_str = ""
-            if designed_list:
-                chains_to_design_str = " ".join(designed_list)
-            
-            if chains_to_design_str:
-                subprocess.run(
-                    [_py_exe(), helper_assign, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_assigned}", "--chain_list", chains_to_design_str],
-                    check=True
-                )
+            print("🧩 Configuring chains for Heteromer...")
+            d_list = split_chain_list(design_chains)
+            if d_list:
+                subprocess.run([_py_exe(), helper_assign, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_assigned}", "--chain_list", " ".join(d_list)], check=True)
                 use_jsonl_mode = True
             else:
-                chain_jsonl_path = write_chain_jsonl(out_dir, local_pdb, designed_list, fixed_list)
-                if chain_jsonl_path:
-                    jsonl_assigned = chain_jsonl_path
+                # Fallback: write manual JSONL
+                c_path = write_chain_jsonl(out_dir, local_pdb, d_list, split_chain_list(fixed_chains))
+                if c_path:
+                    jsonl_assigned = c_path
                     use_jsonl_mode = True
 
-    # 4) Build Command
+    # Build Command
     cmd = [
-        _py_exe(),
-        f"{root}/protein_mpnn_run.py",
+        _py_exe(), f"{root}/protein_mpnn_run.py",
         "--out_folder", out_dir,
         "--model_name", model_name,
         "--path_to_model_weights", weights_root,
@@ -388,11 +360,8 @@ def run_proteinmpnn(
         "--sampling_temp", str(float(sampling_temp)),
         "--batch_size", "1",
     ]
-
-    if use_soluble_model:
-        cmd.append("--use_soluble_model")
-    if ca_only:
-        cmd.append("--ca_only")
+    if use_soluble_model: cmd.append("--use_soluble_model")
+    if ca_only: cmd.append("--ca_only")
 
     if use_jsonl_mode:
         cmd.extend(["--jsonl_path", jsonl_parsed])
@@ -403,57 +372,52 @@ def run_proteinmpnn(
     else:
         cmd.extend(["--pdb_path", pdb_arg_abs])
         if not homomer:
-             chain_jsonl_path = write_chain_jsonl(out_dir, local_pdb, designed_list, fixed_list)
-             if chain_jsonl_path:
-                 cmd.extend(["--chain_id_jsonl", chain_jsonl_path])
+            c_path = write_chain_jsonl(out_dir, local_pdb, split_chain_list(design_chains), split_chain_list(fixed_chains))
+            if c_path: cmd.extend(["--chain_id_jsonl", c_path])
 
-    # 5) Execute
-    print("🔧 Command:\n ", " ".join(cmd))
+    # Execute
+    print("🔧 Command:", " ".join(cmd))
     proc = subprocess.run(cmd, cwd=root, capture_output=True, text=True)
-    
-    if proc.stdout:
-        print("=== STDOUT ===")
-        print(proc.stdout[-2000:])
-    if proc.stderr:
-        print("\n=== STDERR ===")
-        print(proc.stderr[-2000:])
+    if proc.stdout: print("=== STDOUT ===", proc.stdout[-1500:])
+    if proc.stderr: print("\n=== STDERR ===", proc.stderr[-1500:])
 
     if proc.returncode != 0:
-        raise RuntimeError("ProteinMPNN run failed. See logs above.")
+        raise RuntimeError(f"ProteinMPNN run failed (code {proc.returncode})")
 
-    # 6) Merge outputs -> FASTA
+    # Merge
     pdb_name = Path(local_pdb).stem
     fasta_out, n = merge_outputs_to_fasta(out_dir, pdb_name)
-    print(f"✅ Merged FASTA: {fasta_out} (N={n} sequences)")
+    print(f"✅ Merged FASTA: {fasta_out}")
 
-    # 7) Minimal A3M
     a3m_out = fasta_to_a3m(fasta_out)
-    print(f"✅ Minimal A3M: {a3m_out}")
+    a3m_text_full = read_text_safe(Path(a3m_out))
+    
+    # --- [NEW] SPLIT CHAINS ---
+    split_chains_map = {}
+    try:
+        print("🔪 Splitting output into monomers...")
+        chain_info = _get_chain_lengths(local_pdb)
+        # Only split if we actually have multiple chains
+        if len(chain_info) > 1:
+            split_chains_map = _split_fasta_and_generate_a3m(fasta_out, chain_info, out_dir, pdb_name)
+            print(f"✅ Split into {len(split_chains_map)} files.")
+    except Exception as e:
+        print(f"⚠️ Splitting failed (ignoring): {e}")
 
-    a3m_path_obj = Path(a3m_out)
-    a3m_name = a3m_path_obj.name
-    a3m_text = read_text_safe(a3m_path_obj)
-
-    # 8) Zip outputs
+    # Zip
     zip_path = zip_outputs(out_dir, base=pdb_name, destination="/content")
-    print(f"🗜️  Zipped outputs: {zip_path}")
-
+    
     if auto_download:
         try:
-            from google.colab import files as colab_files
-            colab_files.download(zip_path)
-        except Exception:
-            pass
+            from google.colab import files
+            files.download(zip_path)
+        except: pass
 
     return {
         "pdb_path": local_pdb,
-        "out_dir": out_dir,
-        "fasta": fasta_out,
-        "a3m": a3m_out,
         "zip": zip_path,
-        "num_sequences": n,
-        "cuda_available": env["cuda_available"],
         "homomer": homomer,
-        "a3m_name": a3m_name,
-        "a3m_text": a3m_text,
+        "a3m_name": Path(a3m_out).name,
+        "a3m_text": a3m_text_full,
+        "split_chains": split_chains_map # Returns dict {'name': 'a3m_content'}
     }

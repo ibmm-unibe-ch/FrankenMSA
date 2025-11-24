@@ -453,6 +453,7 @@ else:
     from helpers import proteinmpnn_local_runner as proteinmpnn
 
 
+
 @callback(
     Output("pdb-upload-status", "children"),
     Output("pdb-upload-path", "data"),
@@ -484,6 +485,21 @@ def _save_uploaded_pdb(contents, filename):
     except Exception as e:
         print("[UPLOAD][ERROR]", e)
         return html.Small(f"❌ Upload failed: {e}"), ""
+
+
+# Helper function: parse A3M to dict
+def _parse_a3m_to_dict(text):
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    headers, sequences = [], []
+    current_header = None
+    for l in lines:
+        if l.startswith(">"):
+            current_header = l[1:]
+        elif current_header is not None:
+            headers.append(current_header)
+            sequences.append(l)
+            current_header = None
+    return {"header": headers, "sequence": sequences}
 
 
 @callback(
@@ -554,28 +570,29 @@ def run_proteinmpnn_in_colab(
     inject_payload = None
 
     try:
+        # 1. Process main combined A3M
         a3m_name = (res.get("a3m_name") or "").strip()
         a3m_text = res.get("a3m_text")
-        if a3m_name and a3m_text:
-            lines = [l.strip() for l in a3m_text.splitlines() if l.strip()]
-            headers, sequences = [], []
-            current_header = None
-            for l in lines:
-                if l.startswith(">"):
-                    current_header = l[1:]
-                elif current_header is not None:
-                    headers.append(current_header)
-                    sequences.append(l)
-                    current_header = None
-            parsed = {"header": headers, "sequence": sequences}
 
-            current = msa_data_state if isinstance(msa_data_state, dict) else {}
-            current = dict(current)
+        current = msa_data_state if isinstance(msa_data_state, dict) else {}
+        current = dict(current)
+
+        if a3m_name and a3m_text:
+            parsed = _parse_a3m_to_dict(a3m_text)
             current[a3m_name] = parsed
-            new_msa_data = current
             new_main_msa = a3m_name
             inject_payload = {"name": a3m_name, "text": a3m_text}
-    except Exception:
+
+        # 2. Process split chains (if present)
+        split_map = res.get("split_chains", {})
+        for name, text in split_map.items():
+            parsed_split = _parse_a3m_to_dict(text)
+            current[name] = parsed_split
+
+        new_msa_data = current
+
+    except Exception as e:
+        print(f"Error processing ProteinMPNN results: {e}")
         pass
 
     zip_name = os.path.basename(res["zip"])
