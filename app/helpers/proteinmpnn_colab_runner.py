@@ -102,15 +102,33 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 # ---------- Splitting Logic ----------
 
 def _get_chain_lengths(pdb_path):
+    """
+    Parses PDB to get the order and length of chains.
+    Strictly filters for residues containing Alpha Carbons (CA) to match ProteinMPNN logic.
+    """
     parser = PDB.PDBParser(QUIET=True)
     structure = parser.get_structure("input", pdb_path)
     chain_info = []
+    
     for model in structure:
         for chain in model:
-            residues = [r for r in chain if PDB.is_aa(r, standard=False)]
-            if residues:
-                chain_info.append((chain.id, len(residues)))
+            # ProteinMPNN only cares about residues with backbone atoms (specifically CA)
+            valid_residues = []
+            for r in chain:
+                # Check 1: Is it an amino acid?
+                # Check 2: Does it have a CA atom? (Filters water/ions)
+                if PDB.is_aa(r, standard=False) and 'CA' in r:
+                    valid_residues.append(r)
+            
+            # Only add this chain if it has valid protein residues
+            if valid_residues:
+                chain_info.append((chain.id, len(valid_residues)))
+        
+        # Only parse the first model
         break 
+        
+    # Debug print to see what we found
+    print(f"🔍 Detected Chains: {chain_info}")
     return chain_info
 
 def _split_fasta_and_generate_a3m(full_fasta_path, chain_info, out_dir, base_name):
