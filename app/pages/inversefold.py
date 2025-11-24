@@ -496,13 +496,14 @@ def _save_uploaded_pdb(contents, filename):
     State("proteinmpnn-sequence-count", "value"),
     State("proteinmpnn-design-chains", "value"),
     State("proteinmpnn-fixed-chains", "value"),
+    State("proteinmpnn-homomer", "value"),
     State("proteinmpnn-pdb-code", "value"),
     State("pdb-upload-path", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
 def run_proteinmpnn_in_colab(
-    n, temp, num, design, fixed, pdb, pdb_upload_path, msa_data_state
+    n, temp, num, design, fixed, homomer_val, pdb, pdb_upload_path, msa_data_state
 ):
     if not n:
         return no_update, no_update, no_update, no_update
@@ -511,18 +512,12 @@ def run_proteinmpnn_in_colab(
             no_update,
             no_update,
             no_update,
-            html.Div(
-                "❌ It seems that the ProteinMPNN runner script is not available."
-            ),
+            html.Div("❌ It seems that the ProteinMPNN runner script is not available."),
         )
 
     uploaded_path = (pdb_upload_path or "").strip()
     code_clean = (pdb or "").strip().upper()
     use_uploaded = bool(uploaded_path) and os.path.isfile(uploaded_path)
-
-    print(
-        f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'"
-    )
 
     if not use_uploaded and not code_clean:
         return (
@@ -533,6 +528,7 @@ def run_proteinmpnn_in_colab(
         )
 
     _path = uploaded_path
+    is_homomer = bool(homomer_val)
 
     try:
         res = proteinmpnn.run_proteinmpnn(
@@ -540,9 +536,9 @@ def run_proteinmpnn_in_colab(
             num_seqs=(num or 128),
             pdb_code=("" if use_uploaded else code_clean),
             pdb_path=_path,
-            design_csv=(design or "").replace(" ", "").upper(),
-            fixed_csv=(fixed or "").replace(" ", "").upper(),
-            homomer=True,
+            design_chains=(design or "").strip(),
+            fixed_chains=(fixed or "").strip(),
+            homomer=is_homomer,
             model_name="v_48_020",
             use_soluble_model=False,
             ca_only=False,
@@ -556,18 +552,17 @@ def run_proteinmpnn_in_colab(
     new_msa_data = no_update
     new_main_msa = no_update
     inject_payload = None
+
     try:
         a3m_name = (res.get("a3m_name") or "").strip()
         a3m_text = res.get("a3m_text")
         if a3m_name and a3m_text:
-            # Parse A3M text into dict-of-lists to match msa_data convention
-            # Expected keys elsewhere: "header" and "sequence"
             lines = [l.strip() for l in a3m_text.splitlines() if l.strip()]
             headers, sequences = [], []
             current_header = None
             for l in lines:
                 if l.startswith(">"):
-                    current_header = l[1:]  # drop leading '>'
+                    current_header = l[1:]
                 elif current_header is not None:
                     headers.append(current_header)
                     sequences.append(l)
@@ -579,7 +574,6 @@ def run_proteinmpnn_in_colab(
             current[a3m_name] = parsed
             new_msa_data = current
             new_main_msa = a3m_name
-            # Keep raw A3M for the injector so it can appear in the selector immediately
             inject_payload = {"name": a3m_name, "text": a3m_text}
     except Exception:
         pass
@@ -598,6 +592,7 @@ def run_proteinmpnn_in_colab(
                 style={"display": "block", "marginTop": "6px", "opacity": 0.7},
             )
         )
+
     return (
         new_msa_data,
         new_main_msa,

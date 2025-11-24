@@ -183,37 +183,46 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
         self,
         pdbfile: str,
         n: int = 128,
-        chains: list = None,
+        chains: list = None,        # Legacy argument, kept for compatibility
+        design_chains: list = None, # New argument
+        fixed_chains: list = None,  # New argument
         temperature: float = 1.0,
         copies: int = 1,
+        homomer: bool = False,      # Controlled by UI
     ):
         """
         Generate protein sequences from a PDB file.
-
-        Parameters
-        ----------
-        pdbfile : str
-            Path to the PDB file.
-        n : int, optional
-            Number of sequences to generate, by default 128
-        chains : list, optional
-            List of chain IDs to generate sequences for, by default None
-        temperature : float, optional
-            Sampling temperature, by default 1.0
-        copies : int, optional
-            Number of copies to generate for each sequence, by default 1
-
-        Returns
-        -------
-        pd.DataFrame
-            The generated sequences
-        dict
-            Dictionary of additional information about the sequences
+        Updated to support Heteromer design (Fixed/Design chains).
         """
         device = self.device
+        
+        # Compatibility handling
+        target_design = []
+        target_fixed = []
+        
+        if design_chains or fixed_chains:
+            if design_chains:
+                target_design = design_chains if isinstance(design_chains, list) else str(design_chains).split(",")
+            if fixed_chains:
+                target_fixed = fixed_chains if isinstance(fixed_chains, list) else str(fixed_chains).split(",")
+            
+            target_design = [c.strip() for c in target_design if c.strip()]
+            target_fixed = [c.strip() for c in target_fixed if c.strip()]
+        else:
+            if chains:
+                target_design = chains
+            else:
+                target_design = None
+
         inputs = _prepare_model_input(
-            pdbfile=pdbfile, n=n, chains=chains, copies=copies
+            pdbfile=pdbfile, 
+            n=n, 
+            design_chains=target_design,
+            fixed_chains=target_fixed,
+            homomer=homomer, 
+            copies=copies
         )
+        
         self._out = TempOutputs()
         self._out.extra = {
             "protein_name": [],
@@ -230,7 +239,6 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
 
         _sampler, _sampler_arguments = self._prepare_sampler(inputs)
 
-        # encode the protein inputs
         for idx, protein in enumerate(inputs.dataset):
             self._out.protein_name = protein["name"]
             clones = clone_factory(protein)
@@ -243,7 +251,6 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
             )
             sampler_kwargs = _sampler_arguments(features, inputs)
 
-            # for each batch first generate model scores for sequence recovery
             for batch in range(inputs.n_batches):
 
                 random_prompt = torch.randn(features.chain_mask.shape, device=device)
@@ -261,7 +268,6 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
                     decoding_order=sample_dict["decoding_order"],
                 )
 
-                # now generate the sequences
                 for cdx in range(copies):
                     seq, sequence_recovery_rate = self._generate_sequence(
                         features,
@@ -478,36 +484,33 @@ def _slice_namespace(namespace, index: int):
 def _prepare_model_input(
     pdbfile: str,
     n: int,
-    chains: list = None,
+    design_chains: list = None, 
+    fixed_chains: list = None,
     homomer: bool = False,
     copies: int = 1,
 ):
     """
     Prepare the input for the ProteinMPNN model.
-
-    Parameters
-    ----------
-    pdbfile : str
-        Path to the PDB file.
-    n : int
-        Number of sequences to generate.
-    chains : list, optional
-        List of chain IDs to generate sequences for, by default None, in which case all chains are used.
-    homomer : bool, optional
-        Whether to generate homomers, by default False.
-    copies : int, optional
-        Number of copies to generate for each sequence, by default 1
-
-    Returns
-    -------
-    ProteinMPNNInputData
-        The input data for the ProteinMPNN model
+    Supports heteromer design via chain_dict logic.
     """
-
-    if chains is None:
+    import frankenfold.core.pdbio as pdbio
+    
+    all_chains_in_pdb = None
+    
+    if design_chains is None:
         _pdb = pdbio.PDB.from_file(pdbfile)
-        chains = _pdb.chains
+        all_chains_in_pdb = _pdb.chains
         del _pdb
+        
+        if fixed_chains:
+            design_chains = [c for c in all_chains_in_pdb if c not in fixed_chains]
+        else:
+            design_chains = all_chains_in_pdb
+            
+    if fixed_chains is None:
+        fixed_chains = []
+
+    load_chains = list(set(design_chains + fixed_chains))
 
     n_batches = n // copies
 
@@ -515,12 +518,15 @@ def _prepare_model_input(
     omit_array = np.zeros(N_ALPHABET, dtype=np.float32)
     omit_array[-1] = 1.0
 
-    pdb_dict_list = protein_mpnn_utils.parse_PDB(pdbfile, input_chain_list=chains)
+    pdb_dict_list = protein_mpnn_utils.parse_PDB(pdbfile, input_chain_list=load_chains)
     dataset = protein_mpnn_utils.StructureDatasetPDB(
         pdb_dict_list, truncate=None, max_length=MAX_LENGTH
     )
 
-    chain_dict = {pdb_dict_list[0]["name"]: (chains, [])}
+    if not pdb_dict_list:
+        raise ValueError(f"Could not parse chains {load_chains} from {pdbfile}")
+
+    chain_dict = {pdb_dict_list[0]["name"]: (design_chains, fixed_chains)}
 
     if homomer:
         tied_positions = _make_tied_positions_for_homomers(pdb_dict_list)
