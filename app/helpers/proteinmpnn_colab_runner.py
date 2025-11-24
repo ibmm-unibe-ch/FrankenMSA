@@ -115,76 +115,69 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 
 # ---------- ProteinMPNN setup & run ----------
 
-def ensure_proteinmpnn(root: str = "/content/ProteinMPNN") -> Dict:
-    if not os.path.isdir(root):
-        print("📥 Cloning ProteinMPNN...")
-        subprocess.run(
-            ["git", "clone", "-q", "https://github.com/dauparas/ProteinMPNN.git", root],
-            check=True,
-        )
-
-    print("📦 Installing Python deps (quiet)...")
-    subprocess.run(
-        ["pip", "install", "-q", "biopython==1.83", "einops==0.7.0"], check=True
-    )
-
-    vanilla = os.path.join(root, "vanilla_model_weights")
-    soluble = os.path.join(root, "soluble_model_weights")
-    ca = os.path.join(root, "ca_model_weights")
-
-    env = {
-        "root": root,
-        "weights": {"vanilla": vanilla, "soluble": soluble, "ca": ca},
-        "out_dir": os.path.join(root, "outputs_run"),
-        "cuda_available": _cuda_available(),
-    }
-    os.makedirs(env["out_dir"], exist_ok=True)
-
-    weights_ready = {k: os.path.isdir(v) for k, v in env["weights"].items()}
-    if not all(weights_ready.values()):
-        fetched = _ensure_model_weights(root)
-        weights_ready = fetched
-
-    return env
-
-def _cuda_available() -> bool:
-    try:
-        import torch
-        return bool(torch.cuda.is_available())
-    except Exception:
-        return False
-
 def _ensure_model_weights(root: str) -> Dict[str, bool]:
+    """
+    Robustly ensure model weights exist. If missing, force run the download script.
+    """
     vanilla = os.path.join(root, "vanilla_model_weights")
     soluble = os.path.join(root, "soluble_model_weights")
     ca = os.path.join(root, "ca_model_weights")
 
     def _exists() -> Dict[str, bool]:
+        # Check if directory exists AND contains .pt files
+        def valid(p):
+            if not os.path.isdir(p): return False
+            # Check if it's not empty
+            return len(os.listdir(p)) > 0
+            
         return {
-            "vanilla": os.path.isdir(vanilla),
-            "soluble": os.path.isdir(soluble),
-            "ca": os.path.isdir(ca),
+            "vanilla": valid(vanilla),
+            "soluble": valid(soluble),
+            "ca": valid(ca),
         }
 
+    # If everything is already there, return immediately
     ready = _exists()
     if all(ready.values()):
         return ready
 
-    # Try git methods
+    print("⚠️ Model weights missing or incomplete. Attempting to download...")
+
+    # 1. Try git lfs pull first (fastest if repo is configured right)
     try:
-        subprocess.run(["git", "-C", root, "lfs", "install"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        subprocess.run(["git", "-C", root, "lfs", "pull"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print("   Attempting 'git lfs pull'...")
+        subprocess.run(
+            ["git", "-C", root, "lfs", "pull"], 
+            check=False, 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL
+        )
     except Exception:
         pass
 
-    # Try script method
-    if not all(_exists().values()):
-        helper = os.path.join(root, "get_model_weights.sh")
-        if os.path.isfile(helper):
-            try:
-                subprocess.run(["bash", helper], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            except Exception:
-                pass
+    # Check again
+    if all(_exists().values()):
+        print("✅ Weights retrieved via Git LFS.")
+        return _exists()
+
+    # 2. Fallback: Run the official download script
+    helper = os.path.join(root, "get_model_weights.sh")
+    if os.path.isfile(helper):
+        print(f"   Running download script: {helper}")
+        try:
+            # Run the bash script and SHOW OUTPUT so we know if it hangs/fails
+            subprocess.run(
+                ["bash", helper], 
+                cwd=root, # Important: Run inside the repo folder
+                check=True,
+                stdout=None, # This will print to console
+                stderr=None  # This will print to console
+            )
+            print("✅ Download script finished.")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Download script failed with code {e.returncode}")
+    else:
+        print("❌ get_model_weights.sh not found in repo.")
 
     return _exists()
 
