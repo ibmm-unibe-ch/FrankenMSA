@@ -2,7 +2,7 @@ import dash
 from dash import html, dcc
 from dash import callback, Input, Output, State, clientside_callback
 import dash_bootstrap_components as dbc
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 import time
 import base64, re
 import os, tempfile
@@ -25,7 +25,10 @@ if not ON_COLAB and (Path(__file__).parents[2] / ".git").exists():
         CURRENT_BRANCH = "main"
 else:
     CURRENT_BRANCH = "main"
-COLAB_LINK = f"https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/{CURRENT_BRANCH}/FrankenMSA_app_colab.ipynb"
+
+
+SAFE_BRANCH = quote(CURRENT_BRANCH, safe="")
+COLAB_LINK = f"https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/{SAFE_BRANCH}/FrankenMSA_app_colab.ipynb"
 
 
 # Robust, cross-environment upload directory selection
@@ -225,15 +228,7 @@ def proteinmpnn_layout():
                                     "textAlign": "center",
                                 },
                             ),
-                            html.Small(
-                                "Currently only homomers (single chain) are supported.",
-                                className="text-muted",
-                                style={
-                                    "display": "block",
-                                    "textAlign": "center",
-                                    "marginTop": "4px",
-                                },
-                            ),
+                            # [DELETED] Removed the "Currently only homomers..." Small text here.
                         ],
                         md=12,
                         style={
@@ -339,7 +334,7 @@ def proteinmpnn_layout():
                         target="_blank",
                     ),
                     ". If you run FrankenMSA locally, ProteinMPNN will use your local environment instead.",
-                    " Note: currently only homomers (single chain) are supported.",
+                    " Note: Both Homomers (single chain) and Heteromers (multi-chain complexes) are supported. ",
                 ],
                 style={"textAlign": "center", "marginBottom": "18px"},
             ),
@@ -451,7 +446,6 @@ if ON_COLAB:
     from helpers import proteinmpnn_colab_runner as proteinmpnn
 else:
     from helpers import proteinmpnn_local_runner as proteinmpnn
-
 
 
 @callback(
