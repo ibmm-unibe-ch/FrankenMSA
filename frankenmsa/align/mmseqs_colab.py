@@ -177,7 +177,9 @@ class MMSeqs2Colab(base.MSAFactory):
 
         self.filter = filter
         if pairing and pairing not in ("greedy", "complete"):
-            raise ValueError("Invalid pairing mode. Options are 'greedy' and 'complete'.")
+            raise ValueError(
+                "Invalid pairing mode. Options are 'greedy' and 'complete'."
+            )
         self.pairing = pairing
         self.use_env = env
 
@@ -251,7 +253,7 @@ class MMSeqs2Colab(base.MSAFactory):
 
         self.job_id = out["id"]
         self.status = out["status"]
-        self.raw_data = None    
+        self.raw_data = None
 
     def wait(self, max_wait: int = None, retry_interval: int = 3):
         """

@@ -522,7 +522,9 @@ def run_proteinmpnn_in_colab(
             no_update,
             no_update,
             no_update,
-            html.Div("❌ It seems that the ProteinMPNN runner script is not available."),
+            html.Div(
+                "❌ It seems that the ProteinMPNN runner script is not available."
+            ),
         )
 
     uploaded_path = (pdb_upload_path or "").strip()

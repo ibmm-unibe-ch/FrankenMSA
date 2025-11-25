@@ -31,8 +31,9 @@ def read_a3m(filename: str) -> pd.DataFrame:
         for line in f:
             # Strip whitespace from the line
             line = line.strip()
-            if not line: continue 
-            
+            if not line:
+                continue
+
             # If the line starts with '>', it's a header
             if line.startswith(">"):
                 headers.append(line[1:])
@@ -67,11 +68,12 @@ def iter_a3m(filename: str) -> Tuple[str]:
         for line in f:
             # Strip whitespace from the line
             line = line.strip()
-            if not line: continue
+            if not line:
+                continue
 
             if line.startswith("#"):
                 continue
-                
+
             # If the line starts with '>', it's a header
             if line.startswith(">"):
                 if header is not None:
@@ -97,15 +99,15 @@ def write_a3m(df: pd.DataFrame, filename: str) -> None:
     filename : str
         The path to the A3M file.
     """
-    
+
     # 1. Detect Multimer Header
     # In align.py, we stored the header string in a column named "_multimer_header"
     multimer_header_line = None
-    
+
     # Check if input is a dict (from Dash Store) or DataFrame
     if isinstance(df, dict):
         df = pd.DataFrame(df)
-        
+
     if "_multimer_header" in df.columns and not df.empty:
         # The header string is repeated in every row, so we just take the first one
         # It usually looks like: #100,100<tab>1,1
@@ -121,7 +123,7 @@ def write_a3m(df: pd.DataFrame, filename: str) -> None:
 
     # 3. Write File
     with open(filename, "w") as f:
-        
+
         # [CRITICAL STEP] Write the Multimer Header first if it exists
         if multimer_header_line:
             f.write(f"{multimer_header_line}\n")
@@ -150,7 +152,7 @@ def encode_a3m(df: pd.DataFrame) -> str:
     if "_multimer_header" in df.columns and not df.empty:
         val = df.iloc[0]["_multimer_header"]
         if val and str(val).startswith("#"):
-             res += f"{val}\n"
+            res += f"{val}\n"
 
     res += "".join(
         [f">{row['header']}\n{row['sequence']}\n" for _, row in df.iterrows()]
@@ -179,9 +181,11 @@ def decode_a3m(a3m_str: str) -> pd.DataFrame:
 
     for line in lines:
         line = line.strip()
-        if not line: continue
-        if line.startswith("#"): continue # Skip multimer header in dataframe body
-        
+        if not line:
+            continue
+        if line.startswith("#"):
+            continue  # Skip multimer header in dataframe body
+
         if line.startswith(">"):
             headers.append(line[1:])
         else:

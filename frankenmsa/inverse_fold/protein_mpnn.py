@@ -183,29 +183,37 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
         self,
         pdbfile: str,
         n: int = 128,
-        chains: list = None,        # Legacy argument, kept for compatibility
-        design_chains: list = None, # New argument
+        chains: list = None,  # Legacy argument, kept for compatibility
+        design_chains: list = None,  # New argument
         fixed_chains: list = None,  # New argument
         temperature: float = 1.0,
         copies: int = 1,
-        homomer: bool = False,      # Controlled by UI
+        homomer: bool = False,  # Controlled by UI
     ):
         """
         Generate protein sequences from a PDB file.
         Updated to support Heteromer design (Fixed/Design chains).
         """
         device = self.device
-        
+
         # Compatibility handling
         target_design = []
         target_fixed = []
-        
+
         if design_chains or fixed_chains:
             if design_chains:
-                target_design = design_chains if isinstance(design_chains, list) else str(design_chains).split(",")
+                target_design = (
+                    design_chains
+                    if isinstance(design_chains, list)
+                    else str(design_chains).split(",")
+                )
             if fixed_chains:
-                target_fixed = fixed_chains if isinstance(fixed_chains, list) else str(fixed_chains).split(",")
-            
+                target_fixed = (
+                    fixed_chains
+                    if isinstance(fixed_chains, list)
+                    else str(fixed_chains).split(",")
+                )
+
             target_design = [c.strip() for c in target_design if c.strip()]
             target_fixed = [c.strip() for c in target_fixed if c.strip()]
         else:
@@ -215,14 +223,14 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
                 target_design = None
 
         inputs = _prepare_model_input(
-            pdbfile=pdbfile, 
-            n=n, 
+            pdbfile=pdbfile,
+            n=n,
             design_chains=target_design,
             fixed_chains=target_fixed,
-            homomer=homomer, 
-            copies=copies
+            homomer=homomer,
+            copies=copies,
         )
-        
+
         self._out = TempOutputs()
         self._out.extra = {
             "protein_name": [],
@@ -484,7 +492,7 @@ def _slice_namespace(namespace, index: int):
 def _prepare_model_input(
     pdbfile: str,
     n: int,
-    design_chains: list = None, 
+    design_chains: list = None,
     fixed_chains: list = None,
     homomer: bool = False,
     copies: int = 1,
@@ -494,19 +502,19 @@ def _prepare_model_input(
     Supports heteromer design via chain_dict logic.
     """
     import frankenfold.core.pdbio as pdbio
-    
+
     all_chains_in_pdb = None
-    
+
     if design_chains is None:
         _pdb = pdbio.PDB.from_file(pdbfile)
         all_chains_in_pdb = _pdb.chains
         del _pdb
-        
+
         if fixed_chains:
             design_chains = [c for c in all_chains_in_pdb if c not in fixed_chains]
         else:
             design_chains = all_chains_in_pdb
-            
+
     if fixed_chains is None:
         fixed_chains = []
 

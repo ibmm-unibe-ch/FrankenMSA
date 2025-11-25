@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import List, Tuple
 
 print("[DEBUG] multimer_a3m loaded from:", __file__)
+
+
 def parse_a3m(path: str) -> List[Tuple[str, str]]:
     records = []
     header = None
@@ -24,6 +26,7 @@ def parse_a3m(path: str) -> List[Tuple[str, str]]:
         raise ValueError(f"Empty or invalid A3M: {path}")
     return records
 
+
 def combine_unpaired_a3m(
     input_paths: List[str],
     output_path: str,
@@ -32,15 +35,14 @@ def combine_unpaired_a3m(
     import tempfile
     from pathlib import Path
 
-    
     if not output_path or output_path.strip() in ("/", ".", "./"):
         out = Path(tempfile.gettempdir()) / "frankenmsa_multimer.a3m"
     else:
         out = Path(output_path)
-       
+
         if out.is_dir() or str(out).endswith(("/", "\\")):
             out = out / "multimer.a3m"
-        
+
         if not out.parent.exists() or str(out.parent) == "":
             out = Path(tempfile.gettempdir()) / out.name
 
@@ -82,7 +84,7 @@ def combine_unpaired_a3m(
         for i, L in enumerate(lengths, start=101):
             lines.append(f">{i}")
             pad_left = sum(lengths[: i - 101])
-            pad_right = sum(lengths[(i - 100):])
+            pad_right = sum(lengths[(i - 100) :])
             lines.append("-" * pad_left + chains[i - 101][0][1] + "-" * pad_right)
 
     for chain_idx, chain in enumerate(chains):
