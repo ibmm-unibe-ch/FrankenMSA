@@ -10,6 +10,7 @@
 # Comments in English as requested.
 
 
+
 import gc
 import json
 import os
@@ -18,6 +19,12 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Dict
+
+# Import BioPython
+try:
+    from Bio import PDB
+except ImportError:
+    pass
 
 from helpers.proteinmpnn_common import (
     fasta_to_a3m,
@@ -44,10 +51,8 @@ def clean_colab_workspace():
     print("🧹 Cleaning workspace... ", end="", flush=True)
     try:
         os.system("rm -rf /content/ProteinMPNN/outputs_run/* 2>/dev/null")
-        os.system("find /content -maxdepth 2 -type f -name '*.pdb' -delete 2>/dev/null")
-        os.system(
-            "rm -f /content/*.zip /content/*.fa /content/*.fasta /content/*.a3m 2>/dev/null"
-        )
+        # Do not delete PDBs in root, only clean outputs
+        os.system("rm -f /content/*.zip /content/*.fa /content/*.fasta /content/*.a3m 2>/dev/null")
     except Exception:
         pass
     gc.collect()
@@ -93,88 +98,86 @@ def get_pdb_file(pdb_code: str, allow_upload: bool = True) -> str:
 
     raise RuntimeError("No PDB code provided and uploads are disabled.")
 
-# ---------- Splitting Logic (The Smart Way) ----------
+# ---------- Splitting Logic (Smart Filter) ----------
 
-def _split_fasta_and_generate_a3m(full_fasta_path, out_dir, base_name):
+def _get_chain_lengths(pdb_path):
     """
-    Splits combined FASTA by detecting '/' separators in the sequence.
-    This is how ProteinMPNN officially separates chains in output.
+    Parses PDB to get chains. 
+    Strictly filters for proteins (length > 10 + has CA atoms).
     """
-    split_results = {}
-    
-    # 1. Read the first sequence to determine split points
-    # We assume all generated sequences have the same chain structure
-    with open(full_fasta_path, 'r') as f:
-        lines = f.readlines()
-    
-    if not lines: return {}
-
-    # Find the first sequence line (skip headers)
-    sample_seq = ""
-    for line in lines:
-        if not line.startswith(">"):
-            sample_seq = line.strip()
-            break
-            
-    if "/" not in sample_seq:
-        print("ℹ️ No '/' separators found. Assuming single chain.")
-        return {}
-
-    # 2. Calculate lengths of each segment
-    segments = sample_seq.split("/")
-    lengths = [len(s) for s in segments]
-    print(f"🔪 Detected {len(lengths)} chains with lengths: {lengths}")
-
-    # 3. Process the whole file
-    chain_files = {} # Store file handles
-    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" # Simple naming: Chain A, B, C...
-
     try:
-        # Open file handles for each chain
-        for i in range(len(lengths)):
-            chain_id = alphabet[i] if i < 26 else str(i)
-            p = os.path.join(out_dir, f"{base_name}_chain{chain_id}.fasta")
-            chain_files[i] = {"path": p, "handle": open(p, "w"), "id": chain_id}
+        parser = PDB.PDBParser(QUIET=True)
+        structure = parser.get_structure("input", pdb_path)
+    except Exception:
+        return []
 
-        current_header = None
-        
-        for line in lines:
+    chain_info = []
+    MIN_RESIDUE_COUNT = 10 
+
+    for model in structure:
+        for chain in model:
+            valid_residues = []
+            for r in chain:
+                if PDB.is_aa(r, standard=False) and 'CA' in r:
+                    valid_residues.append(r)
+            
+            if len(valid_residues) > MIN_RESIDUE_COUNT:
+                print(f"      ✅ Keeping chain {chain.id} (Length {len(valid_residues)})")
+                chain_info.append((chain.id, len(valid_residues)))
+            else:
+                if len(valid_residues) > 0:
+                     print(f"      🗑️ Dropping chain {chain.id} (Length {len(valid_residues)})")
+        break 
+    return chain_info
+
+def _split_fasta_and_generate_a3m(full_fasta_path, chain_info, out_dir, base_name):
+    split_results = {}
+    headers = []
+    seqs = []
+    
+    with open(full_fasta_path, 'r') as f:
+        current_h = None
+        current_s = []
+        for line in f:
             line = line.strip()
             if not line: continue
-            
             if line.startswith(">"):
-                current_header = line
+                if current_h:
+                    headers.append(current_h)
+                    seqs.append("".join(current_s))
+                current_h = line
+                current_s = []
             else:
-                # This is a sequence line, split it by '/'
-                parts = line.split("/")
-                
-                if len(parts) != len(lengths):
-                    # Skip malformed lines
-                    continue
-                    
-                for i, seq_part in enumerate(parts):
-                    # Write to respective chain file
-                    # Header: >sample_1_chainA
-                    cf = chain_files[i]
-                    cf["handle"].write(f"{current_header}_chain{cf['id']}\n{seq_part}\n")
+                current_s.append(line)
+        if current_h:
+            headers.append(current_h)
+            seqs.append("".join(current_s))
+
+    # Validation
+    if not seqs: return {}
+    
+    # ProteinMPNN output usually matches the PDB chain order of "protein-only" chains.
+    # We assume chain_info (which filtered water) matches the output sequence.
+    
+    cumulative_start = 0
+    for chain_id, length in chain_info:
+        # Safety check: don't go out of bounds
+        if cumulative_start >= len(seqs[0]):
+            break
+
+        chain_fasta_path = os.path.join(out_dir, f"{base_name}_chain{chain_id}.fasta")
         
-        # Close handles and convert to A3M
-        for i in chain_files:
-            cf = chain_files[i]
-            cf["handle"].close()
-            
-            # Convert to A3M string
-            a3m = fasta_to_a3m(cf["path"])
-            text = read_text_safe(Path(a3m))
-            split_results[f"{base_name}_chain{cf['id']}"] = text
-            
-    except Exception as e:
-        print(f"❌ Splitting failed: {e}")
-        # Close any open files
-        for i in chain_files:
-            try: chain_files[i]["handle"].close()
-            except: pass
-            
+        with open(chain_fasta_path, 'w') as f_out:
+            for h, s in zip(headers, seqs):
+                segment = s[cumulative_start : cumulative_start + length]
+                f_out.write(f"{h}_chain{chain_id}\n{segment}\n")
+        
+        chain_a3m = fasta_to_a3m(chain_fasta_path)
+        a3m_text = read_text_safe(Path(chain_a3m))
+        split_results[f"{base_name}_chain{chain_id}"] = a3m_text
+        
+        cumulative_start += length
+
     return split_results
 
 # ---------- ProteinMPNN setup & run ----------
@@ -204,7 +207,7 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
     if all(_exists().values()):
         return _exists()
 
-    print("⚠️ Model weights missing. Attempting download...")
+    print("⚠️ Model weights missing. Downloading...")
     try:
         subprocess.run(["git", "-C", root, "lfs", "pull"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except: pass
@@ -298,43 +301,14 @@ def run_proteinmpnn(
     out_dir = env["out_dir"]
     weights_root = resolve_weights(env, use_soluble_model, ca_only)
 
+    # Stage PDB
     pdb_basename = os.path.basename(local_pdb)
     staged_pdb_root = os.path.join(root, pdb_basename)
     if os.path.abspath(local_pdb) != os.path.abspath(staged_pdb_root):
         shutil.copy2(local_pdb, staged_pdb_root)
     pdb_arg_abs = os.path.abspath(staged_pdb_root)
 
-    helper_parse = os.path.join(root, "helper_scripts", "parse_multiple_chains.py")
-    helper_assign = os.path.join(root, "helper_scripts", "assign_fixed_chains.py")
-    jsonl_parsed = os.path.join(out_dir, "parsed_pdbs.jsonl")
-    jsonl_assigned = os.path.join(out_dir, "assigned_pdbs.jsonl")
-    use_jsonl_mode = False
-    
-    if not homomer:
-        if os.path.exists(helper_parse) and os.path.exists(helper_assign):
-            print("🧩 Configuring Heteromer mode...")
-            temp_pdb_dir = os.path.join(out_dir, "temp_pdbs")
-            os.makedirs(temp_pdb_dir, exist_ok=True)
-            shutil.copy2(pdb_arg_abs, os.path.join(temp_pdb_dir, pdb_basename))
-            
-            try:
-                subprocess.run([_py_exe(), helper_parse, f"--input_path={temp_pdb_dir}", f"--output_path={jsonl_parsed}"], check=True)
-                d_list = split_chain_list(design_chains)
-                if d_list:
-                    subprocess.run([_py_exe(), helper_assign, f"--input_path={jsonl_parsed}", f"--output_path={jsonl_assigned}", "--chain_list", " ".join(d_list)], check=True)
-                    use_jsonl_mode = True
-                else:
-                    c_path = write_chain_jsonl(out_dir, local_pdb, d_list, split_chain_list(fixed_chains))
-                    if c_path:
-                        jsonl_assigned = c_path
-                        use_jsonl_mode = True
-            except Exception as e:
-                print(f"⚠️ Scripts failed: {e}. Fallback to simple mode.")
-                use_jsonl_mode = False
-    else:
-        print("🧬 Running in simple Homomer mode...")
-        use_jsonl_mode = False
-
+    # Build Command
     cmd = [
         _py_exe(), f"{root}/protein_mpnn_run.py",
         "--out_folder", out_dir,
@@ -347,23 +321,47 @@ def run_proteinmpnn(
     if use_soluble_model: cmd.append("--use_soluble_model")
     if ca_only: cmd.append("--ca_only")
 
-    if use_jsonl_mode:
-        cmd.extend(["--jsonl_path", jsonl_parsed])
-        cmd.extend(["--chain_id_jsonl", jsonl_assigned])
-    else:
+    # --- [SIMPLE & STABLE LOGIC] ---
+    if homomer:
+        # 1. Homomer Path: K.I.S.S (Keep It Simple)
+        # This mimics the simplest possible command which always works for 1N2Y
+        print("🧬 Running in simple Homomer mode...")
         cmd.extend(["--pdb_path", pdb_arg_abs])
-        if not homomer:
-            c_path = write_chain_jsonl(out_dir, local_pdb, split_chain_list(design_chains), split_chain_list(fixed_chains))
-            if c_path: cmd.extend(["--chain_id_jsonl", c_path])
+        # If users want "Tied Positions" (Example 6), they can rely on ProteinMPNN's default
+        # homomer detection when no JSONL is provided, or we can add specific flags later.
+        # But for now, preventing 'Code 2' is priority.
+        
+    else:
+        # 2. Heteromer Path: Explicit Chains
+        print("🧩 Running in Heteromer mode...")
+        # We use our own python helper to write the JSONL. 
+        # This is safer than calling 'assign_fixed_chains.py' which might crash on empty inputs.
+        
+        d_list = split_chain_list(design_chains)
+        f_list = split_chain_list(fixed_chains)
+        
+        # Create the JSONL mapping using our robust helper
+        c_path = write_chain_jsonl(out_dir, local_pdb, d_list, f_list)
+        
+        if c_path:
+            cmd.extend(["--chain_id_jsonl", c_path])
+            # Some versions of ProteinMPNN require pdb_path even with jsonl, some don't.
+            # Providing it is usually safer for path resolution.
+            cmd.extend(["--pdb_path", pdb_arg_abs])
+        else:
+            print("⚠️ Chain assignment failed or empty. Falling back to basic PDB input.")
+            cmd.extend(["--pdb_path", pdb_arg_abs])
 
+    # Execute
     print("🔧 Command:", " ".join(cmd))
     proc = subprocess.run(cmd, cwd=root, capture_output=True, text=True)
     if proc.stdout: print("=== STDOUT ===", proc.stdout[-1000:])
     if proc.stderr: print("\n=== STDERR ===", proc.stderr[-1000:])
 
     if proc.returncode != 0:
-        raise RuntimeError(f"ProteinMPNN run failed (code {proc.returncode})")
+        raise RuntimeError(f"ProteinMPNN run failed (code {proc.returncode}). See logs above.")
 
+    # Merge
     pdb_name = Path(local_pdb).stem
     fasta_out, n = merge_outputs_to_fasta(out_dir, pdb_name)
     print(f"✅ Merged FASTA: {fasta_out}")
@@ -371,15 +369,18 @@ def run_proteinmpnn(
     a3m_out = fasta_to_a3m(fasta_out)
     a3m_text_full = read_text_safe(Path(a3m_out))
     
-    # --- [Smart Splitting via '/' Separator] ---
+    # Split
     split_chains_map = {}
     try:
-        print("🔪 Attempting smart split via '/' separator...")
-        split_chains_map = _split_fasta_and_generate_a3m(fasta_out, out_dir, pdb_name)
-        print(f"✅ Split into {len(split_chains_map)} chains.")
+        # Only attempt split if it makes sense (multiple chains detected)
+        chain_info = _get_chain_lengths(local_pdb)
+        if len(chain_info) > 1:
+            print("🔪 Splitting chains...")
+            split_chains_map = _split_fasta_and_generate_a3m(fasta_out, chain_info, out_dir, pdb_name)
     except Exception as e:
-        print(f"⚠️ Split warning: {e}")
+        print(f"⚠️ Splitting skipped: {e}")
 
+    # Zip
     zip_path = zip_outputs(out_dir, base=pdb_name, destination="/content")
     
     if auto_download:
