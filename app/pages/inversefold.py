@@ -573,13 +573,33 @@ def run_proteinmpnn_in_colab(
 
         split_map = res.get("split_chains", {})
         chain_names = []
-        for name, text in split_map.items():
-            parsed_split = _parse_a3m_to_dict(text)
-            current[name] = parsed_split
-            chain_names.append(name)
 
-        if chain_names and new_main_msa is no_update:
-            new_main_msa = chain_names[0]
+        # Count how many chains ProteinMPNN detected
+        num_chains = len(split_map)
+
+        # Case 1: MULTIMER (2 or more chains) → only add split chains
+        if num_chains > 1:
+            for name, text in split_map.items():
+                parsed_split = _parse_a3m_to_dict(text)
+                current[name] = parsed_split
+                chain_names.append(name)
+
+            if chain_names and new_main_msa is no_update:
+                new_main_msa = chain_names[0]
+
+        # Case 2: MONOMER (0 or 1 chain) → keep combined chain instead
+        else:
+            # Combined A3M text/name from ProteinMPNN result
+            combined_text = res.get("a3m_text")
+            combined_name = res.get("a3m_name", "proteinmpnn_combined")
+
+            if combined_text:
+                parsed_combined = _parse_a3m_to_dict(combined_text)
+                current[combined_name] = parsed_combined
+                chain_names = [combined_name]
+
+                if new_main_msa is no_update:
+                    new_main_msa = combined_name
 
         new_msa_data = current
 
