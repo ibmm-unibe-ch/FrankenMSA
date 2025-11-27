@@ -428,6 +428,7 @@ def file_download_layout():
         persistence=True,
         persistence_type="memory",
         className="dropdown-component",
+        style={"marginTop": "7px"},
     )
 
     # Single-select dropdown + add button (to support duplicates/homomers)
@@ -437,6 +438,7 @@ def file_download_layout():
         multi=False,
         placeholder="Select an MSA",
         className="dropdown-component",
+        style={"minWidth": "260px", "flex": 1},
     )
 
     add_button = html.Button(
@@ -444,7 +446,7 @@ def file_download_layout():
         id="add-chain-button",
         n_clicks=0,
         className="button-component",
-        style={"marginLeft": "10px"},
+        style={"marginLeft": "10px", "marginTop": "-30px"},
     )
 
     # Display selected chains
@@ -463,7 +465,7 @@ def file_download_layout():
         id="download-filename",
         type="text",
         placeholder="filename (auto-generated if blank)",
-        style={"width": "50%"},
+        style={"width": "65%", "marginRight": "12px"},
         className="input-component",
         persistence=True,
         persistence_type="memory",
@@ -488,7 +490,11 @@ def file_download_layout():
             html.Div(
                 [msa_selector, add_button],
                 className="horizontal-align",
-                style={"marginTop": "10px"},
+                style={
+                    "marginTop": "10px",
+                    "alignItems": "center",
+                    "justifyContent": "center",
+                },
             ),
             chain_list_display,
             html.Div(
@@ -497,7 +503,11 @@ def file_download_layout():
                     download_format,
                 ],
                 className="horizontal-align",
-                style={"marginTop": "10px"},
+                style={
+                    "marginTop": "10px",
+                    "alignItems": "center",
+                    "justifyContent": "center",
+                },
             ),
             html.Button(
                 "Download",
@@ -510,6 +520,7 @@ def file_download_layout():
             status_div,
         ],
         className="shaded-bordered",
+        style={"maxWidth": "700px", "margin": "0 auto"},
     )
     return body
 

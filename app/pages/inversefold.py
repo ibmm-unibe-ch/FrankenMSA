@@ -294,7 +294,7 @@ def proteinmpnn_layout():
             html.Hr(style={"margin": "6px 0 12px 0"}),
             html.Div(
                 html.Button(
-                    "Advanced (optional) ▼",
+                    "Chain options ▼",
                     id="toggle-advanced",
                     n_clicks=0,
                     style={
@@ -421,8 +421,8 @@ def proteinmpnn_layout():
 )
 def toggle_advanced(n):
     if n and n % 2 == 1:
-        return True, "Advanced (optional) ▲"
-    return False, "Advanced (optional) ▼"
+        return True, "Chain options (advanced) ▲"
+    return False, "Chain options (advanced) ▼"
 
 
 from dash.dependencies import (
@@ -566,20 +566,11 @@ def run_proteinmpnn_in_colab(
     inject_payload = None
 
     try:
-        # 1. Process main combined A3M
-        a3m_name = (res.get("a3m_name") or "").strip()
-        a3m_text = res.get("a3m_text")
-
+        # Only register split-chain MSAs in the GUI; keep the combined A3M
+        # for the ZIP download but do not expose it as a separate MSA.
         current = msa_data_state if isinstance(msa_data_state, dict) else {}
         current = dict(current)
 
-        if a3m_name and a3m_text:
-            parsed = _parse_a3m_to_dict(a3m_text)
-            current[a3m_name] = parsed
-            new_main_msa = a3m_name
-            inject_payload = {"name": a3m_name, "text": a3m_text}
-
-        # 2. Process split chains (if present)
         split_map = res.get("split_chains", {})
         for name, text in split_map.items():
             parsed_split = _parse_a3m_to_dict(text)
