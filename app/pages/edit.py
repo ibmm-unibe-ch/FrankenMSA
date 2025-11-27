@@ -238,6 +238,7 @@ def filter_layout():
             dbc.Col(
                 [
                     dbc.Row(gapsfilter_layout()),
+                    dbc.Row(regex_filter_layout()),
                     dbc.Row(free_query_filter_layout()),
                 ],
                 style={
@@ -612,12 +613,151 @@ You can find more information about the parameters in the [HHFilter documentatio
     return layout
 
 
+# --- Begin replacement for regex_filter_layout, run_regex_filter, and free_query_filter_layout ---
+def regex_filter_layout():
+    upper = html.Div(
+        [
+            html.H1("Filter by Regex"),
+            dcc.Markdown(
+                "Filter sequences in the current MSA by matching a regular expression on the `sequence` column. "
+                "You can use this to select specific motifs, regions, or sequence patterns."
+            ),
+            dcc.Input(
+                id="regex-filter-pattern",
+                type="text",
+                placeholder="Enter a regex pattern, e.g. ^M.*K$",
+                className="input-component",
+                style={"width": "100%"},
+            ),
+            html.Div(
+                [
+                    dcc.RadioItems(
+                        id="regex-filter-method",
+                        options=[
+                            {
+                                "label": "contains (anywhere in sequence)",
+                                "value": "contains",
+                            },
+                            {
+                                "label": "match (from start of sequence)",
+                                "value": "match",
+                            },
+                        ],
+                        value="contains",
+                        labelStyle={"display": "block"},
+                    ),
+                    dcc.Checklist(
+                        id="regex-filter-inverse",
+                        options=[
+                            {
+                                "label": "Inverse match (keep non-matching sequences)",
+                                "value": "inverse",
+                            }
+                        ],
+                        value=[],
+                        style={"marginTop": "8px"},
+                    ),
+                ],
+                style={"marginTop": "12px"},
+            ),
+        ],
+        style={"padding": "20px"},
+    )
+    lower = html.Div(
+        [
+            dcc.Loading(
+                id="regex-filter-loading",
+                type="circle",
+                children=html.Div(id="regex-filter-status-text"),
+                color="white",
+            ),
+            html.Button(
+                "Filter by Regex",
+                id="regex-filter-button",
+                n_clicks=0,
+                className="button-component",
+            ),
+        ],
+        style={
+            "display": "flex",
+            "justify-content": "space-between",
+            "margin-top": "20px",
+        },
+    )
+    return html.Div(
+        [
+            upper,
+            lower,
+        ],
+        style={"padding": "20px"},
+        className="shaded-bordered",
+    )
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("regex-filter-button", "n_clicks"),
+    State("regex-filter-pattern", "value"),
+    State("regex-filter-method", "value"),
+    State("regex-filter-inverse", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def run_regex_filter(n_clicks, pattern, method, inverse_flags, main_msa, msa_data):
+    if (n_clicks or 0) <= 0:
+        return dash.no_update, dash.no_update, False
+
+    if not msa_data or not main_msa:
+        return dash.no_update, "No data to filter!", True
+
+    if not pattern:
+        return dash.no_update, "Please enter a regex pattern.", True
+
+    try:
+        from pandas import DataFrame
+
+        msa = msa_data[main_msa]
+        msa_df = DataFrame.from_dict(msa)
+
+        if "sequence" not in msa_df.columns:
+            return dash.no_update, "No 'sequence' column found to filter on.", True
+
+        seqs = msa_df["sequence"].astype(str)
+
+        if method == "match":
+            mask = seqs.str.match(pattern, na=False)
+        else:
+            mask = seqs.str.contains(pattern, regex=True, na=False)
+
+        inverse = "inverse" in (inverse_flags or [])
+        if inverse:
+            mask = ~mask
+
+        filtered_msa = msa_df[mask]
+        msa_data[main_msa] = filtered_msa.to_dict("list")
+
+        mode_desc = "match" if method == "match" else "contains"
+        if inverse:
+            mode_desc = f"inverse {mode_desc}"
+
+        msg = f"Regex filter applied with pattern '{pattern}' ({mode_desc})."
+        return msa_data, msg, True
+
+    except Exception as e:
+        return dash.no_update, f"Regex filter failed: {e}", True
+
+
 def free_query_filter_layout():
     upper = html.Div(
         [
             html.H1("Free Query"),
             dcc.Markdown(
-                "Use the `DataFrame.query(...)` interface to filter the MSA in any way you like. See the [pandas documentation](https://pandas.pydata.org/docs/dev/reference/api/pandas.DataFrame.query.html) or [this blog](https://note.nkmk.me/en/python-pandas-query/) for more details and examples.",
+                "Use the `DataFrame.query(...)` interface to filter the MSA in any way you like. "
+                "See the [pandas documentation](https://pandas.pydata.org/docs/dev/reference/api/pandas.DataFrame.query.html) "
+                "or [this blog](https://note.nkmk.me/en/python-pandas-query/) for more details and examples.",
             ),
             dcc.Input(
                 id="free-query-filter-input",
@@ -641,7 +781,7 @@ def free_query_filter_layout():
                 "Filter MSA",
                 id="free-query-filter-button",
                 n_clicks=0,
-                className="button-component",  # "btn btn-primary",
+                className="button-component",
             ),
         ],
         style={
@@ -658,6 +798,9 @@ def free_query_filter_layout():
         style={"padding": "20px"},
         className="shaded-bordered",
     )
+
+
+# --- End replacement ---
 
 
 @callback(
