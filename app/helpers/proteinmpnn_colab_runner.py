@@ -278,7 +278,35 @@ def _ensure_model_weights(root: str) -> Dict[str, bool]:
 
 
 def ensure_proteinmpnn(root: str = "/content/ProteinMPNN") -> Dict:
+    """Ensure that a usable ProteinMPNN checkout (code + weights) is available.
+
+    This function is intentionally defensive for Colab:
+    - If the folder does not exist, we clone it.
+    - If the folder exists but is obviously incomplete (missing main script or helper scripts),
+      we remove it and clone again. This avoids the situation where only the weights
+      directory was copied/saved but the code is missing, which would later cause
+      `protein_mpnn_run.py` to be not found in the subprocess call.
+    """
+
+    need_clone = False
+
     if not os.path.isdir(root):
+        # Nothing there yet -> clone from scratch.
+        need_clone = True
+    else:
+        # Folder exists; sanity‑check that it looks like a real ProteinMPNN repo.
+        main_script = os.path.join(root, "protein_mpnn_run.py")
+        helper_dir = os.path.join(root, "helper_scripts")
+        if not os.path.isfile(main_script) or not os.path.isdir(helper_dir):
+            print("⚠️ Existing ProteinMPNN folder seems incomplete. Re‑cloning repo...")
+            try:
+                shutil.rmtree(root)
+            except Exception:
+                # Best effort; if this fails, git clone below will raise a clearer error.
+                pass
+            need_clone = True
+
+    if need_clone:
         print("📥 Cloning ProteinMPNN...")
         subprocess.run(
             ["git", "clone", "-q", "https://github.com/dauparas/ProteinMPNN.git", root],
@@ -458,7 +486,11 @@ def run_proteinmpnn(
         print("\n=== STDERR ===", proc.stderr[-1000:])
 
     if proc.returncode != 0:
-        raise RuntimeError(f"ProteinMPNN run failed (code {proc.returncode})")
+        stderr_tail = proc.stderr[-2000:] if proc.stderr else ""
+        raise RuntimeError(
+            f"ProteinMPNN run failed (code {proc.returncode})\n"
+            f"STDERR tail:\n{stderr_tail}"
+        )
 
     pdb_name = Path(local_pdb).stem
     fasta_out, n = merge_outputs_to_fasta(out_dir, pdb_name)
