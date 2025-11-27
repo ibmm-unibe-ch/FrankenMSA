@@ -421,8 +421,8 @@ def proteinmpnn_layout():
 )
 def toggle_advanced(n):
     if n and n % 2 == 1:
-        return True, "Chain options (advanced) ▲"
-    return False, "Chain options (advanced) ▼"
+        return True, "Chain options ▲"
+    return False, "Chain options ▼"
 
 
 from dash.dependencies import (
