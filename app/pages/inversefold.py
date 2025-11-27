@@ -572,9 +572,14 @@ def run_proteinmpnn_in_colab(
         current = dict(current)
 
         split_map = res.get("split_chains", {})
+        chain_names = []
         for name, text in split_map.items():
             parsed_split = _parse_a3m_to_dict(text)
             current[name] = parsed_split
+            chain_names.append(name)
+
+        if chain_names and new_main_msa is no_update:
+            new_main_msa = chain_names[0]
 
         new_msa_data = current
 
