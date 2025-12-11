@@ -160,39 +160,74 @@ class MMSeqs2Colab(base.MSAFactory):
         retries: int = 3,
         timeout: int = 10,
     ):
-        """
-        Submit a list of sequences to the MMseqs2 Colab API.
-
-        Parameters
-        ----------
-        sequences : list
-            List of sequences to align.
-        env : bool, optional
-            Use the environment-specific model, by default True
-        filter : bool, optional
-            Filter sequences, by default False
-        pairing : str, optional
-            Pair sequences, by default "greedy". Can be "greedy" or "complete"
-        retries : int, optional
-            Number of retries for API calls, by default 3
-        timeout : int, optional
-            Timeout for API calls (in seconds), by default 10
-        """
         if isinstance(sequences, str):
             sequences = [sequences]
-        query = ""
-        sequences = set(i.upper().strip() for i in sequences)
-        self._sequence_indices = [101 + idx for idx, i in enumerate(sequences)]
-        for idx, i in enumerate(sequences):
-            query += f">{101 + idx:03d}\n{i.strip().upper()}\n"
+
+        sequences = list(sequences)
+
+        # normalize input: strip and drop empty
+        cleaned = []
+        for s in sequences:
+            if s is None:
+                continue
+            text = str(s).strip()
+            if not text:
+                continue
+            cleaned.append(text)
 
         self.filter = filter
-        if pairing and not pairing in ("greedy", "complete"):
+        if pairing and pairing not in ("greedy", "complete"):
             raise ValueError(
                 "Invalid pairing mode. Options are 'greedy' and 'complete'."
             )
         self.pairing = pairing
         self.use_env = env
+
+        # Case 1: pairing is enabled -> treat each entry as a full multimer query
+        if self.pairing:
+            norm_seqs = []
+            seen = set()
+            for s in cleaned:
+                clean = s.upper()
+                if not clean:
+                    continue
+                if clean in seen:
+                    continue
+                seen.add(clean)
+                norm_seqs.append(clean)
+
+            sequences = norm_seqs
+            query = ""
+            self._sequence_indices = [101 + idx for idx, _ in enumerate(sequences)]
+            for idx, seq in enumerate(sequences):
+                query += f">{101 + idx:03d}\n{seq}\n"
+
+        # Case 2: no pairing -> old behavior (split ':' into separate monomers)
+        else:
+            expanded = []
+            for s in cleaned:
+                if ":" in s:
+                    chains = [c.strip() for c in s.split(":") if c.strip()]
+                    expanded.extend(chains)
+                else:
+                    expanded.append(s)
+
+            norm_seqs = []
+            seen = set()
+            for s in expanded:
+                clean = s.upper()
+                if not clean:
+                    continue
+                if clean in seen:
+                    continue
+                seen.add(clean)
+                norm_seqs.append(clean)
+
+            sequences = norm_seqs
+            query = ""
+            self._sequence_indices = [101 + idx for idx, _ in enumerate(sequences)]
+            for idx, seq in enumerate(sequences):
+                query += f">{101 + idx:03d}\n{seq}\n"
 
         data = {
             "q": query,

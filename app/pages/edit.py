@@ -238,6 +238,7 @@ def filter_layout():
             dbc.Col(
                 [
                     dbc.Row(gapsfilter_layout()),
+                    dbc.Row(regex_filter_layout()),
                     dbc.Row(free_query_filter_layout()),
                 ],
                 style={
@@ -612,12 +613,151 @@ You can find more information about the parameters in the [HHFilter documentatio
     return layout
 
 
+# --- Begin replacement for regex_filter_layout, run_regex_filter, and free_query_filter_layout ---
+def regex_filter_layout():
+    upper = html.Div(
+        [
+            html.H1("Filter by Regex"),
+            dcc.Markdown(
+                "Filter sequences in the current MSA by matching a regular expression on the `sequence` column. "
+                "You can use this to select specific motifs, regions, or sequence patterns."
+            ),
+            dcc.Input(
+                id="regex-filter-pattern",
+                type="text",
+                placeholder="Enter a regex pattern, e.g. ^M.*K$",
+                className="input-component",
+                style={"width": "100%"},
+            ),
+            html.Div(
+                [
+                    dcc.RadioItems(
+                        id="regex-filter-method",
+                        options=[
+                            {
+                                "label": "contains (anywhere in sequence)",
+                                "value": "contains",
+                            },
+                            {
+                                "label": "match (from start of sequence)",
+                                "value": "match",
+                            },
+                        ],
+                        value="contains",
+                        labelStyle={"display": "block"},
+                    ),
+                    dcc.Checklist(
+                        id="regex-filter-inverse",
+                        options=[
+                            {
+                                "label": "Inverse match (keep non-matching sequences)",
+                                "value": "inverse",
+                            }
+                        ],
+                        value=[],
+                        style={"marginTop": "8px"},
+                    ),
+                ],
+                style={"marginTop": "12px"},
+            ),
+        ],
+        style={"padding": "20px"},
+    )
+    lower = html.Div(
+        [
+            dcc.Loading(
+                id="regex-filter-loading",
+                type="circle",
+                children=html.Div(id="regex-filter-status-text"),
+                color="white",
+            ),
+            html.Button(
+                "Filter by Regex",
+                id="regex-filter-button",
+                n_clicks=0,
+                className="button-component",
+            ),
+        ],
+        style={
+            "display": "flex",
+            "justify-content": "space-between",
+            "margin-top": "20px",
+        },
+    )
+    return html.Div(
+        [
+            upper,
+            lower,
+        ],
+        style={"padding": "20px"},
+        className="shaded-bordered",
+    )
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("regex-filter-button", "n_clicks"),
+    State("regex-filter-pattern", "value"),
+    State("regex-filter-method", "value"),
+    State("regex-filter-inverse", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def run_regex_filter(n_clicks, pattern, method, inverse_flags, main_msa, msa_data):
+    if (n_clicks or 0) <= 0:
+        return dash.no_update, dash.no_update, False
+
+    if not msa_data or not main_msa:
+        return dash.no_update, "No data to filter!", True
+
+    if not pattern:
+        return dash.no_update, "Please enter a regex pattern.", True
+
+    try:
+        from pandas import DataFrame
+
+        msa = msa_data[main_msa]
+        msa_df = DataFrame.from_dict(msa)
+
+        if "sequence" not in msa_df.columns:
+            return dash.no_update, "No 'sequence' column found to filter on.", True
+
+        seqs = msa_df["sequence"].astype(str)
+
+        if method == "match":
+            mask = seqs.str.match(pattern, na=False)
+        else:
+            mask = seqs.str.contains(pattern, regex=True, na=False)
+
+        inverse = "inverse" in (inverse_flags or [])
+        if inverse:
+            mask = ~mask
+
+        filtered_msa = msa_df[mask]
+        msa_data[main_msa] = filtered_msa.to_dict("list")
+
+        mode_desc = "match" if method == "match" else "contains"
+        if inverse:
+            mode_desc = f"inverse {mode_desc}"
+
+        msg = f"Regex filter applied with pattern '{pattern}' ({mode_desc})."
+        return msa_data, msg, True
+
+    except Exception as e:
+        return dash.no_update, f"Regex filter failed: {e}", True
+
+
 def free_query_filter_layout():
     upper = html.Div(
         [
             html.H1("Free Query"),
             dcc.Markdown(
-                "Use the `DataFrame.query(...)` interface to filter the MSA in any way you like. See the [pandas documentation](https://pandas.pydata.org/docs/dev/reference/api/pandas.DataFrame.query.html) or [this blog](https://note.nkmk.me/en/python-pandas-query/) for more details and examples.",
+                "Use the `DataFrame.query(...)` interface to filter the MSA in any way you like. "
+                "See the [pandas documentation](https://pandas.pydata.org/docs/dev/reference/api/pandas.DataFrame.query.html) "
+                "or [this blog](https://note.nkmk.me/en/python-pandas-query/) for more details and examples.",
             ),
             dcc.Input(
                 id="free-query-filter-input",
@@ -641,7 +781,7 @@ def free_query_filter_layout():
                 "Filter MSA",
                 id="free-query-filter-button",
                 n_clicks=0,
-                className="button-component",  # "btn btn-primary",
+                className="button-component",
             ),
         ],
         style={
@@ -658,6 +798,9 @@ def free_query_filter_layout():
         style={"padding": "20px"},
         className="shaded-bordered",
     )
+
+
+# --- End replacement ---
 
 
 @callback(
@@ -852,6 +995,7 @@ def drop_duplicates(n_clicks, main_msa, msa_data):
 # Sort layout
 # ======================================================================
 
+
 def sort_special_layout():
     return html.Div(
         [
@@ -897,15 +1041,17 @@ def sort_special_layout():
                     "display": "flex",
                     "flex-direction": "row",
                     "align-items": "center",
-                    "justify-content": "center",   
-                    "gap": "40px",                 
+                    "justify-content": "center",
+                    "gap": "40px",
                 },
             ),
         ],
         className="shaded-bordered",
     )
+
+
 def shuffle_columns_layout():
-    
+
     start_input = dcc.Input(
         id="shuffle-range-start",
         type="number",
@@ -922,11 +1068,11 @@ def shuffle_columns_layout():
         step=1,
         style={"width": "120px", "marginLeft": "8px"},
     )
-    
+
     range_slider = dcc.RangeSlider(
         id="shuffle-range-slider",
         min=0,
-        max=0, 
+        max=0,
         step=1,
         value=[0, 0],
         marks={0: "0"},
@@ -968,7 +1114,7 @@ def shuffle_columns_layout():
                     min=0,
                     step=1,
                     debounce=True,
-                    style={"width": "120px"}
+                    style={"width": "120px"},
                 ),
             ],
             style={"marginTop": "4px"},
@@ -999,7 +1145,11 @@ def shuffle_columns_layout():
                     html.Div(range_slider, style={"flex": 1, "margin": "0 12px"}),
                     end_input,
                 ],
-                style={"display": "flex", "alignItems": "center", "marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "alignItems": "center",
+                    "marginBottom": "12px",
+                },
             ),
             html.Div(checklist, style={"marginBottom": "10px"}),
             seed_toggle,
@@ -1009,9 +1159,11 @@ def shuffle_columns_layout():
         className="shaded-bordered",
     )
 
+
 from dash import callback, Output, Input, State
 import dash
 from pandas import DataFrame
+
 
 @callback(
     Output("shuffle-range-slider", "max"),
@@ -1032,7 +1184,7 @@ def update_shuffle_range_slider(main_msa, msa_data):
     msa = DataFrame.from_dict(msa)
     if msa.empty or "sequence" not in msa:
         return 0, {0: "0"}, [0, 0], 0, 0, 0, 0
-    
+
     if "sequence" in msa and len(msa["sequence"]) > 0:
         n_cols = len(msa["sequence"].iloc[0])
     else:
@@ -1042,8 +1194,9 @@ def update_shuffle_range_slider(main_msa, msa_data):
     return n_cols, marks, [0, n_cols], 0, n_cols, n_cols, n_cols
 
 
-
 from dash import callback, no_update, ctx
+
+
 @callback(
     Output("shuffle-range-slider", "value", allow_duplicate=True),
     Output("shuffle-range-start", "value", allow_duplicate=True),
@@ -1066,6 +1219,7 @@ def sync_shuffle_slider_and_inputs(slider_value, start_value, end_value):
     else:
         return no_update, no_update, no_update
 
+
 # Callback to toggle the seed collapse section
 @callback(
     Output("seed-collapse", "is_open"),
@@ -1077,12 +1231,13 @@ def toggle_seed(n):
         return True, "Advanced (optional) ▲"
     return False, "Advanced (optional) ▼"
 
+
 def sort_by_layout():
     return html.Div(
         [
-            sort_special_layout(), 
-            shuffle_columns_layout(),          
-            sort_by_column_layout(),    
+            sort_special_layout(),
+            shuffle_columns_layout(),
+            sort_by_column_layout(),
         ],
     )
 
@@ -1291,10 +1446,11 @@ def shuffle_msa(n_clicks, main_msa, msa_data):
     else:
         # print("No button click detected.")
         return dash.no_update, dash.no_update, False
-    
+
 
 from dash import callback, Input, Output, State
-import dash  
+import dash
+
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
@@ -1348,7 +1504,7 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
             end=e,
             preserve_gaps=preserve_gaps,
             inplace=False,
-            random_state=random_state
+            random_state=random_state,
         )
 
         # Write back to store
@@ -1366,9 +1522,6 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
         return dash.no_update, f"Shuffle failed: {ex}", True
 
 
-
-
-    
 # ======================================================================
 # Slice & Crop layout
 # ======================================================================

@@ -2,7 +2,7 @@ import dash
 from dash import html, dcc
 from dash import callback, Input, Output, State, clientside_callback
 import dash_bootstrap_components as dbc
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 import time
 import base64, re
 import os, tempfile
@@ -25,7 +25,10 @@ if not ON_COLAB and (Path(__file__).parents[2] / ".git").exists():
         CURRENT_BRANCH = "main"
 else:
     CURRENT_BRANCH = "main"
-COLAB_LINK = f"https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/{CURRENT_BRANCH}/FrankenMSA_app_colab.ipynb"
+
+
+SAFE_BRANCH = quote(CURRENT_BRANCH, safe="")
+COLAB_LINK = f"https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/{SAFE_BRANCH}/FrankenMSA_app_colab.ipynb"
 
 
 # Robust, cross-environment upload directory selection
@@ -225,15 +228,7 @@ def proteinmpnn_layout():
                                     "textAlign": "center",
                                 },
                             ),
-                            html.Small(
-                                "Currently only homomers (single chain) are supported.",
-                                className="text-muted",
-                                style={
-                                    "display": "block",
-                                    "textAlign": "center",
-                                    "marginTop": "4px",
-                                },
-                            ),
+                            # [DELETED] Removed the "Currently only homomers..." Small text here.
                         ],
                         md=12,
                         style={
@@ -299,7 +294,7 @@ def proteinmpnn_layout():
             html.Hr(style={"margin": "6px 0 12px 0"}),
             html.Div(
                 html.Button(
-                    "Advanced (optional) ▼",
+                    "Chain options ▼",
                     id="toggle-advanced",
                     n_clicks=0,
                     style={
@@ -339,7 +334,7 @@ def proteinmpnn_layout():
                         target="_blank",
                     ),
                     ". If you run FrankenMSA locally, ProteinMPNN will use your local environment instead.",
-                    " Note: currently only homomers (single chain) are supported.",
+                    " Note: Both Homomers (single chain) and Heteromers (multi-chain complexes) are supported. ",
                 ],
                 style={"textAlign": "center", "marginBottom": "18px"},
             ),
@@ -426,8 +421,8 @@ def proteinmpnn_layout():
 )
 def toggle_advanced(n):
     if n and n % 2 == 1:
-        return True, "Advanced (optional) ▲"
-    return False, "Advanced (optional) ▼"
+        return True, "Chain options ▲"
+    return False, "Chain options ▼"
 
 
 from dash.dependencies import (
@@ -486,6 +481,21 @@ def _save_uploaded_pdb(contents, filename):
         return html.Small(f"❌ Upload failed: {e}"), ""
 
 
+# Helper function: parse A3M to dict
+def _parse_a3m_to_dict(text):
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    headers, sequences = [], []
+    current_header = None
+    for l in lines:
+        if l.startswith(">"):
+            current_header = l[1:]
+        elif current_header is not None:
+            headers.append(current_header)
+            sequences.append(l)
+            current_header = None
+    return {"header": headers, "sequence": sequences}
+
+
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Output("main-msa", "data", allow_duplicate=True),
@@ -496,13 +506,14 @@ def _save_uploaded_pdb(contents, filename):
     State("proteinmpnn-sequence-count", "value"),
     State("proteinmpnn-design-chains", "value"),
     State("proteinmpnn-fixed-chains", "value"),
+    State("proteinmpnn-homomer", "value"),
     State("proteinmpnn-pdb-code", "value"),
     State("pdb-upload-path", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
 def run_proteinmpnn_in_colab(
-    n, temp, num, design, fixed, pdb, pdb_upload_path, msa_data_state
+    n, temp, num, design, fixed, homomer_val, pdb, pdb_upload_path, msa_data_state
 ):
     if not n:
         return no_update, no_update, no_update, no_update
@@ -520,10 +531,6 @@ def run_proteinmpnn_in_colab(
     code_clean = (pdb or "").strip().upper()
     use_uploaded = bool(uploaded_path) and os.path.isfile(uploaded_path)
 
-    print(
-        f"[RUN-check] store_path='{uploaded_path}' exists={os.path.isfile(uploaded_path) if uploaded_path else None} code='{code_clean}'"
-    )
-
     if not use_uploaded and not code_clean:
         return (
             no_update,
@@ -533,6 +540,7 @@ def run_proteinmpnn_in_colab(
         )
 
     _path = uploaded_path
+    is_homomer = bool(homomer_val)
 
     try:
         res = proteinmpnn.run_proteinmpnn(
@@ -540,9 +548,9 @@ def run_proteinmpnn_in_colab(
             num_seqs=(num or 128),
             pdb_code=("" if use_uploaded else code_clean),
             pdb_path=_path,
-            design_csv=(design or "").replace(" ", "").upper(),
-            fixed_csv=(fixed or "").replace(" ", "").upper(),
-            homomer=True,
+            design_chains=(design or "").strip(),
+            fixed_chains=(fixed or "").strip(),
+            homomer=is_homomer,
             model_name="v_48_020",
             use_soluble_model=False,
             ca_only=False,
@@ -556,32 +564,47 @@ def run_proteinmpnn_in_colab(
     new_msa_data = no_update
     new_main_msa = no_update
     inject_payload = None
-    try:
-        a3m_name = (res.get("a3m_name") or "").strip()
-        a3m_text = res.get("a3m_text")
-        if a3m_name and a3m_text:
-            # Parse A3M text into dict-of-lists to match msa_data convention
-            # Expected keys elsewhere: "header" and "sequence"
-            lines = [l.strip() for l in a3m_text.splitlines() if l.strip()]
-            headers, sequences = [], []
-            current_header = None
-            for l in lines:
-                if l.startswith(">"):
-                    current_header = l[1:]  # drop leading '>'
-                elif current_header is not None:
-                    headers.append(current_header)
-                    sequences.append(l)
-                    current_header = None
-            parsed = {"header": headers, "sequence": sequences}
 
-            current = msa_data_state if isinstance(msa_data_state, dict) else {}
-            current = dict(current)
-            current[a3m_name] = parsed
-            new_msa_data = current
-            new_main_msa = a3m_name
-            # Keep raw A3M for the injector so it can appear in the selector immediately
-            inject_payload = {"name": a3m_name, "text": a3m_text}
-    except Exception:
+    try:
+        # Only register split-chain MSAs in the GUI; keep the combined A3M
+        # for the ZIP download but do not expose it as a separate MSA.
+        current = msa_data_state if isinstance(msa_data_state, dict) else {}
+        current = dict(current)
+
+        split_map = res.get("split_chains", {})
+        chain_names = []
+
+        # Count how many chains ProteinMPNN detected
+        num_chains = len(split_map)
+
+        # Case 1: MULTIMER (2 or more chains) → only add split chains
+        if num_chains > 1:
+            for name, text in split_map.items():
+                parsed_split = _parse_a3m_to_dict(text)
+                current[name] = parsed_split
+                chain_names.append(name)
+
+            if chain_names and new_main_msa is no_update:
+                new_main_msa = chain_names[0]
+
+        # Case 2: MONOMER (0 or 1 chain) → keep combined chain instead
+        else:
+            # Combined A3M text/name from ProteinMPNN result
+            combined_text = res.get("a3m_text")
+            combined_name = res.get("a3m_name", "proteinmpnn_combined")
+
+            if combined_text:
+                parsed_combined = _parse_a3m_to_dict(combined_text)
+                current[combined_name] = parsed_combined
+                chain_names = [combined_name]
+
+                if new_main_msa is no_update:
+                    new_main_msa = combined_name
+
+        new_msa_data = current
+
+    except Exception as e:
+        print(f"Error processing ProteinMPNN results: {e}")
         pass
 
     zip_name = os.path.basename(res["zip"])
@@ -598,6 +621,7 @@ def run_proteinmpnn_in_colab(
                 style={"display": "block", "marginTop": "6px", "opacity": 0.7},
             )
         )
+
     return (
         new_msa_data,
         new_main_msa,
