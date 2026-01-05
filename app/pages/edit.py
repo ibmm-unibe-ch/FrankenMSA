@@ -11,10 +11,6 @@ dash.register_page(
 
 def make_siderbar():
 
-    sep_tooltip = dbc.Tooltip(
-        "Remove the first sequence from the MSA and store it in a separate singleton MSA named '..._query'",
-        target="edit-separate-query",
-    )
     dup_tooltip = dbc.Tooltip(
         "Duplicate the current MSA and store it in a new MSA with the name '..._N' where N is the next available number.",
         target="edit-copy",
@@ -26,13 +22,6 @@ def make_siderbar():
     clear_tooltip = dbc.Tooltip(
         "Clear all MSA data. This will remove all MSAs and their associated data from the application.",
         target="edit-clear",
-    )
-
-    ins_to_gaps_tooltip = dbc.Tooltip(
-        dcc.Markdown(
-            "Replace all insersions (i.e. lowercase characters) with gaps (i.e. '-') in the MSA."
-        ),
-        target="edit-insertions-to-gaps",
     )
     sidebar = html.Div(
         [
@@ -46,16 +35,6 @@ def make_siderbar():
                     #     "Free Table Editor", id="edit-table-editor", active="exact"
                     # ),
                     # dbc.NavLink("Run Python Code", id="edit-python", active="exact"),
-                    dbc.NavLink(
-                        "Separate Query Sequence",
-                        id="edit-separate-query",
-                        active="exact",
-                    ),
-                    dbc.NavLink(
-                        "Insertions to Gaps",
-                        id="edit-insertions-to-gaps",
-                        active="exact",
-                    ),
                     dbc.NavLink(
                         "Delete MSA",
                         id="edit-delete",
@@ -72,11 +51,9 @@ def make_siderbar():
                 vertical=False,
                 pills=True,
             ),
-            sep_tooltip,
             dup_tooltip,
             delete_tooltip,
             clear_tooltip,
-            ins_to_gaps_tooltip,
         ],
         className="header",
         style={
@@ -1237,14 +1214,45 @@ def edit_sequences_layout():
     return html.Div(
         [
             html.H1("Edit Sequences"),
-            dbc.Alert(
-                "Edit Sequences feature is coming soon!",
-                color="info",
-                className="shaded-bordered",
-                is_open=True,
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Separate Query Sequence"),
+                            html.P(
+                                "Remove the first sequence from the MSA and store it in a separate singleton MSA named '_query'."
+                            ),
+                            html.Button(
+                                "Separate Query",
+                                id="edit-separate-query",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Insertions to Gaps"),
+                            html.P(
+                                "Replace all insertions (lowercase characters) with gaps ('-') in the MSA."
+                            ),
+                            html.Button(
+                                "Convert Insertions to Gaps",
+                                id="edit-insertions-to-gaps",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
             ),
         ],
-        className="shaded-bordered",
     )
 
 
