@@ -50,6 +50,7 @@ def make_siderbar():
                 ],
                 vertical=False,
                 pills=True,
+                style={"width": "100%"},
             ),
             dup_tooltip,
             delete_tooltip,
@@ -71,7 +72,24 @@ def layout():
     )
 
     layout = html.Div(
-        [dbc.Row([sidebar]), dbc.Row(body)],
+        [
+            dbc.Row([sidebar]),
+            html.Div(
+                # className="header",
+                style={
+                    "position": "absolute",
+                    "top": "00px",
+                    "left": "0",
+                    "right": "0",
+                    "height": "60px",
+                    "width": "100vw",
+                    "backgroundColor": "#2c2c2c",
+                    "marginLeft": "calc(-50vw + 50%)",
+                    "zIndex": "-1",
+                },
+            ),
+            dbc.Row(body),
+        ],
         className="gradient-background",
         style={
             "display": "flex",
@@ -79,6 +97,7 @@ def layout():
             # "align-items": "stretch",
             "padding-top": "0px",
             # "height": "100vh",y
+            "position": "relative",
         },
     )
     return layout
@@ -1210,6 +1229,52 @@ def sort_by_layout():
     )
 
 
+def parse_indices_input(input_str: str) -> list[int]:
+    """
+    Parse a string input into a list of indices.
+    Supports:
+    - Individual numbers: "5" -> [5]
+    - Comma-separated: "5,10,15" -> [5, 10, 15]
+    - Ranges: "10-12" -> [10, 11, 12]
+    - Combinations: "5,10-12,20" -> [5, 10, 11, 12, 20]
+
+    Returns:
+        list[int]: Sorted list of unique indices
+    """
+    if not input_str or not input_str.strip():
+        return []
+
+    indices = set()
+    parts = input_str.split(",")
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if "-" in part:
+            # Handle range like "10-12"
+            try:
+                start, end = part.split("-", 1)
+                start = int(start.strip())
+                end = int(end.strip())
+                if start > end:
+                    raise ValueError(f"Invalid range: {part} (start > end)")
+                indices.update(range(start, end + 1))
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid range format: {part}. Expected format like '10-12'."
+                ) from e
+        else:
+            # Handle single number
+            try:
+                indices.add(int(part))
+            except ValueError:
+                raise ValueError(f"Invalid number: {part}")
+
+    return sorted(list(indices))
+
+
 def edit_sequences_layout():
     return html.Div(
         [
@@ -1247,6 +1312,179 @@ def edit_sequences_layout():
                             ),
                         ],
                         width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Replace at Position"),
+                            html.P(
+                                "Replace a substring in all sequences at a specified position with a new sequence."
+                            ),
+                            dcc.Input(
+                                id="replace-at-sequence",
+                                type="text",
+                                placeholder="sequence to insert e.g. ACGT",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            html.Label("Position Index (start):"),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Input(
+                                                id="replace-at-index",
+                                                type="number",
+                                                placeholder="0",
+                                                min=0,
+                                                className="input-component",
+                                                style={"width": "100%"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Checklist(
+                                                id="replace-at-include-query",
+                                                options=[
+                                                    {
+                                                        "label": "Also replace in query sequence",
+                                                        "value": "include",
+                                                    }
+                                                ],
+                                                value=[],
+                                                style={"marginTop": "5px"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                ],
+                                style={"marginBottom": "15px"},
+                            ),
+                            html.Div(
+                                html.Button(
+                                    "Replace",
+                                    id="replace-at-button",
+                                    n_clicks=0,
+                                    className="button-component",
+                                ),
+                                style={"textAlign": "right"},
+                            ),
+                        ],
+                        width=12,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Insert at Position"),
+                            html.P(
+                                "Insert a sequence at a specified position in all sequences, shifting existing residues."
+                            ),
+                            dcc.Input(
+                                id="insert-at-sequence",
+                                type="text",
+                                placeholder="sequence to insert e.g. ACGT",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            html.Label("Position Index (insert at):"),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Input(
+                                                id="insert-at-index",
+                                                type="number",
+                                                placeholder="0",
+                                                min=0,
+                                                className="input-component",
+                                                style={"width": "100%"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Checklist(
+                                                id="insert-at-include-query",
+                                                options=[
+                                                    {
+                                                        "label": "Also insert in query sequence",
+                                                        "value": "include",
+                                                    }
+                                                ],
+                                                value=["include"],
+                                                style={"marginTop": "5px"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                ],
+                                style={"marginBottom": "15px"},
+                            ),
+                            html.Div(
+                                html.Button(
+                                    "Insert",
+                                    id="insert-at-button",
+                                    n_clicks=0,
+                                    className="button-component",
+                                ),
+                                style={"textAlign": "right"},
+                            ),
+                        ],
+                        width=12,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Fix Positions to Query"),
+                            html.P(
+                                "Propagate residues from the query sequence to all other sequences at specified positions. These can be specified as a comma-separated list of indices or ranges; e.g., '0, 5, 10-15' would fix positions 0, 5, and all positions from 10 to 15 inclusive."
+                            ),
+                            dcc.Input(
+                                id="fix-at-indices",
+                                type="text",
+                                placeholder="Positions to fix e.g., 0, 5, 10-15",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "15px"},
+                            ),
+                            html.Div(
+                                html.Button(
+                                    "Fix Positions",
+                                    id="fix-at-button",
+                                    n_clicks=0,
+                                    className="button-component",
+                                ),
+                                style={"textAlign": "right"},
+                            ),
+                        ],
+                        width=12,
                         className="shaded-bordered",
                         style={"padding": "15px", "marginBottom": "15px"},
                     ),
@@ -2049,6 +2287,196 @@ def separate_query(n_clicks, main_msa, msa_data):
         msa_data[main_msa] = msa.to_dict("list")
 
         return msa_data, "Query separated as a new MSA named: " + query_name, True
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("replace-at-button", "n_clicks"),
+    State("replace-at-sequence", "value"),
+    State("replace-at-index", "value"),
+    State("replace-at-include-query", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def replace_at_position(
+    n_clicks, replacement, index, include_query_list, main_msa, msa_data
+):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, "No MSA data available.", True
+
+        if not replacement:
+            return dash.no_update, "Please enter a replacement sequence.", True
+
+        if index is None or index < 0:
+            return dash.no_update, "Please enter a valid position index (>= 0).", True
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import replace_at
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Check if index is within bounds
+        if msa.empty:
+            return dash.no_update, "MSA is empty.", True
+
+        max_length = msa["sequence"].str.len().max()
+        if index >= max_length:
+            return (
+                dash.no_update,
+                f"Index {index} is out of bounds. Maximum index is {max_length - 1}.",
+                True,
+            )
+
+        # Convert checklist value to boolean
+        include_query = "include" in include_query_list if include_query_list else False
+
+        try:
+            msa = replace_at(msa, replacement, index, include_query=include_query)
+            msa_data[main_msa] = msa.to_dict("list")
+
+            query_text = "including query" if include_query else "excluding query"
+            return (
+                msa_data,
+                f"Replaced {len(replacement)} characters at position {index} ({query_text}).",
+                True,
+            )
+        except Exception as e:
+            return dash.no_update, f"Error: {str(e)}", True
+
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("insert-at-button", "n_clicks"),
+    State("insert-at-sequence", "value"),
+    State("insert-at-index", "value"),
+    State("insert-at-include-query", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def insert_at_position(
+    n_clicks, insertion, index, include_query_list, main_msa, msa_data
+):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, "No MSA data available.", True
+
+        if not insertion:
+            return dash.no_update, "Please enter a sequence to insert.", True
+
+        if index is None or index < 0:
+            return dash.no_update, "Please enter a valid position index (>= 0).", True
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import insert_at
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Check if MSA is empty
+        if msa.empty:
+            return dash.no_update, "MSA is empty.", True
+
+        max_length = msa["sequence"].str.len().max()
+        if index > max_length:
+            return (
+                dash.no_update,
+                f"Index {index} is out of bounds. Maximum index is {max_length}.",
+                True,
+            )
+
+        # Convert checklist value to boolean
+        include_query = "include" in include_query_list if include_query_list else False
+
+        try:
+            msa = insert_at(msa, insertion, index, include_query=include_query)
+            msa_data[main_msa] = msa.to_dict("list")
+
+            query_text = "including query" if include_query else "excluding query"
+            return (
+                msa_data,
+                f"Inserted {len(insertion)} characters at position {index} ({query_text}).",
+                True,
+            )
+        except Exception as e:
+            return dash.no_update, f"Error: {str(e)}", True
+
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("fix-at-button", "n_clicks"),
+    State("fix-at-indices", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def fix_at_positions(n_clicks, indices_str, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, "No MSA data available.", True
+
+        if not indices_str or not indices_str.strip():
+            return dash.no_update, "Please enter at least one position index.", True
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import fix_at
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Check if MSA is empty
+        if msa.empty:
+            return dash.no_update, "MSA is empty.", True
+
+        # Parse indices
+        try:
+            indices = parse_indices_input(indices_str)
+        except ValueError as e:
+            return dash.no_update, f"Invalid index input: {str(e)}", True
+
+        if not indices:
+            return dash.no_update, "No valid indices provided.", True
+
+        # Check if indices are within bounds
+        max_length = msa["sequence"].str.len().max()
+        invalid_indices = [idx for idx in indices if idx >= max_length or idx < 0]
+        if invalid_indices:
+            return (
+                dash.no_update,
+                f"Indices out of bounds: {invalid_indices}. Valid range: 0 to {max_length - 1}.",
+                True,
+            )
+
+        try:
+            msa = fix_at(msa, indices)
+            msa_data[main_msa] = msa.to_dict("list")
+
+            indices_display = ", ".join(map(str, indices[:5]))
+            if len(indices) > 5:
+                indices_display += f", ... ({len(indices)} total)"
+
+            return (
+                msa_data,
+                f"Fixed {len(indices)} position(s) to query residues: {indices_display}",
+                True,
+            )
+        except Exception as e:
+            return dash.no_update, f"Error: {str(e)}", True
+
     return dash.no_update, dash.no_update, False
 
 
