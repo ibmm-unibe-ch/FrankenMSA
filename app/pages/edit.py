@@ -41,6 +41,7 @@ def make_siderbar():
                     dbc.NavLink("Filter", id="edit-filter", active="exact"),
                     dbc.NavLink("Sort & Shuffle", id="edit-sort", active="exact"),
                     dbc.NavLink("Slice & Crop", id="edit-crop", active="exact"),
+                    dbc.NavLink("Edit Sequences", id="edit-sequences", active="exact"),
                     # dbc.NavLink(
                     #     "Free Table Editor", id="edit-table-editor", active="exact"
                     # ),
@@ -53,16 +54,6 @@ def make_siderbar():
                     dbc.NavLink(
                         "Insertions to Gaps",
                         id="edit-insertions-to-gaps",
-                        active="exact",
-                    ),
-                    dbc.NavLink(
-                        "Duplicate MSA",
-                        id="edit-copy",
-                        active="exact",
-                    ),
-                    dbc.NavLink(
-                        "Rename MSA",
-                        id="edit-rename",
                         active="exact",
                     ),
                     dbc.NavLink(
@@ -161,7 +152,7 @@ def delete_msa_data(n_clicks, msa_name, main_msa, msa_data):
     Input("edit-filter", "n_clicks"),
     Input("edit-crop", "n_clicks"),
     Input("edit-sort", "n_clicks"),
-    Input("edit-rename", "n_clicks"),
+    Input("edit-sequences", "n_clicks"),
     # Input("edit-table-editor", "n_clicks"),
     # Input("edit-python", "n_clicks"),
     State("main-msa", "data"),
@@ -171,7 +162,7 @@ def update_edit_content(
     filter_clicks,
     crop_clicks,
     sort_clicks,
-    rename_clicks,
+    sequences_clicks,
     # table_editor_clicks,
     # python_clicks,
     main_msa,
@@ -190,8 +181,8 @@ def update_edit_content(
         return slice_crop_layout()
     elif triggered_id == "edit-sort":
         return sort_by_layout()
-    elif triggered_id == "edit-rename":
-        return rename_layout()
+    elif triggered_id == "edit-sequences":
+        return edit_sequences_layout()
     # elif triggered_id == "edit-table-editor":
     #     return table_editor_layout()
     # elif triggered_id == "edit-python":
@@ -1242,6 +1233,21 @@ def sort_by_layout():
     )
 
 
+def edit_sequences_layout():
+    return html.Div(
+        [
+            html.H1("Edit Sequences"),
+            dbc.Alert(
+                "Edit Sequences feature is coming soon!",
+                color="info",
+                className="shaded-bordered",
+                is_open=True,
+            ),
+        ],
+        className="shaded-bordered",
+    )
+
+
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("sort-special-identity-button", "n_clicks"),
@@ -1935,29 +1941,6 @@ def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
         return dash.no_update, dash.no_update, False
 
 
-def rename_layout():
-    return html.Div(
-        [
-            html.H1("Rename MSA"),
-            html.P("Rename the current MSA"),
-            dcc.Input(
-                id="rename-input",
-                type="text",
-                placeholder="New Name",
-                className="input-component",
-                style={"width": "50%"},
-            ),
-            html.Button(
-                "Rename",
-                id="rename-button",
-                n_clicks=0,
-                className="button-component",
-            ),
-        ],
-        className="shaded-bordered",
-    )
-
-
 @callback(
     Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
@@ -1996,12 +1979,13 @@ def rename_msa(n_clicks, new_name, main_msa, msa_data):
     Output("msa-data", "data", allow_duplicate=True),
     Output("notification", "children", allow_duplicate=True),
     Output("notification", "is_open", allow_duplicate=True),
-    Input("edit-copy", "n_clicks"),
+    Input("duplicate-button", "n_clicks"),
+    State("duplicate-name-input", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def copy_msa(n_clicks, main_msa, msa_data):
+def copy_msa(n_clicks, custom_name, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data or not main_msa:
             # print("No MSA data available to copy.")
@@ -2012,8 +1996,13 @@ def copy_msa(n_clicks, main_msa, msa_data):
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
 
-        n_present = sum(1 for i in msa_data if i.startswith(main_msa))
-        new_msa_name = f"{main_msa}_{n_present + 1}"
+        # Use custom name if provided, otherwise generate default name
+        if custom_name and custom_name.strip():
+            new_msa_name = custom_name.strip()
+        else:
+            n_present = sum(1 for i in msa_data if i.startswith(main_msa))
+            new_msa_name = f"{main_msa}_{n_present + 1}"
+
         msa_data[new_msa_name] = msa.to_dict("list")
         # print("New MSA:")
         return new_msa_name, msa_data, "Copied MSA as: " + new_msa_name, True
@@ -2058,20 +2047,70 @@ def separate_query(n_clicks, main_msa, msa_data):
 def msa_overview_layout():
     return html.Div(
         [
-            dash_table.DataTable(
-                id="msa-overview-table",
-                columns=[
-                    {"name": "", "id": "column"},
-                    {"name": "", "id": "value"},
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dash_table.DataTable(
+                                id="msa-overview-table",
+                                columns=[
+                                    {"name": "", "id": "column"},
+                                    {"name": "", "id": "value"},
+                                ],
+                                data=[
+                                    {"column": "Number of sequences", "value": 0},
+                                    {"column": "Max. sequence length", "value": 0},
+                                    {"column": "Min. sequence length", "value": 0},
+                                    {"column": "Avg. sequence length", "value": 0},
+                                    {"column": "Number of gaps", "value": 0},
+                                ],
+                                style_table={"overflowX": "auto"},
+                            ),
+                        ],
+                        width=4,
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Rename MSA"),
+                            dcc.Input(
+                                id="rename-input",
+                                type="text",
+                                placeholder="New Name",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            html.Button(
+                                "Rename",
+                                id="rename-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=4,
+                        style={"paddingLeft": "20px"},
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Duplicate MSA"),
+                            dcc.Input(
+                                id="duplicate-name-input",
+                                type="text",
+                                placeholder="New Name (optional)",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            html.Button(
+                                "Duplicate",
+                                id="duplicate-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=4,
+                        style={"paddingLeft": "20px"},
+                    ),
                 ],
-                data=[
-                    {"column": "Number of sequences", "value": 0},
-                    {"column": "Max. sequence length", "value": 0},
-                    {"column": "Min. sequence length", "value": 0},
-                    {"column": "Avg. sequence length", "value": 0},
-                    {"column": "Number of gaps", "value": 0},
-                ],
-                style_table={"overflowX": "auto"},
+                style={"marginBottom": "20px"},
             ),
             html.H2("Consensus Sequence"),
             html.P(
