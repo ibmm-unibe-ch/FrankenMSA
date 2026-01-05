@@ -81,11 +81,10 @@ def combine_unpaired_a3m(
     lines = [header_line]
 
     if add_anchor:
-        for i, L in enumerate(lengths, start=101):
-            lines.append(f">{i}")
-            pad_left = sum(lengths[: i - 101])
-            pad_right = sum(lengths[(i - 100) :])
-            lines.append("-" * pad_left + chains[i - 101][0][1] + "-" * pad_right)
+        # Write a single anchor sequence >101 with all chains concatenated (no gaps)
+        lines.append(">101")
+        anchor_seq = "".join(chains[i][0][1] for i in range(len(chains)))
+        lines.append(anchor_seq)
 
     for chain_idx, chain in enumerate(chains):
         pad_left = sum(lengths[:chain_idx])
