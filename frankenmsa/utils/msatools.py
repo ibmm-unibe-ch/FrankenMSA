@@ -17,7 +17,7 @@ __all__ = [
     "adjust_depth",
     "extend_to_depth",
     "crop_to_depth",
-    "shuffle_msa"
+    "shuffle_msa",
 ]
 
 
@@ -417,6 +417,7 @@ def shuffle_msa(
 
     # Prepare RNG
     import random
+
     rng = random.Random(random_state)
 
     # Work on a copy unless inplace
@@ -458,3 +459,162 @@ def shuffle_msa(
     out["sequence"] = ["".join(chars) for chars in seq_lists]
     return out.reset_index(drop=True)
 
+
+def insert_at(
+    df: pd.DataFrame, sequence: str, index: int, include_query: bool = True
+) -> pd.DataFrame:
+    """
+    Insert a sequence at a given position shifting existing residues down.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        DataFrame containing sequences. Must contain a column named "sequence".
+    sequence: str
+        The sequence to insert.
+    index: int
+        The index at which to insert the sequence.
+    include_query: bool, optional
+        If True, the index includes the query sequence (first row). If False, the index excludes the query sequence. If False this likely leads to misalignments!
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with the specified sequence inserted at the given position.
+    """
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+
+    length = len(sequence)
+    if not include_query:
+        query_row = df.iloc[[0]]
+        df = df.iloc[1:].reset_index(drop=True)
+        df = insert_at(df, sequence, index, include_query=True)
+        df = pd.concat([query_row, df], ignore_index=True)
+        return df.reset_index(drop=True)
+
+    df[sequence_col] = (
+        df[sequence_col].str.slice(0, index)
+        + sequence
+        + df[sequence_col].str.slice(index)
+    )
+    return df
+
+
+def remove_at(
+    df: pd.DataFrame,
+    start: int,
+    end: int = None,
+    include_query: bool = True,
+) -> pd.DataFrame:
+    """
+    Remove a slice from sequences in a DataFrame.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        DataFrame containing sequences. Must contain a column named "sequence".
+    start: int
+        The starting index for the slice to remove.
+    end: int
+        The ending index for the slice to remove. If None, only the position at 'start' is removed.
+    include_query: bool, optional
+        If True, also remove the slice from the query sequence (first row). If False, the query sequence remains unchanged.
+        If the query remains unchanged the resulting MSA may be misaligned!
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with the specified slice removed from sequences.
+    """
+    if "sequence" not in df.columns:
+        raise ValueError("DataFrame must contain a 'sequence' column.")
+
+    if end is None:
+        end = start + 1
+
+    if not include_query:
+        query_row = df.iloc[[0]]
+        df = df.iloc[1:].reset_index(drop=True)
+        df = remove_at(df, start, end, include_query=True)
+        df = pd.concat([query_row, df], ignore_index=True)
+        return df.reset_index(drop=True)
+
+    df["sequence"] = df["sequence"].str.slice(0, start) + df["sequence"].str.slice(end)
+    return df
+
+
+def replace_at(
+    df: pd.DataFrame,
+    replacement: str,
+    index: int,
+    include_query: bool = False,
+) -> pd.DataFrame:
+    """
+    Replace a slice in sequences in a DataFrame with a given replacement string.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        DataFrame containing sequences. Must contain a column named "sequence".
+    replacement: str
+        The replacement string.
+    index: int
+        The index at which to replace the slice (0-based, start of the slice).
+    include_query: bool, optional
+        If True, also replace the slice in the query sequence (first row). If False, the query sequence remains unchanged.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with the specified slice replaced in sequences.
+    """
+    if "sequence" not in df.columns:
+        raise ValueError("DataFrame must contain a 'sequence' column.")
+    length = len(replacement)
+    if not include_query:
+        query_row = df.iloc[[0]]
+        df = df.iloc[1:].reset_index(drop=True)
+        df = replace_at(df, replacement, index, include_query=True)
+        df = pd.concat([query_row, df], ignore_index=True)
+        return df.reset_index(drop=True)
+
+    df["sequence"] = (
+        df["sequence"].str.slice(0, index)
+        + replacement
+        + df["sequence"].str.slice(index + length)
+    )
+    return df
+
+
+def fix_at(df: pd.DataFrame, indices: list[int]):
+    """
+    Propagate the residues in the query sequence (first row) to all other sequences at the specified indices.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        DataFrame containing sequences. Must contain a column named "sequence".
+    indices: list[int]
+        List of indices (0-based) at which to fix the residues.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with residues fixed at the specified indices.
+    """
+    if "sequence" not in df.columns:
+        raise ValueError("DataFrame must contain a 'sequence' column.")
+
+    query_sequence = df["sequence"].iloc[0]
+    seq_lists = df["sequence"].tolist()
+    seq_lists = [list(seq) for seq in seq_lists]  # depth x L
+
+    for index in indices:
+        residue = query_sequence[index]
+        for r in range(1, len(seq_lists)):
+            seq_lists[r][index] = residue
+
+    df["sequence"] = ["".join(chars) for chars in seq_lists]
+    return df.reset_index(drop=True)

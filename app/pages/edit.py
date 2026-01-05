@@ -11,10 +11,6 @@ dash.register_page(
 
 def make_siderbar():
 
-    sep_tooltip = dbc.Tooltip(
-        "Remove the first sequence from the MSA and store it in a separate singleton MSA named '..._query'",
-        target="edit-separate-query",
-    )
     dup_tooltip = dbc.Tooltip(
         "Duplicate the current MSA and store it in a new MSA with the name '..._N' where N is the next available number.",
         target="edit-copy",
@@ -27,13 +23,6 @@ def make_siderbar():
         "Clear all MSA data. This will remove all MSAs and their associated data from the application.",
         target="edit-clear",
     )
-
-    ins_to_gaps_tooltip = dbc.Tooltip(
-        dcc.Markdown(
-            "Replace all insersions (i.e. lowercase characters) with gaps (i.e. '-') in the MSA."
-        ),
-        target="edit-insertions-to-gaps",
-    )
     sidebar = html.Div(
         [
             dbc.Nav(
@@ -41,30 +30,11 @@ def make_siderbar():
                     dbc.NavLink("Filter", id="edit-filter", active="exact"),
                     dbc.NavLink("Sort & Shuffle", id="edit-sort", active="exact"),
                     dbc.NavLink("Slice & Crop", id="edit-crop", active="exact"),
+                    dbc.NavLink("Edit Sequences", id="edit-sequences", active="exact"),
                     # dbc.NavLink(
                     #     "Free Table Editor", id="edit-table-editor", active="exact"
                     # ),
                     # dbc.NavLink("Run Python Code", id="edit-python", active="exact"),
-                    dbc.NavLink(
-                        "Separate Query Sequence",
-                        id="edit-separate-query",
-                        active="exact",
-                    ),
-                    dbc.NavLink(
-                        "Insertions to Gaps",
-                        id="edit-insertions-to-gaps",
-                        active="exact",
-                    ),
-                    dbc.NavLink(
-                        "Duplicate MSA",
-                        id="edit-copy",
-                        active="exact",
-                    ),
-                    dbc.NavLink(
-                        "Rename MSA",
-                        id="edit-rename",
-                        active="exact",
-                    ),
                     dbc.NavLink(
                         "Delete MSA",
                         id="edit-delete",
@@ -80,12 +50,11 @@ def make_siderbar():
                 ],
                 vertical=False,
                 pills=True,
+                style={"width": "100%"},
             ),
-            sep_tooltip,
             dup_tooltip,
             delete_tooltip,
             clear_tooltip,
-            ins_to_gaps_tooltip,
         ],
         className="header",
         style={
@@ -103,7 +72,24 @@ def layout():
     )
 
     layout = html.Div(
-        [dbc.Row([sidebar]), dbc.Row(body)],
+        [
+            dbc.Row([sidebar]),
+            html.Div(
+                # className="header",
+                style={
+                    "position": "absolute",
+                    "top": "00px",
+                    "left": "0",
+                    "right": "0",
+                    "height": "60px",
+                    "width": "100vw",
+                    "backgroundColor": "#2c2c2c",
+                    "marginLeft": "calc(-50vw + 50%)",
+                    "zIndex": "-1",
+                },
+            ),
+            dbc.Row(body),
+        ],
         className="gradient-background",
         style={
             "display": "flex",
@@ -111,6 +97,7 @@ def layout():
             # "align-items": "stretch",
             "padding-top": "0px",
             # "height": "100vh",y
+            "position": "relative",
         },
     )
     return layout
@@ -161,7 +148,7 @@ def delete_msa_data(n_clicks, msa_name, main_msa, msa_data):
     Input("edit-filter", "n_clicks"),
     Input("edit-crop", "n_clicks"),
     Input("edit-sort", "n_clicks"),
-    Input("edit-rename", "n_clicks"),
+    Input("edit-sequences", "n_clicks"),
     # Input("edit-table-editor", "n_clicks"),
     # Input("edit-python", "n_clicks"),
     State("main-msa", "data"),
@@ -171,7 +158,7 @@ def update_edit_content(
     filter_clicks,
     crop_clicks,
     sort_clicks,
-    rename_clicks,
+    sequences_clicks,
     # table_editor_clicks,
     # python_clicks,
     main_msa,
@@ -190,8 +177,8 @@ def update_edit_content(
         return slice_crop_layout()
     elif triggered_id == "edit-sort":
         return sort_by_layout()
-    elif triggered_id == "edit-rename":
-        return rename_layout()
+    elif triggered_id == "edit-sequences":
+        return edit_sequences_layout()
     # elif triggered_id == "edit-table-editor":
     #     return table_editor_layout()
     # elif triggered_id == "edit-python":
@@ -1242,6 +1229,271 @@ def sort_by_layout():
     )
 
 
+def parse_indices_input(input_str: str) -> list[int]:
+    """
+    Parse a string input into a list of indices.
+    Supports:
+    - Individual numbers: "5" -> [5]
+    - Comma-separated: "5,10,15" -> [5, 10, 15]
+    - Ranges: "10-12" -> [10, 11, 12]
+    - Combinations: "5,10-12,20" -> [5, 10, 11, 12, 20]
+
+    Returns:
+        list[int]: Sorted list of unique indices
+    """
+    if not input_str or not input_str.strip():
+        return []
+
+    indices = set()
+    parts = input_str.split(",")
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if "-" in part:
+            # Handle range like "10-12"
+            try:
+                start, end = part.split("-", 1)
+                start = int(start.strip())
+                end = int(end.strip())
+                if start > end:
+                    raise ValueError(f"Invalid range: {part} (start > end)")
+                indices.update(range(start, end + 1))
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid range format: {part}. Expected format like '10-12'."
+                ) from e
+        else:
+            # Handle single number
+            try:
+                indices.add(int(part))
+            except ValueError:
+                raise ValueError(f"Invalid number: {part}")
+
+    return sorted(list(indices))
+
+
+def edit_sequences_layout():
+    return html.Div(
+        [
+            html.H1("Edit Sequences"),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Separate Query Sequence"),
+                            html.P(
+                                "Remove the first sequence from the MSA and store it in a separate singleton MSA named '_query'."
+                            ),
+                            html.Button(
+                                "Separate Query",
+                                id="edit-separate-query",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Insertions to Gaps"),
+                            html.P(
+                                "Replace all insertions (lowercase characters) with gaps ('-') in the MSA."
+                            ),
+                            html.Button(
+                                "Convert Insertions to Gaps",
+                                id="edit-insertions-to-gaps",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Replace at Position"),
+                            html.P(
+                                "Replace a substring in all sequences at a specified position with a new sequence."
+                            ),
+                            dcc.Input(
+                                id="replace-at-sequence",
+                                type="text",
+                                placeholder="sequence to insert e.g. ACGT",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            html.Label("Position Index (start):"),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Input(
+                                                id="replace-at-index",
+                                                type="number",
+                                                placeholder="0",
+                                                min=0,
+                                                className="input-component",
+                                                style={"width": "100%"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Checklist(
+                                                id="replace-at-include-query",
+                                                options=[
+                                                    {
+                                                        "label": "Also replace in query sequence",
+                                                        "value": "include",
+                                                    }
+                                                ],
+                                                value=[],
+                                                style={"marginTop": "5px"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                ],
+                                style={"marginBottom": "15px"},
+                            ),
+                            html.Div(
+                                html.Button(
+                                    "Replace",
+                                    id="replace-at-button",
+                                    n_clicks=0,
+                                    className="button-component",
+                                ),
+                                style={"textAlign": "right"},
+                            ),
+                        ],
+                        width=12,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Insert at Position"),
+                            html.P(
+                                "Insert a sequence at a specified position in all sequences, shifting existing residues."
+                            ),
+                            dcc.Input(
+                                id="insert-at-sequence",
+                                type="text",
+                                placeholder="sequence to insert e.g. ACGT",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            dbc.Row(
+                                [
+                                    dbc.Col(
+                                        [
+                                            html.Label("Position Index (insert at):"),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Input(
+                                                id="insert-at-index",
+                                                type="number",
+                                                placeholder="0",
+                                                min=0,
+                                                className="input-component",
+                                                style={"width": "100%"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                    dbc.Col(
+                                        [
+                                            dcc.Checklist(
+                                                id="insert-at-include-query",
+                                                options=[
+                                                    {
+                                                        "label": "Also insert in query sequence",
+                                                        "value": "include",
+                                                    }
+                                                ],
+                                                value=["include"],
+                                                style={"marginTop": "5px"},
+                                            ),
+                                        ],
+                                        width=4,
+                                    ),
+                                ],
+                                style={"marginBottom": "15px"},
+                            ),
+                            html.Div(
+                                html.Button(
+                                    "Insert",
+                                    id="insert-at-button",
+                                    n_clicks=0,
+                                    className="button-component",
+                                ),
+                                style={"textAlign": "right"},
+                            ),
+                        ],
+                        width=12,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H5("Fix Positions to Query"),
+                            html.P(
+                                "Propagate residues from the query sequence to all other sequences at specified positions. These can be specified as a comma-separated list of indices or ranges; e.g., '0, 5, 10-15' would fix positions 0, 5, and all positions from 10 to 15 inclusive."
+                            ),
+                            dcc.Input(
+                                id="fix-at-indices",
+                                type="text",
+                                placeholder="Positions to fix e.g., 0, 5, 10-15",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "15px"},
+                            ),
+                            html.Div(
+                                html.Button(
+                                    "Fix Positions",
+                                    id="fix-at-button",
+                                    n_clicks=0,
+                                    className="button-component",
+                                ),
+                                style={"textAlign": "right"},
+                            ),
+                        ],
+                        width=12,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+        ],
+    )
+
+
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("sort-special-identity-button", "n_clicks"),
@@ -1935,29 +2187,6 @@ def set_sequence_length(n_clicks_match, n_clicks_pad, main_msa, msa_data):
         return dash.no_update, dash.no_update, False
 
 
-def rename_layout():
-    return html.Div(
-        [
-            html.H1("Rename MSA"),
-            html.P("Rename the current MSA"),
-            dcc.Input(
-                id="rename-input",
-                type="text",
-                placeholder="New Name",
-                className="input-component",
-                style={"width": "50%"},
-            ),
-            html.Button(
-                "Rename",
-                id="rename-button",
-                n_clicks=0,
-                className="button-component",
-            ),
-        ],
-        className="shaded-bordered",
-    )
-
-
 @callback(
     Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
@@ -1996,12 +2225,13 @@ def rename_msa(n_clicks, new_name, main_msa, msa_data):
     Output("msa-data", "data", allow_duplicate=True),
     Output("notification", "children", allow_duplicate=True),
     Output("notification", "is_open", allow_duplicate=True),
-    Input("edit-copy", "n_clicks"),
+    Input("duplicate-button", "n_clicks"),
+    State("duplicate-name-input", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def copy_msa(n_clicks, main_msa, msa_data):
+def copy_msa(n_clicks, custom_name, main_msa, msa_data):
     if (n_clicks or 0) > 0:
         if not msa_data or not main_msa:
             # print("No MSA data available to copy.")
@@ -2012,8 +2242,13 @@ def copy_msa(n_clicks, main_msa, msa_data):
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
 
-        n_present = sum(1 for i in msa_data if i.startswith(main_msa))
-        new_msa_name = f"{main_msa}_{n_present + 1}"
+        # Use custom name if provided, otherwise generate default name
+        if custom_name and custom_name.strip():
+            new_msa_name = custom_name.strip()
+        else:
+            n_present = sum(1 for i in msa_data if i.startswith(main_msa))
+            new_msa_name = f"{main_msa}_{n_present + 1}"
+
         msa_data[new_msa_name] = msa.to_dict("list")
         # print("New MSA:")
         return new_msa_name, msa_data, "Copied MSA as: " + new_msa_name, True
@@ -2055,23 +2290,263 @@ def separate_query(n_clicks, main_msa, msa_data):
     return dash.no_update, dash.no_update, False
 
 
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("replace-at-button", "n_clicks"),
+    State("replace-at-sequence", "value"),
+    State("replace-at-index", "value"),
+    State("replace-at-include-query", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def replace_at_position(
+    n_clicks, replacement, index, include_query_list, main_msa, msa_data
+):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, "No MSA data available.", True
+
+        if not replacement:
+            return dash.no_update, "Please enter a replacement sequence.", True
+
+        if index is None or index < 0:
+            return dash.no_update, "Please enter a valid position index (>= 0).", True
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import replace_at
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Check if index is within bounds
+        if msa.empty:
+            return dash.no_update, "MSA is empty.", True
+
+        max_length = msa["sequence"].str.len().max()
+        if index >= max_length:
+            return (
+                dash.no_update,
+                f"Index {index} is out of bounds. Maximum index is {max_length - 1}.",
+                True,
+            )
+
+        # Convert checklist value to boolean
+        include_query = "include" in include_query_list if include_query_list else False
+
+        try:
+            msa = replace_at(msa, replacement, index, include_query=include_query)
+            msa_data[main_msa] = msa.to_dict("list")
+
+            query_text = "including query" if include_query else "excluding query"
+            return (
+                msa_data,
+                f"Replaced {len(replacement)} characters at position {index} ({query_text}).",
+                True,
+            )
+        except Exception as e:
+            return dash.no_update, f"Error: {str(e)}", True
+
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("insert-at-button", "n_clicks"),
+    State("insert-at-sequence", "value"),
+    State("insert-at-index", "value"),
+    State("insert-at-include-query", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def insert_at_position(
+    n_clicks, insertion, index, include_query_list, main_msa, msa_data
+):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, "No MSA data available.", True
+
+        if not insertion:
+            return dash.no_update, "Please enter a sequence to insert.", True
+
+        if index is None or index < 0:
+            return dash.no_update, "Please enter a valid position index (>= 0).", True
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import insert_at
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Check if MSA is empty
+        if msa.empty:
+            return dash.no_update, "MSA is empty.", True
+
+        max_length = msa["sequence"].str.len().max()
+        if index > max_length:
+            return (
+                dash.no_update,
+                f"Index {index} is out of bounds. Maximum index is {max_length}.",
+                True,
+            )
+
+        # Convert checklist value to boolean
+        include_query = "include" in include_query_list if include_query_list else False
+
+        try:
+            msa = insert_at(msa, insertion, index, include_query=include_query)
+            msa_data[main_msa] = msa.to_dict("list")
+
+            query_text = "including query" if include_query else "excluding query"
+            return (
+                msa_data,
+                f"Inserted {len(insertion)} characters at position {index} ({query_text}).",
+                True,
+            )
+        except Exception as e:
+            return dash.no_update, f"Error: {str(e)}", True
+
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("fix-at-button", "n_clicks"),
+    State("fix-at-indices", "value"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def fix_at_positions(n_clicks, indices_str, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, "No MSA data available.", True
+
+        if not indices_str or not indices_str.strip():
+            return dash.no_update, "Please enter at least one position index.", True
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import fix_at
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Check if MSA is empty
+        if msa.empty:
+            return dash.no_update, "MSA is empty.", True
+
+        # Parse indices
+        try:
+            indices = parse_indices_input(indices_str)
+        except ValueError as e:
+            return dash.no_update, f"Invalid index input: {str(e)}", True
+
+        if not indices:
+            return dash.no_update, "No valid indices provided.", True
+
+        # Check if indices are within bounds
+        max_length = msa["sequence"].str.len().max()
+        invalid_indices = [idx for idx in indices if idx >= max_length or idx < 0]
+        if invalid_indices:
+            return (
+                dash.no_update,
+                f"Indices out of bounds: {invalid_indices}. Valid range: 0 to {max_length - 1}.",
+                True,
+            )
+
+        try:
+            msa = fix_at(msa, indices)
+            msa_data[main_msa] = msa.to_dict("list")
+
+            indices_display = ", ".join(map(str, indices[:5]))
+            if len(indices) > 5:
+                indices_display += f", ... ({len(indices)} total)"
+
+            return (
+                msa_data,
+                f"Fixed {len(indices)} position(s) to query residues: {indices_display}",
+                True,
+            )
+        except Exception as e:
+            return dash.no_update, f"Error: {str(e)}", True
+
+    return dash.no_update, dash.no_update, False
+
+
 def msa_overview_layout():
     return html.Div(
         [
-            dash_table.DataTable(
-                id="msa-overview-table",
-                columns=[
-                    {"name": "", "id": "column"},
-                    {"name": "", "id": "value"},
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dash_table.DataTable(
+                                id="msa-overview-table",
+                                columns=[
+                                    {"name": "", "id": "column"},
+                                    {"name": "", "id": "value"},
+                                ],
+                                data=[
+                                    {"column": "Number of sequences", "value": 0},
+                                    {"column": "Max. sequence length", "value": 0},
+                                    {"column": "Min. sequence length", "value": 0},
+                                    {"column": "Avg. sequence length", "value": 0},
+                                    {"column": "Number of gaps", "value": 0},
+                                ],
+                                style_table={"overflowX": "auto"},
+                            ),
+                        ],
+                        width=4,
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Rename MSA"),
+                            dcc.Input(
+                                id="rename-input",
+                                type="text",
+                                placeholder="New Name",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            html.Button(
+                                "Rename",
+                                id="rename-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=4,
+                        style={"paddingLeft": "20px"},
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Duplicate MSA"),
+                            dcc.Input(
+                                id="duplicate-name-input",
+                                type="text",
+                                placeholder="New Name (optional)",
+                                className="input-component",
+                                style={"width": "100%", "marginBottom": "10px"},
+                            ),
+                            html.Button(
+                                "Duplicate",
+                                id="duplicate-button",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=4,
+                        style={"paddingLeft": "20px"},
+                    ),
                 ],
-                data=[
-                    {"column": "Number of sequences", "value": 0},
-                    {"column": "Max. sequence length", "value": 0},
-                    {"column": "Min. sequence length", "value": 0},
-                    {"column": "Avg. sequence length", "value": 0},
-                    {"column": "Number of gaps", "value": 0},
-                ],
-                style_table={"overflowX": "auto"},
+                style={"marginBottom": "20px"},
             ),
             html.H2("Consensus Sequence"),
             html.P(
