@@ -488,12 +488,10 @@ def insert_at(
 
     length = len(sequence)
     if not include_query:
-        query_seq = df[sequence_col].iloc[0]
+        query_row = df.iloc[[0]]
         df = df.iloc[1:].reset_index(drop=True)
         df = insert_at(df, sequence, index, include_query=True)
-        df = pd.concat(
-            [pd.DataFrame({sequence_col: [query_seq]}), df], ignore_index=True
-        )
+        df = pd.concat([query_row, df], ignore_index=True)
         return df.reset_index(drop=True)
 
     df[sequence_col] = (
@@ -537,10 +535,10 @@ def remove_at(
         end = start + 1
 
     if not include_query:
-        query_seq = df["sequence"].iloc[0]
+        query_row = df.iloc[[0]]
         df = df.iloc[1:].reset_index(drop=True)
         df = remove_at(df, start, end, include_query=True)
-        df = pd.concat([pd.DataFrame({"sequence": [query_seq]}), df], ignore_index=True)
+        df = pd.concat([query_row, df], ignore_index=True)
         return df.reset_index(drop=True)
 
     df["sequence"] = df["sequence"].str.slice(0, start) + df["sequence"].str.slice(end)
@@ -576,10 +574,10 @@ def replace_at(
         raise ValueError("DataFrame must contain a 'sequence' column.")
     length = len(replacement)
     if not include_query:
-        query_seq = df["sequence"].iloc[0]
+        query_row = df.iloc[[0]]
         df = df.iloc[1:].reset_index(drop=True)
         df = replace_at(df, replacement, index, include_query=True)
-        df = pd.concat([pd.DataFrame({"sequence": [query_seq]}), df], ignore_index=True)
+        df = pd.concat([query_row, df], ignore_index=True)
         return df.reset_index(drop=True)
 
     df["sequence"] = (
