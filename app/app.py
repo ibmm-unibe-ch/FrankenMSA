@@ -346,8 +346,8 @@ def launch(**kwargs):
         print(f"🌐 Public tunnel: {tunnel}")
 
     print(f"Dash starting on http://{host}:{port}")
-    return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
-
+    #return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
+    return app.run(host=host, port=port, debug=False)
 
 main = launch  # alias
 if __name__ == "__main__":
