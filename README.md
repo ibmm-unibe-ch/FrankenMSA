@@ -21,3 +21,37 @@ To launch the app just hit the "Open in Colab button above". A CPU runtime will 
 > Dash is known to have issues on Safari so it is recommended to use another browser like Chrome instead!
 
 > To run the app locally clone this repository and run the `app/app.py` file via the terminal.
+
+## Installation
+
+We've provided a small helper script to set up a Python virtual environment and
+install FrankenMSA in editable mode. From the repository root run:
+
+```bash
+./install.sh
+```
+
+This script will:
+
+- create a virtual environment in `.venv`
+- activate it and upgrade `pip`, `setuptools`, and `wheel`
+- install the package in editable mode (`pip install -e .`) and attempt to
+	install extras via `pip install -e .[all]` if available
+
+Manual alternative (if you prefer to run commands yourself):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e .
+# optionally: python -m pip install -e .[all]
+```
+
+After installation you can run the app locally with:
+
+```bash
+source .venv/bin/activate
+python app/app.py
+```
+
