@@ -9,6 +9,8 @@ import tarfile
 from io import BytesIO
 import string
 
+from frankenmsa.align import PLMSearch
+
 dash.register_page(
     __name__,
 )
@@ -121,7 +123,12 @@ class LocalMMSeqs2Colab:
 # =============================================================================
 
 def layout():
-    return html.Div([mmseqs_colab_layout()], className="gradient-background")
+    return html.Div([
+        dbc.Tabs([
+            dbc.Tab(label="MMseqs2", tab_id="mmseqs-tab", children=mmseqs_colab_layout()),
+            dbc.Tab(label="PLM-Search", tab_id="plm-tab", children=plm_search_layout()),
+        ])
+    ], className="gradient-background")
 
 def mmseqs_colab_layout():
     
@@ -283,6 +290,126 @@ def mmseqs_colab_layout():
     )
 
 
+def plm_search_layout():
+    return html.Div(
+        [
+            # 1. Title
+            html.H1("PLM-Search", style={"marginBottom": "10px"}),
+            
+            # 2. Citation Link
+            html.Div([
+                html.Span("Find similar sequences using "),
+                html.A("PLM-Search", href="https://www.nature.com/articles/s41467-024-46808-5", target="_blank"),
+                html.Span("."),
+            ], style={"marginBottom": "20px", "fontSize": "1.1rem"}),
+
+            # 3. Instructions Section
+            html.Div([
+                dcc.Markdown(
+                    """
+                    Enter one or more sequences to search for similar proteins in the database.
+                    Results will include sequences with similarity above the cutoff.
+                    """,
+                    style={"color": "#444", "lineHeight": "1.6"}
+                )
+            ], style={"textAlign": "center", "marginBottom": "20px"}),
+
+            # 4. Input Area
+            dcc.Textarea(
+                id="plm-input",
+                placeholder="Enter sequences here...\n\nExample:\n>seq1\nAAAA\n>seq2\nCCCCC",
+                style={
+                    "width": "100%",
+                    "padding": "15px",
+                    "height": "120px",
+                    "width": "80%",
+                    "borderRadius": "8px",
+                    "border": "1px solid #ccc",
+                    "fontSize": "14px",
+                    "fontFamily": "monospace"
+                },
+                className="input-component",
+                persistence=True,
+                persistence_type="memory",
+            ),
+
+            # 5. Options Row
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.P("Database", style={"fontWeight": "bold", "marginBottom": "10px"}),
+                            dcc.Dropdown(
+                                id="plm-database",
+                                options=[
+                                    {"label": "UniRef50", "value": "uniref50"},
+                                    {"label": "PDB", "value": "PDB"},
+                                    {"label": "Swiss-Prot", "value": "Swiss-Prot"},
+                                ],
+                                value="uniref50",
+                                persistence=True,
+                                persistence_type="memory",
+                            ),
+                        ],
+                        width=6, 
+                        style={"textAlign": "center", "paddingRight": "20px"}
+                    ),
+
+                    dbc.Col(
+                        [
+                            html.P("Similarity Cutoff", style={"fontWeight": "bold", "marginBottom": "10px"}),
+                            dcc.Input(
+                                id="plm-similarity-cutoff",
+                                type="number",
+                                min=0.0,
+                                max=1.0,
+                                step=0.05,
+                                value=0.3,
+                                persistence=True,
+                                persistence_type="memory",
+                                style={"width": "100%"}
+                            ),
+                            html.Small(
+                                "Minimum similarity to include in results.",
+                                className="text-muted",
+                                style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
+                            ),
+                        ],
+                        width=6,
+                        style={"textAlign": "center", "borderLeft": "1px solid #ddd", "paddingLeft": "20px"}
+                    ),
+                ],
+                className="g-0", 
+                style={
+                    "marginTop": "30px", 
+                    "marginBottom": "30px", 
+                    "width": "80%",
+                    "marginLeft": "auto",
+                    "marginRight": "auto",
+                    "alignItems": "start" 
+                }
+            ),
+
+            # 6. Run Button
+            html.Button(
+                "Run PLM-Search",
+                id="plm-run-button",
+                n_clicks=0,
+                className="button-component",
+                style={"width": "80%", "fontSize": "16px", "fontWeight": "bold", "padding": "12px"},
+            ),
+
+            # 7. Output / Status
+            dcc.Loading(
+                html.Div(id="plm-output", className="output-component", style={"marginTop": "10px", "width": "80%", "marginLeft": "auto", "marginRight": "auto"}),
+                type="dot",
+                color="#333"
+            ),
+        ],
+        style={"textAlign": "center", "paddingBottom": "50px"}
+    )
+
+
 # =============================================================================
 #  Callback
 # =============================================================================
@@ -398,6 +525,73 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
         msg = f"Success! Generated {new_main_key}.{split_msg}"
         return new_main_key, msa_data, dbc.Alert(msg, color="success")
 
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return dash.no_update, dash.no_update, dbc.Alert(f"API Error: {str(e)}", color="danger")
+
+
+@callback(
+    Output("main-msa", "data", allow_duplicate=True),
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("plm-output", "children"),
+    Input("plm-run-button", "n_clicks"),
+    State("plm-input", "value"),
+    State("plm-database", "value"),
+    State("plm-similarity-cutoff", "value"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
+
+    if not input_data:
+        return dash.no_update, dash.no_update, dbc.Alert("Please provide input data.", color="danger")
+
+    # Parse input as FASTA
+    sequences = []
+    descriptions = []
+    current_desc = None
+    current_seq = []
+    
+    for line in input_data.strip().split("\n"):
+        line = line.strip()
+        if line.startswith(">"):
+            if current_desc and current_seq:
+                sequences.append("".join(current_seq))
+                descriptions.append(current_desc)
+            current_desc = line[1:]
+            current_seq = []
+        elif line:
+            current_seq.append(line)
+    
+    if current_desc and current_seq:
+        sequences.append("".join(current_seq))
+        descriptions.append(current_desc)
+    
+    if not sequences:
+        return dash.no_update, dash.no_update, dbc.Alert("No valid sequences found.", color="danger")
+
+    # Run PLM-Search
+    try:
+        runner = PLMSearch()
+        df = runner.align(sequences, descriptions, database, similarity_cutoff)
+        
+        if df is None or df.empty:
+            return dash.no_update, dash.no_update, dbc.Alert("No results found.", color="warning")
+        
+        if not isinstance(msa_data, dict):
+            msa_data = {}
+        
+        n_existing = sum(1 for i in msa_data.keys() if i.startswith("plm_search"))
+        new_key = f"plm_search_{n_existing + 1}"
+        
+        msa_data[new_key] = df.to_dict("list")
+        
+        msg = f"Success! Generated {new_key} with {len(df)} results."
+        return new_key, msa_data, dbc.Alert(msg, color="success")
+    
     except Exception as e:
         import traceback
         traceback.print_exc()
