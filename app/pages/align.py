@@ -314,7 +314,7 @@ def plm_search_layout():
             # 4. Input Area
             dcc.Textarea(
                 id="plm-input",
-                placeholder="Enter sequences here...\n\nExample:\n>seq1\nAAAA\n>seq2\nCCCCC",
+                placeholder="Enter sequences here...\nExample:\n>seq1\nAAAA\n>seq2\nCCCCC",
                 style={
                     "width": "100%",
                     "padding": "15px",
@@ -582,11 +582,12 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
             msa_data = {}
         
         n_existing = sum(1 for i in msa_data.keys() if i.startswith("plm_search"))
-        new_key = f"plm_search_{n_existing + 1}"
-        
-        msa_data[new_key] = df.to_dict("list")
-        
-        msg = f"Success! Generated {new_key} with {len(df)} results."
+        for query in df.query.unique():
+            new_key = f"plm_search_{query}_{n_existing + 1}"
+            query_df = df[df["query"] == query][["header", "sequence"]]
+            msa_data[new_key] = query_df.to_dict("list")
+            n_existing += 1
+        msg = f"Success! Generated {len(df.query.unique())} new MSAs with {len(df)} results."
         return new_key, msa_data, dbc.Alert(msg, color="success")
     
     except Exception as e:

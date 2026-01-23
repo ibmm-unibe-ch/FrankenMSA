@@ -141,4 +141,4 @@ class PLMSearch(base.MSAFactory):
         df = pd.read_csv(output_filepath, sep="\t", names=["query", "response", "similarity"])
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
         valid_df["response_sequence"] = valid_df["response"].apply(self._find_sequence)
-        return valid_df
+        return valid_df[["query", "response", "response_sequence"]].rename(columns={"response": "header", "response_sequence": "sequence"})
