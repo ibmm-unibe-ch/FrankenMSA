@@ -520,6 +520,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
             split_msg = f" Also generated split files: {', '.join(split_keys)}."
 
         msg = f"Success! Generated {new_main_key}.{split_msg}"
+        print(f"MSA_data: {msa_data}")
         return new_main_key, msa_data, dbc.Alert(msg, color="success")
 
     except Exception as e:
@@ -582,13 +583,13 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
             msa_data = {}
         
         n_existing = sum(1 for i in msa_data.keys() if i.startswith("plm_search"))
-        dbc.Alert(f"queries: {df.query.unique()}", color="success")
+        print(f"queries AAAAAAAAAAa: {df.query.unique()}")
         for query in df.query.unique():
             new_key = f"plm_search_{query}_{n_existing + 1}"
             query_df = df[df["query"] == query][["header", "sequence"]]
             msa_data[new_key] = query_df.to_dict("list")
             n_existing += 1
-            dbc.Alert(f"curr: {msa_data[new_key]}", color="danger")
+            print(f"curr {new_key}: {msa_data[new_key]}")
         msg = f"Success! Generated {len(df.query.unique())} new MSAs with {len(df)} results."
         return new_key, msa_data, dbc.Alert(msg, color="success")
     
