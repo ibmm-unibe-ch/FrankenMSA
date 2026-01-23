@@ -574,6 +574,7 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
     # Run PLM-Search
     try:
         runner = PLMSearch()
+        print(f"Running PLM-Search with {sequences} sequences and {descriptions} against {database} with cutoff {similarity_cutoff}")
         df = runner.align(sequences, descriptions, database, similarity_cutoff)
         
         if df is None or df.empty:
