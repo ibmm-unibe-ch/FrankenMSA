@@ -16,11 +16,11 @@ from . import base
 
 PLM_SEARCH_URL = "https://dmiip.sjtu.edu.cn/PLMSearch/submit/"
 BOUNDARY = (
-    "----geckoformboundary72c107c29309639fa4b1520bc6e35692"
+    "------geckoformboundary72c107c29309639fa4b1520bc6e35692"
 )
 HEADERS = {
-    "Referer": "https://github.com/ibmm-unibe-ch/FrankenMSA/",
-    "Content-Type": f"multipart/form-data; boundary={BOUNDARY}",
+    "Referer": 'https://github.com/ibmm-unibe-ch/FrankenMSA/',
+    "Content-Type": 'multipart/form-data; boundary=----geckoformboundary72c107c29309639fa4b1520bc6e35692',
 }
 
 
@@ -85,13 +85,7 @@ class PLMSearch(base.MSAFactory):
         for description, sequence in zip(descriptions, sequences):
             sequence_data = f"{sequence_data}\r\n>{description}\r\n{sequence}"
 
-        data = (
-            f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"fasta\"\r\n{sequence_data}\r\n"
-            f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\nContent-Type: application/octet-stream\r\n\r\n\r\n"
-            f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"target_dataset\"\r\n\r\n{database}\r\n"
-            f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nplmsearch\r\n{BOUNDARY}--\r\n"
-        )
-
+        data =f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"fasta\"\r\n{sequence_data}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\nContent-Type: application/octet-stream\r\n\r\n\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"target_dataset\"\r\n\r\n{database}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nplmsearch\r\n{BOUNDARY}--\r\n"   
         try:
             response = requests.post(PLM_SEARCH_URL, headers=HEADERS, data=data)
             response.raise_for_status()
