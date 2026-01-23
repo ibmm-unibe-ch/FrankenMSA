@@ -139,7 +139,13 @@ class PLMSearch(base.MSAFactory):
 
     def _make_results(self, output_filepath: Path, similarity_cutoff: float = 0.3) -> pd.DataFrame:
         df = pd.read_csv(output_filepath, sep="\t", names=["query", "response", "similarity"])
-        print(f"who df: {df}")
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"_make_results: {df}")
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
         valid_df["response_sequence"] = valid_df["response"].apply(self._find_sequence)
-        return valid_df[["query", "response", "response_sequence"]].rename(columns={"response": "header", "response_sequence": "sequence"})
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"valid_df: {valid_df}")
+        valid_df = valid_df[["query", "response", "response_sequence"]].rename(columns={"response": "header", "response_sequence": "sequence"})
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"validated_df: {valid_df}")
+        return valid_df

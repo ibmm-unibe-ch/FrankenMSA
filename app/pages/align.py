@@ -576,7 +576,10 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
         with open("test.txt", "a") as myfile:
             myfile.write(f"Running PLM-Search with {sequences} sequences and {descriptions} against {database} with cutoff {similarity_cutoff}")
         df = runner.align(sequences, descriptions, database, similarity_cutoff)
-        
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"queries AAAAAAAAAAa: {df.query.unique()}")
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"queries AAAAAAAAAAa: {df}")
         if df is None or df.empty:
             return dash.no_update, dash.no_update, dbc.Alert("No results found.", color="warning")
         
