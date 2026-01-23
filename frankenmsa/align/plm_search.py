@@ -96,6 +96,7 @@ class PLMSearch(base.MSAFactory):
             response = requests.post(PLM_SEARCH_URL, headers=HEADERS, data=data)
             response.raise_for_status()
             # extract query id from response body
+            print(response.text)
             query_id = response.text.split("https://dmiip.sjtu.edu.cn/PLMSearch/refresh/", 1)[1].split('"')[0]
             return query_id
         except requests.exceptions.RequestException as e:

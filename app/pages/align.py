@@ -124,10 +124,7 @@ class LocalMMSeqs2Colab:
 
 def layout():
     return html.Div([
-        dbc.Tabs([
-            dbc.Tab(label="MMseqs2", tab_id="mmseqs-tab", children=mmseqs_colab_layout()),
-            dbc.Tab(label="PLM-Search", tab_id="plm-tab", children=plm_search_layout()),
-        ])
+        dbc.Row([mmseqs_colab_layout(), plm_search_layout()])
     ], className="gradient-background")
 
 def mmseqs_colab_layout():
