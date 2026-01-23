@@ -437,7 +437,7 @@ from dash.dependencies import (
 
 # --- Colab integration: directly run ProteinMPNN inside Colab environment ---
 from dash import no_update
-import urllib.parse, os
+import os
 
 
 ON_COLAB = os.environ.get("ON_COLAB") == "1"
@@ -455,7 +455,7 @@ else:
     State("pdb-upload", "filename"),
     prevent_initial_call=True,
 )
-def _save_uploaded_pdb(contents, filename):
+def _save_uploaded_pdb(contents, filename): # can be deleted?
     if not contents or not filename:
         return html.Small(""), ""
     try:

@@ -159,7 +159,6 @@ def afcluster_layout():
             ),
             html.Div(
                 id="cluster-save-container",
-                # className="shaded-bordered",
             ),
             ward_controls_layout(),
         ],
@@ -407,10 +406,8 @@ def afcluster_controls(_):
             dbc.Col(
                 [
                     other_columns_to_include_tooltip,
-                    # other_columns_to_include_label,
                     other_columns_to_include,
                 ],
-                # width="auto",
             ),
         ],
         style={
@@ -426,7 +423,6 @@ def afcluster_controls(_):
         [
             dbc.Col(
                 [
-                    # search_epsilon_value_range_start_label,
                     search_epsilon_value_range_start_tooltip,
                     search_epsilon_value_range_start_input,
                 ],
@@ -440,7 +436,6 @@ def afcluster_controls(_):
             ),
             dbc.Col(
                 [
-                    # search_epsilon_value_range_end_label,
                     search_epsilon_value_range_end_tooltip,
                     search_epsilon_value_range_end_input,
                 ],
@@ -453,7 +448,6 @@ def afcluster_controls(_):
             "justify-contents": "center",
             "display": "flex",
             "flex-direction": "row",
-            # "flex-wrap": "wrap",
         },
     )
     bottomrow = dbc.Row(
@@ -592,19 +586,6 @@ def visualise_clusters(msa_data, main_msa):
         )
 
     return html.Div(graphs)
-
-    if "ward_id" in df.columns:
-        graphs.append(
-            pca_plot(
-                df,
-                graph_id="pca-ward",
-                title="PCA of Ward-merged Clusters",
-                color_col="ward_id",
-            )
-        )
-
-    return html.Div(graphs)
-
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
@@ -803,7 +784,6 @@ def kmeans_layout():
             ),
             html.Div(
                 id="kmeans-save-container",
-                # className="shaded-bordered",
             ),
         ],
         className="shaded-bordered",
@@ -873,7 +853,6 @@ def kmeans_controls(_):
                     other_columns_to_include_tooltip,
                     other_columns_to_include,
                 ],
-                # width="auto",
             ),
         ],
         style={

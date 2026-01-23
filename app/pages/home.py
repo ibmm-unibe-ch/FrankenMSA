@@ -58,8 +58,6 @@ The frankenMSA library is available on PyPI and can be freely installed.
                 style={
                     "width": "54px",
                     "height": "54px",
-                    # "borderRadius": "20%",
-                    # "boxShadow": "0 2px 6px rgba(0,0,0,0.25)",
                     "cursor": "pointer",
                     "maxWidth": "100%",
                     "maxHeight": "100%",
