@@ -121,8 +121,11 @@ class PLMSearch(base.MSAFactory):
             except requests.exceptions.RequestException:
                 time.sleep(self.interval_seconds)
             except Exception as e:
+                with open("test.txt", "a") as myfile:
+                    myfile.write(f"error {e}\n")
                 print(f"An unexpected error occurred: {e}.")
-
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"download {download_url}\n")
         try:
             response = requests.get(download_url)
             response.raise_for_status()
@@ -133,9 +136,12 @@ class PLMSearch(base.MSAFactory):
             return output_filename
         except requests.exceptions.RequestException as e:
             print(f"Download failed: {e}. Retrying in {self.interval_seconds} seconds...")
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"Download_failed {e}\n")
             time.sleep(self.interval_seconds)
         except Exception as e:
-            print(f"An unexpected error occurred: {e}.")
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"error {e}\n")
             return None
 
     def _find_sequence(self, uniprot_id: str) -> str:
