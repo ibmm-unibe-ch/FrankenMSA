@@ -23,6 +23,42 @@ HEADERS = {
     "Content-Type": 'multipart/form-data; boundary=----geckoformboundary72c107c29309639fa4b1520bc6e35692',
 }
 
+def download_with_resume(sess: requests.Session, url: str) -> bytes:
+    #PLM-Search might close connections prematurely, so StackOverflow implemented a simple resume-capable downloader.
+    # https://stackoverflow.com/questions/77873658/python-reading-url-chunkedencodingerror
+    data = b""
+    expected_length = None
+    for attempt in range(10):
+        if len(data) == expected_length:
+            break
+        if len(data):
+            headers = {"Range": f"bytes={len(data)}-"}
+            expected_status = 206
+        else:
+            headers = {}
+            expected_status = 200
+        #print(f"{url}: got {len(data)} / {expected_length} bytes...")
+        resp = sess.get(url, stream=True, headers=headers)
+        resp.raise_for_status()
+        if resp.status_code != expected_status:
+            raise ValueError(f"Unexpected status code: {resp.status_code}")
+        if expected_length is None:  # Only update this on the first request
+            content_length = resp.headers.get("Content-Length")
+            if not content_length:
+                raise ValueError("Content-Length header not found")
+            expected_length = int(content_length)
+
+        try:
+            for chunk in resp.iter_content(chunk_size=8192):
+                data += chunk
+        except requests.exceptions.ChunkedEncodingError:
+            pass
+
+    if len(data) != expected_length:
+        raise ValueError(f"Expected {expected_length} bytes, got {len(data)}")
+
+    return data
+
 
 class PLMSearch(base.MSAFactory):
     """
@@ -126,23 +162,29 @@ class PLMSearch(base.MSAFactory):
                 print(f"An unexpected error occurred: {e}.")
         with open("test.txt", "a") as myfile:
             myfile.write(f"download {download_url}\n")
-        try:
-            response = requests.get(download_url)
-            response.raise_for_status()
+        with requests.Session() as sess:
+            data = download_with_resume(sess,url=download_url)
+            print("=>", len(data))
             with open(output_filename, "wb") as f:
-                f.write(response.content)
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"response content written to {response.content}\n")
+                f.write(data)
             return output_filename
-        except requests.exceptions.RequestException as e:
-            print(f"Download failed: {e}. Retrying in {self.interval_seconds} seconds...")
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"Download_failed {e}\n")
-            time.sleep(self.interval_seconds)
-        except Exception as e:
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"error {e}\n")
-            return None
+        #try:
+        #    response = requests.get(download_url)
+        #    response.raise_for_status()
+        #    with open(output_filename, "wb") as f:
+        #        f.write(response.content)
+        #    with open("test.txt", "a") as myfile:
+        #        myfile.write(f"response content written to {response.content}\n")
+        #    return output_filename
+        #except requests.exceptions.RequestException as e:
+        #    print(f"Download failed: {e}. Retrying in {self.interval_seconds} seconds...")
+        #    with open("test.txt", "a") as myfile:
+        #        myfile.write(f"Download_failed {e}\n")
+        #    time.sleep(self.interval_seconds)
+        #except Exception as e:
+        #    with open("test.txt", "a") as myfile:
+        #        myfile.write(f"error {e}\n")
+        #    return None
 
     def _find_sequence(self, uniprot_id: str) -> str:
         try:
