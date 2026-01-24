@@ -67,13 +67,16 @@ class PLMSearch(base.MSAFactory):
         """
         if descriptions is None:
             descriptions = [f"seq{i+1}" for i in range(len(sequences))]
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"Working with descriptions: {descriptions}\n")
 
         query_id = self._send_post_request(descriptions, sequences, database)
         if not query_id:
             return None
 
         filename = self._download_similarities(query_id)
-        print(f"Downloaded file: {filename}")
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"filename: {filename}\n")
         if not filename:
             return None
 
@@ -87,11 +90,15 @@ class PLMSearch(base.MSAFactory):
             sequence_data = f"{sequence_data}\r\n>{description}\r\n{sequence}"
 
         data =f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"fasta\"\r\n{sequence_data}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\nContent-Type: application/octet-stream\r\n\r\n\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"target_dataset\"\r\n\r\n{database}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nplmsearch\r\n{BOUNDARY}--\r\n"   
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"working with data: {data}\n")
         try:
             response = requests.post(PLM_SEARCH_URL, headers=HEADERS, data=data)
             response.raise_for_status()
             # extract query id from response body
             query_id = response.text.split("https://dmiip.sjtu.edu.cn/PLMSearch/refresh/", 1)[1].split('"')[0]
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"query_id: {query_id}\n")
             return query_id
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
@@ -100,10 +107,11 @@ class PLMSearch(base.MSAFactory):
         refresh_url = f"https://dmiip.sjtu.edu.cn/PLMSearch/refresh/{query_id}"
         download_url = f"https://dmiip.sjtu.edu.cn/PLMSearch/{query_id}/similarity.txt"
         output_filename = Path(f"{query_id}_similarity.txt")
-
         waiting = True
         while waiting:
             try:
+                with open("test.txt", "a") as myfile:
+                    myfile.write(f"waiting for results from: {refresh_url}\n")
                 response = requests.get(refresh_url)
                 response.raise_for_status()
                 if "Done" in response.text:
@@ -120,6 +128,8 @@ class PLMSearch(base.MSAFactory):
             response.raise_for_status()
             with open(output_filename, "wb") as f:
                 f.write(response.content)
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"response content written to {response.content}\n")
             return output_filename
         except requests.exceptions.RequestException as e:
             print(f"Download failed: {e}. Retrying in {self.interval_seconds} seconds...")

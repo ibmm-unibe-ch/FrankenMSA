@@ -596,6 +596,8 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
             n_existing += 1
             with open("test.txt", "a") as myfile:
                 myfile.write(f"curr {new_key}: {msa_data[new_key]}")
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"Success! Generated {len(df.query.unique())} new MSAs with {len(df)} results.")
         msg = f"Success! Generated {len(df.query.unique())} new MSAs with {len(df)} results."
         return new_key, msa_data, dbc.Alert(msg, color="success")
     
