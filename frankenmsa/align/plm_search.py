@@ -164,7 +164,6 @@ class PLMSearch(base.MSAFactory):
             myfile.write(f"download {download_url}\n")
         with requests.Session() as sess:
             data = download_with_resume(sess,url=download_url)
-            print("=>", len(data))
             with open(output_filename, "wb") as f:
                 f.write(data)
             return output_filename
@@ -200,6 +199,8 @@ class PLMSearch(base.MSAFactory):
         with open("test.txt", "a") as myfile:
             myfile.write(f"_make_results: {df}")
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"valid_df: {valid_df}")
         valid_df["response_sequence"] = valid_df["response"].apply(self._find_sequence)
         with open("test.txt", "a") as myfile:
             myfile.write(f"valid_df: {valid_df}")
