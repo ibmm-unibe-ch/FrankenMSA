@@ -103,8 +103,6 @@ class PLMSearch(base.MSAFactory):
         """
         if descriptions is None:
             descriptions = [f"seq{i+1}" for i in range(len(sequences))]
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"Working with descriptions: {descriptions}\n")
 
         query_id = self._send_post_request(descriptions, sequences, database)
         if not query_id:
@@ -124,17 +122,12 @@ class PLMSearch(base.MSAFactory):
         sequence_data = ""
         for description, sequence in zip(descriptions, sequences):
             sequence_data = f"{sequence_data}\r\n>{description}\r\n{sequence}"
-
         data =f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"fasta\"\r\n{sequence_data}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\nContent-Type: application/octet-stream\r\n\r\n\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"target_dataset\"\r\n\r\n{database}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nplmsearch\r\n{BOUNDARY}--\r\n"   
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"working with data: {data}\n")
         try:
             response = requests.post(PLM_SEARCH_URL, headers=HEADERS, data=data)
             response.raise_for_status()
             # extract query id from response body
             query_id = response.text.split("https://dmiip.sjtu.edu.cn/PLMSearch/refresh/", 1)[1].split('"')[0]
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"query_id: {query_id}\n")
             return query_id
         except requests.exceptions.RequestException as e:
             print(f"An error occurred: {e}")
@@ -146,8 +139,6 @@ class PLMSearch(base.MSAFactory):
         waiting = True
         while waiting:
             try:
-                with open("test.txt", "a") as myfile:
-                    myfile.write(f"waiting for results from: {refresh_url}\n")
                 response = requests.get(refresh_url)
                 response.raise_for_status()
                 if "Done" in response.text:
@@ -157,8 +148,6 @@ class PLMSearch(base.MSAFactory):
             except requests.exceptions.RequestException:
                 time.sleep(self.interval_seconds)
             except Exception as e:
-                with open("test.txt", "a") as myfile:
-                    myfile.write(f"error {e}\n")
                 print(f"An unexpected error occurred: {e}.")
         with open("test.txt", "a") as myfile:
             myfile.write(f"download {download_url}\n")
@@ -167,37 +156,22 @@ class PLMSearch(base.MSAFactory):
             with open(output_filename, "wb") as f:
                 f.write(data)
             return output_filename
-        #try:
-        #    response = requests.get(download_url)
-        #    response.raise_for_status()
-        #    with open(output_filename, "wb") as f:
-        #        f.write(response.content)
-        #    with open("test.txt", "a") as myfile:
-        #        myfile.write(f"response content written to {response.content}\n")
-        #    return output_filename
-        #except requests.exceptions.RequestException as e:
-        #    print(f"Download failed: {e}. Retrying in {self.interval_seconds} seconds...")
-        #    with open("test.txt", "a") as myfile:
-        #        myfile.write(f"Download_failed {e}\n")
-        #    time.sleep(self.interval_seconds)
-        #except Exception as e:
-        #    with open("test.txt", "a") as myfile:
-        #        myfile.write(f"error {e}\n")
-        #    return None
 
     def _find_sequence(self, uniprot_id: str) -> str:
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"uniprot_id {uniprot_id}\n")
         try:
             download_url = f"https://www.uniprot.org/uniprot/{uniprot_id}.fasta"
             response = requests.get(download_url)
             response.raise_for_status()
             return "".join(response.text.split("\n")[1:])
-        except Exception:
+        except Exception as e:
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"error {e}\n")
             return ""
 
     def _make_results(self, output_filepath: Path, similarity_cutoff: float = 0.3) -> pd.DataFrame:
         df = pd.read_csv(output_filepath, sep="\t", names=["query", "response", "similarity"])
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"_make_results: {df}")
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
         with open("test.txt", "a") as myfile:
             myfile.write(f"valid_df: {valid_df}")
