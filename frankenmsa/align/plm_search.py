@@ -161,7 +161,7 @@ class PLMSearch(base.MSAFactory):
         with open("test.txt", "a") as myfile:
             myfile.write(f"uniprot_id {uniprot_id}\n")
         try:
-            if not uniprot_id.startswith("UPI00"):
+            if uniprot_id.startswith("UPI00"):
                 download_url = f"https://rest.uniprot.org/uniparc/{uniprot_id}.fasta"
             else:
                 download_url = f"https://www.uniprot.org/uniprot/{uniprot_id}.fasta"
