@@ -12,8 +12,7 @@ import requests
 import pandas as pd
 
 from . import base
-from frankenmsa.utils.uniprot import fetch_uniprot_metadata
-
+from ..utils.uniprot import fetch_uniprot_metadata
 
 PLM_SEARCH_URL = "https://dmiip.sjtu.edu.cn/PLMSearch/submit/"
 BOUNDARY = (
