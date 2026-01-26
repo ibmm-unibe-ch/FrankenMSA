@@ -9,7 +9,7 @@ import tarfile
 from io import BytesIO
 import string
 
-from frankenmsa.align import PLMSearch
+from frankenmsa.align.plm_search import PLMSearch
 
 dash.register_page(
     __name__,
