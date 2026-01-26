@@ -12,6 +12,7 @@ import requests
 import pandas as pd
 
 from . import base
+from frankenmsa.utils.uniprot import fetch_uniprot_metadata
 
 
 PLM_SEARCH_URL = "https://dmiip.sjtu.edu.cn/PLMSearch/submit/"
@@ -178,10 +179,16 @@ class PLMSearch(base.MSAFactory):
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
         with open("test.txt", "a") as myfile:
             myfile.write(f"valid_df: {valid_df}")
-        valid_df["response_sequence"] = valid_df["response"].apply(self._find_sequence)
+        uniprot_out = fetch_uniprot_metadata(valid_df["response"].to_list())
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"uniprot_out: {uniprot_out}")
+        uniprot_df = pd.DataFrame([{"id":ide,"sequence":uniprot_out[ide]["sequence"] } for ide in uniprot_out.keys()] )
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"uniprot_df: {uniprot_df}")
+        valid_df = valid_df.merge(uniprot_df, left_on="response", right_on="id", how="left") 
         with open("test.txt", "a") as myfile:
             myfile.write(f"valid_df: {valid_df}")
-        valid_df = valid_df[["query", "response", "response_sequence"]].rename(columns={"response": "header", "response_sequence": "sequence"})
+        valid_df = valid_df[["query", "response", "sequence"]].rename(columns={"response": "header"})
         with open("test.txt", "a") as myfile:
             myfile.write(f"validated_df: {valid_df}")
         return valid_df

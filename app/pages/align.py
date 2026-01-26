@@ -575,17 +575,22 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
         runner = PLMSearch()
         df = runner.align(sequences, descriptions, database, similarity_cutoff)
         with open("test.txt", "a") as myfile:
-            myfile.write(f"queries AAAAAAAAAAa: {df}")
+            myfile.write(f"queries AAAAA: {df}")
         if df is None or df.empty:
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"none: {df.empty} {df}")
             return dash.no_update, dash.no_update, dbc.Alert("No results found.", color="warning")
         
         if not isinstance(msa_data, dict):
             msa_data = {}
-        
+        with open("test.txt", "a") as myfile:
+            myfile.write(f"queries A: {df.query.unique()}")
         n_existing = sum(1 for i in msa_data.keys() if i.startswith("plm_search"))
         with open("test.txt", "a") as myfile:
             myfile.write(f"queries AAAAAAAAAAa: {df.query.unique()}")
         for query in df.query.unique():
+            with open("test.txt", "a") as myfile:
+                myfile.write(f"queries a: {query}")
             new_key = f"plm_search_{query}_{n_existing + 1}"
             query_df = df[df["query"] == query][["header", "sequence"]]
             msa_data[new_key] = query_df.to_dict("list")

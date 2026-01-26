@@ -40,6 +40,7 @@ setup(
         "plotly",
         "dash-bootstrap-components",
         "gitpython",
+        "httpx",
     ],
     extras_require=extras_require,
     classifiers=[
