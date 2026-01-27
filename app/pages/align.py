@@ -584,11 +584,11 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
         if not isinstance(msa_data, dict):
             msa_data = {}
         with open("test.txt", "a") as myfile:
-            myfile.write(f"queries A: {df.query.unique()}")
+            myfile.write(f"queries A: {df['query'].unique()}")
         n_existing = sum(1 for i in msa_data.keys() if i.startswith("plm_search"))
         with open("test.txt", "a") as myfile:
-            myfile.write(f"queries AAAAAAAAAAa: {df.query.unique()}")
-        for query in df.query.unique():
+            myfile.write(f"queries AAAAAAAAAAa: {df['query'].unique()}")
+        for query in df['query'].unique():
             with open("test.txt", "a") as myfile:
                 myfile.write(f"queries a: {query}")
             new_key = f"plm_search_{query}_{n_existing + 1}"
@@ -598,8 +598,8 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
             with open("test.txt", "a") as myfile:
                 myfile.write(f"curr {new_key}: {msa_data[new_key]}")
         with open("test.txt", "a") as myfile:
-            myfile.write(f"Success! Generated {len(df.query.unique())} new MSAs with {len(df)} results.")
-        msg = f"Success! Generated {len(df.query.unique())} new MSAs with {len(df)} results."
+            myfile.write(f"Success! Generated {len(df['query'].unique())} new MSAs with {len(df)} results.")
+        msg = f"Success! Generated {len(df['query'].unique())} new MSAs with {len(df)} results."
         return new_key, msa_data, dbc.Alert(msg, color="success")
     
     except Exception as e:
