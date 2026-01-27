@@ -41,6 +41,9 @@ def fetch_uniprot_metadata(seqids, cache_fname=None):
   """
 
   primary_seqids = [s for s in seqids] # changed from https://github.com/boscoh/uniprot
+  with open("test.txt", "a") as myfile:
+    myfile.write(f"primary_seqids: {primary_seqids}\n")
+
   if cache_fname and os.path.isfile(cache_fname):
     logging("Loading cached metadata from " + cache_fname + "\n")
     cache_txt = open(cache_fname).read()
@@ -58,9 +61,12 @@ def fetch_uniprot_metadata(seqids, cache_fname=None):
       if r.status_code == 200:
         cache_txt = r.text
       else:
+        with open("test.txt", "a") as myfile:
+            myfile.write("Error fetching metadata: HTTP %d\n" % r.status_code)
         logging("Error fetching metadata: HTTP %d\n" % r.status_code)
         return {}
-      
+      with open("test.txt", "a") as myfile:
+            myfile.write(f"cache_txt: {cache_txt}\n")
       if cache_fname:
         with open(cache_fname, 'w') as f:
           f.write(cache_txt)
@@ -68,6 +74,8 @@ def fetch_uniprot_metadata(seqids, cache_fname=None):
       if is_html(cache_txt):
         # Got HTML response -> error
         logging("Error in fetching metadata\n")
+        with open("test.txt", "a") as myfile:
+            myfile.write("Error in fetching metadata\n")
         return {}
     finally:
       client.close()
@@ -81,17 +89,24 @@ def parse_uniprot_metadata_with_seqids(seqids, cache_txt):
   isoform seqid's
   """
   metadata = parse_uniprot_txt_file(cache_txt)
+  with open("test.txt", "a") as myfile:
+    myfile.write(f"metadata {metadata.keys()}")
+    myfile.write(f"metadata {metadata}")
   logging(f"metadata {metadata.keys()}")
   logging(f"metadata {metadata}")
   tmp = metadata.copy()
   for uniprot_id in metadata.keys():
     for seqid in metadata[uniprot_id]['accs'] + [metadata[uniprot_id]['id']]:
       tmp[seqid] = metadata[uniprot_id]
-  logging("asdfasdfasdfasdfdsfdsf\n")
-  logging(f"tmp {tmp}")
+  with open("test.txt", "a") as myfile:
+    myfile.write(f"tmp {tmp}")
   metadata = tmp
   results = {}
   isoform_dict = parse_isoforms(cache_txt)
+  with open("test.txt", "a") as myfile:
+    myfile.write(f"isoform_dict {isoform_dict}")
+  with open("test.txt", "a") as myfile:
+    myfile.write(f"seqids {seqids}")
   for seqid in seqids:
     if seqid in metadata:
       results[seqid] = metadata[seqid]
