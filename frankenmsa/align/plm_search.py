@@ -15,7 +15,7 @@ from . import base
 import sys
 import json
 
-def fetch_uniprot_metadata(seqids):
+def fetch_uniprot_metadata(seqids) -> pd.DataFrame:
   response = requests.get("https://rest.uniprot.org/uniparc/search", headers={"accept": "application/json"}, params={'query': ' OR '.join(seqids),'fields': "sequence", "size": "500"})
   if not response.ok:
     response.raise_for_status()
@@ -173,48 +173,18 @@ class PLMSearch(base.MSAFactory):
                 f.write(data)
             return output_filename
 
-#    def _find_sequence(self, uniprot_id: str) -> str:
-#        with open("test.txt", "a") as myfile:
-#            myfile.write(f"uniprot_id {uniprot_id}\n")
-#        try:
-#            if uniprot_id.startswith("UPI00"):
-#                download_url = f"https://rest.uniprot.org/uniparc/{uniprot_id}.fasta"
-#            else:
-#                download_url = f"https://www.uniprot.org/uniprot/{uniprot_id}.fasta"
-#            response = requests.get(download_url)
-#            response.raise_for_status()
-#            return "".join(response.text.split("\n")[1:])
-#        except Exception as e:
-#            with open("test.txt", "a") as myfile:
-#                myfile.write(f"error {e}\n")
-#            return ""
-
     def _make_results(self, output_filepath: Path, similarity_cutoff: float = 0.3) -> pd.DataFrame:
         df = pd.read_csv(output_filepath, sep="\t", names=["query", "response", "similarity"])
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
-        seqids = valid_df["response"].to_list()
         dfs = []
-        for i in range(0, len(seqids), 100):
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"working on {i}: {seqids[i:i + 100]}")
-            seqids_chunk = seqids[i:i + 100]
-            dfs.append(fetch_uniprot_metadata(seqids_chunk))
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"valid_df: {dfs}")
-        df = pd.concat(dfs)
-        return df
-        #with open("test.txt", "a") as myfile:
-        #    myfile.write(f"valid_df: {valid_df}")
-        #uniprot_out =  fetch_uniprot_metadata(valid_df["response"].to_list())
-        #with open("test.txt", "a") as myfile:
-        #    myfile.write(f"uniprot_out: {uniprot_out}")
-        #uniprot_df = pd.DataFrame([{"id":ide,"sequence":uniprot_out[ide]["sequence"] } for ide in uniprot_out.keys()] )
-        #with open("test.txt", "a") as myfile:
-        #    myfile.write(f"uniprot_df: {uniprot_df}")
-        #valid_df = valid_df.merge(uniprot_df, left_on="response", right_on="id", how="left") 
-        #with open("test.txt", "a") as myfile:
-        #    myfile.write(f"valid_df: {valid_df}")
-        #valid_df = valid_df[["query", "response", "sequence"]].rename(columns={"response": "header"})
-        #with open("test.txt", "a") as myfile:
-        #    myfile.write(f"validated_df: {valid_df}")
-        #return valid_df
+        for query in valid_df["query"].unique():
+            seqids = valid_df.loc[valid_df["query"] == query, "response"].to_list()
+            for i in range(0, len(seqids), 100):
+                with open("test.txt", "a") as myfile:
+                    myfile.write(f"working on {i}: {seqids[i:i + 100]}")
+                seqids_chunk = seqids[i:i + 100]
+                curr_df = fetch_uniprot_metadata(seqids_chunk)
+                curr_df["query"] = query
+                dfs.append(curr_df)
+        return pd.concat(dfs, ignore_index=True)
+        
