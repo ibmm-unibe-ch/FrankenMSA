@@ -486,7 +486,7 @@ class PLMSearch(base.MSAFactory):
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
         with open("test.txt", "a") as myfile:
             myfile.write(f"valid_df: {valid_df}")
-        uniprot_out =  uniprot.fetch_uniprot_metadata(valid_df["response"].to_list())
+        uniprot_out =  fetch_uniprot_metadata(valid_df["response"].to_list())
         with open("test.txt", "a") as myfile:
             myfile.write(f"uniprot_out: {uniprot_out}")
         uniprot_df = pd.DataFrame([{"id":ide,"sequence":uniprot_out[ide]["sequence"] } for ide in uniprot_out.keys()] )
