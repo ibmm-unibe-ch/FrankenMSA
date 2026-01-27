@@ -18,10 +18,13 @@ from copy import deepcopy
 import re
 import os
 import httpx
-import logging
+import sys
 
 
 # adopted from https://github.com/boscoh/uniprot
+def logging(s):
+  sys.stdout.write(s)
+
 
 def is_html(text):
   if re.search('<html', text):
