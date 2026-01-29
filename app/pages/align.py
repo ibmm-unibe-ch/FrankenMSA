@@ -10,6 +10,7 @@ from io import BytesIO
 import string
 
 from frankenmsa.align.plm_search import PLMSearch
+from frankenmsa.utils.fileio import read_fasta
 
 dash.register_page(
     __name__,
@@ -423,13 +424,19 @@ def plm_search_layout():
     prevent_initial_call=True,
 )
 def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
+    """
+    Execute MMseqs2 alignment and store results in msa_data.
+    
+    Validates input, handles monomers and multimers, submits to API,
+    and splits multimer results by chain.
+    """
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
     if not input_data:
         return dash.no_update, dash.no_update, dbc.Alert("Please provide input data.", color="danger")
 
-    # 1. Parse Input
+    # 1. Parse and clean input
     sequence_parts = []
     for line in input_data.strip().split("\n"):
         line = line.strip()
@@ -443,7 +450,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
     if not full_sequence:
         return dash.no_update, dash.no_update, dbc.Alert("No valid sequences found.", color="danger")
 
-    # 2. Validation
+    # 2. Validate input/pairing mode combination
     is_multimer = ":" in full_sequence
     
     if is_multimer and pairing_mode == "none":
@@ -451,13 +458,14 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
             "Error: You have ':' in sequence but selected 'None'. Please select 'Greedy' or 'All'.", 
             color="danger"
         )
+    
     if not is_multimer and pairing_mode != "none":
          return dash.no_update, dash.no_update, dbc.Alert(
             "Error: Single sequence provided but 'Greedy/All' selected. Please select 'None'.", 
             color="danger"
         )
 
-    # 3. Execute API Call
+    # 3. Execute alignment
     try:
         multimer_header_str = None
         chain_lengths = []
@@ -466,10 +474,8 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
             runner = LocalMMSeqs2Colab()
             msa_df, header_str, chain_lengths = runner.align(full_sequence, pairing_mode)
             multimer_header_str = header_str
-            
             chains_count = full_sequence.count(":") + 1
             base_name = f"mmseqs_multimer_{chains_count}chains"
-        
         else:
             from frankenmsa.align import MMSeqs2Colab
             runner = MMSeqs2Colab("frankenmsa-gui")
@@ -482,14 +488,14 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
         n_existing = sum(1 for i in msa_data.keys() if i.startswith(base_name) and "chain" not in i)
         new_main_key = f"{base_name}_{n_existing + 1}"
         
-        # (A) Store Main MSA
+        # 4. Store main MSA
         data_dict = msa_df.to_dict("list")
         if multimer_header_str:
             data_dict["_multimer_header"] = [multimer_header_str] * len(msa_df)
         
         msa_data[new_main_key] = data_dict
         
-        # (B) Split Chains Logic
+        # 5. Handle multimer chain splitting
         split_msg = ""
         if is_multimer and chain_lengths:
             start = 0
@@ -500,7 +506,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
                 end = start + length
                 chain_seqs = [s[start:end] for s in msa_df["sequence"]]
                 
-                # Rename Header for split file: >101 102 -> >101
+                # Update header for split file: first header becomes chain index
                 new_headers = list(msa_df["header"])
                 if len(new_headers) > 0:
                     new_headers[0] = str(101 + i)
@@ -540,69 +546,81 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
     prevent_initial_call=True,
 )
 def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
+    """
+    Execute PLM-Search query and store results in msa_data.
+    
+    Validates input, parses FASTA format, submits query to PLM-Search API,
+    and organizes results by query sequence.
+    """
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
-    if not input_data:
-        return dash.no_update, dash.no_update, dbc.Alert("Please provide input data.", color="danger")
+    if not input_data or not input_data.strip():
+        return dash.no_update, dash.no_update, dbc.Alert(
+            "Please provide input data.", 
+            color="danger"
+        )
 
-    # Parse input as FASTA
-    sequences = []
-    descriptions = []
-    current_desc = None
-    current_seq = []
-    
-    for line in input_data.strip().split("\n"):
-        line = line.strip()
-        if line.startswith(">"):
-            if current_desc and current_seq:
-                sequences.append("".join(current_seq))
-                descriptions.append(current_desc)
-            current_desc = line[1:]
-            current_seq = []
-        elif line:
-            current_seq.append(line)
-    
-    if current_desc and current_seq:
-        sequences.append("".join(current_seq))
-        descriptions.append(current_desc)
-    
-    if not sequences:
-        return dash.no_update, dash.no_update, dbc.Alert("No valid sequences found.", color="danger")
-
-    # Run PLM-Search
     try:
-        runner = PLMSearch()
-        df = runner.align(sequences, descriptions, database, similarity_cutoff)
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"queries AAAAA: {df}")
-        if df is None or df.empty:
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"none: {df.empty} {df}")
-            return dash.no_update, dash.no_update, dbc.Alert("No results found.", color="warning")
+        # 1. Parse FASTA input
+        sequences, descriptions = read_fasta(input_data)
         
+        if not sequences:
+            return dash.no_update, dash.no_update, dbc.Alert(
+                "No valid sequences found.", 
+                color="danger"
+            )
+        
+        # 2. Validate similarity cutoff
+        if not (0.0 <= similarity_cutoff <= 1.0):
+            return dash.no_update, dash.no_update, dbc.Alert(
+                "Similarity cutoff must be between 0.0 and 1.0.", 
+                color="danger"
+            )
+
+        # 3. Initialize msa_data if needed
         if not isinstance(msa_data, dict):
             msa_data = {}
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"queries A: {df['query'].unique()}")
-        n_existing = sum(1 for i in msa_data.keys() if i.startswith("plm_search"))
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"queries AAAAAAAAAAa: {df['query'].unique()}")
-        for query in df['query'].unique():
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"queries a: {query}")
-            new_key = f"plm_search_{query}_{n_existing + 1}"
-            query_df = df[df["query"] == query][["header", "sequence"]]
+        
+        # 4. Execute PLM-Search
+        runner = PLMSearch()
+        df = runner.align(sequences, descriptions, database, similarity_cutoff)
+        
+        if df is None or df.empty:
+            return dash.no_update, dash.no_update, dbc.Alert(
+                "No results found with the given similarity cutoff.", 
+                color="warning"
+            )
+        
+        # 5. Store results organized by query sequence
+        n_existing = sum(1 for key in msa_data.keys() if key.startswith("plm_search"))
+        unique_queries = df["query"].unique()
+        new_keys = []
+        
+        for idx, query in enumerate(unique_queries):
+            query_df = df[df["query"] == query][["header", "sequence"]].copy()
+            new_key = f"plm_search_{query}_{n_existing + idx + 1}"
             msa_data[new_key] = query_df.to_dict("list")
-            n_existing += 1
-            with open("test.txt", "a") as myfile:
-                myfile.write(f"curr {new_key}: {msa_data[new_key]}")
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"Success! Generated {len(df['query'].unique())} new MSAs with {len(df)} results.")
-        msg = f"Success! Generated {len(df['query'].unique())} new MSAs with {len(df)} results."
-        return new_key, msa_data, dbc.Alert(msg, color="success")
+            new_keys.append(new_key)
+        
+        # 6. Set main_msa to first result
+        main_key = new_keys[0] if new_keys else None
+        total_results = len(df)
+        num_queries = len(unique_queries)
+        
+        msg = (
+            f"Found {total_results} results from {num_queries} "
+            f"{'query' if num_queries == 1 else 'queries'}. "
+            f"Generated {len(new_keys)} MSA file(s)."
+        )
+        
+        return main_key, msa_data, dbc.Alert(msg, color="success")
     
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return dash.no_update, dash.no_update, dbc.Alert(f"API Error: {str(e)}", color="danger")
+        error_msg = str(e)
+        return dash.no_update, dash.no_update, dbc.Alert(
+            f"API Error: {error_msg}", 
+            color="danger"
+        )

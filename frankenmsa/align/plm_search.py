@@ -1,8 +1,11 @@
 """
-Simple PLM-Search client wrapped as an MSAFactory-compatible class.
+PLM-Search client for finding similar protein sequences.
 
-This module adapts the code from a notebook into a class that follows
-the `MSAFactory` interface in `base.py`.
+This module provides a class that wraps the PLM-Search API following
+the `MSAFactory` interface defined in `base.py`.
+
+References:
+    https://dmiip.sjtu.edu.cn/PLMSearch
 """
 from pathlib import Path
 import time
@@ -12,80 +15,140 @@ import requests
 import pandas as pd
 
 from . import base
-import sys
-import json
+from ..utils.uniprot import fetch_uniprot_metadata
 
-def fetch_uniprot_metadata(seqids) -> pd.DataFrame:
-  response = requests.get("https://rest.uniprot.org/uniparc/search", headers={"accept": "application/json"}, params={'query': ' OR '.join(seqids),'fields': "sequence", "size": "500"})
-  if not response.ok:
-    response.raise_for_status()
-    sys.exit()
-  response_text = response.text
-  df = make_dataframe_from_response_text(response_text)
-  #df["matched_id"] = df["ids"].apply(lambda ids: next((i for i in ids if i in set(seqids)), pd.NA))
-  return df
+# PLM-Search API endpoints and configuration
+PLM_SEARCH_BASE_URL = "https://dmiip.sjtu.edu.cn/PLMSearch"
+PLM_SEARCH_SUBMIT_URL = f"{PLM_SEARCH_BASE_URL}/submit/"
+PLM_SEARCH_REFRESH_URL_TEMPLATE = f"{PLM_SEARCH_BASE_URL}/refresh/{{query_id}}"
+PLM_SEARCH_DOWNLOAD_URL_TEMPLATE = f"{PLM_SEARCH_BASE_URL}/{{query_id}}/similarity.txt"
 
-def make_dataframe_from_response_text(response_text:str):
-  response_json = json.loads(response_text)["results"]
-  dikts = [{"header":entry["uniParcId"], "sequence":entry["sequence"]["value"]} for entry in response_json]
-  return pd.DataFrame(dikts)
+# Multipart form data boundary
+MULTIPART_BOUNDARY = "------geckoformboundary72c107c29309639fa4b1520bc6e35692"
 
-PLM_SEARCH_URL = "https://dmiip.sjtu.edu.cn/PLMSearch/submit/"
-BOUNDARY = (
-    "------geckoformboundary72c107c29309639fa4b1520bc6e35692"
-)
-HEADERS = {
-    "Referer": 'https://github.com/ibmm-unibe-ch/FrankenMSA/',
-    "Content-Type": 'multipart/form-data; boundary=----geckoformboundary72c107c29309639fa4b1520bc6e35692',
+# HTTP headers for API requests
+REQUEST_HEADERS = {
+    "Referer": "https://github.com/ibmm-unibe-ch/FrankenMSA/",
+    "Content-Type": f"multipart/form-data; boundary={MULTIPART_BOUNDARY}",
 }
 
-def download_with_resume(sess: requests.Session, url: str) -> bytes:
-    #PLM-Search might close connections prematurely, so StackOverflow implemented a simple resume-capable downloader.
-    # https://stackoverflow.com/questions/77873658/python-reading-url-chunkedencodingerror
+# API constants
+DEFAULT_POLL_INTERVAL_SECONDS = 5
+MAX_RETRIES = 10
+CHUNK_SIZE = 8192
+BATCH_SIZE_UNIPROT = 100
+
+def download_with_resume(session: requests.Session, url: str, max_retries: int = MAX_RETRIES) -> bytes:
+    """
+    Download file content with automatic resume on connection errors.
+    
+    PLM-Search may close connections prematurely. This function implements
+    a simple resume-capable downloader that retries and resumes from the
+    last successfully downloaded byte.
+    
+    References:
+        https://stackoverflow.com/questions/77873658/python-reading-url-chunkedencodingerror
+    
+    Parameters
+    ----------
+    session : requests.Session
+        Active requests session for HTTP communication.
+    url : str
+        URL to download from.
+    max_retries : int, optional
+        Maximum number of retry attempts (default: 10).
+    
+    Returns
+    -------
+    bytes
+        Complete file content.
+    
+    Raises
+    ------
+    ValueError
+        If download cannot be completed after max retries or if response
+        status code is unexpected.
+    """
     data = b""
     expected_length = None
-    for attempt in range(10):
+    
+    for attempt in range(max_retries):
+        # Check if download is complete
         if len(data) == expected_length:
             break
+        
+        # Prepare headers for resuming or starting fresh
         if len(data):
             headers = {"Range": f"bytes={len(data)}-"}
             expected_status = 206
         else:
             headers = {}
             expected_status = 200
-        #print(f"{url}: got {len(data)} / {expected_length} bytes...")
-        resp = sess.get(url, stream=True, headers=headers)
-        resp.raise_for_status()
-        if resp.status_code != expected_status:
-            raise ValueError(f"Unexpected status code: {resp.status_code}")
-        if expected_length is None:  # Only update this on the first request
-            content_length = resp.headers.get("Content-Length")
-            if not content_length:
-                raise ValueError("Content-Length header not found")
-            expected_length = int(content_length)
-
+        
+        # Perform request
         try:
-            for chunk in resp.iter_content(chunk_size=8192):
-                data += chunk
-        except requests.exceptions.ChunkedEncodingError:
-            pass
-
+            resp = session.get(url, stream=True, headers=headers)
+            resp.raise_for_status()
+            
+            if resp.status_code != expected_status:
+                raise ValueError(
+                    f"Unexpected HTTP status: {resp.status_code} "
+                    f"(expected {expected_status})"
+                )
+            
+            # Extract expected total length on first request
+            if expected_length is None:
+                content_length = resp.headers.get("Content-Length")
+                if not content_length:
+                    raise ValueError("Content-Length header missing in response")
+                expected_length = int(content_length)
+            
+            # Download chunk by chunk
+            try:
+                for chunk in resp.iter_content(chunk_size=CHUNK_SIZE):
+                    data += chunk
+            except requests.exceptions.ChunkedEncodingError as e:
+                # Continue to retry loop
+                pass
+        
+        except requests.exceptions.RequestException as e:
+            time.sleep(1)  # Brief delay before retry
+    
+    # Final validation
     if len(data) != expected_length:
-        raise ValueError(f"Expected {expected_length} bytes, got {len(data)}")
-
+        raise ValueError(
+            f"Download incomplete: expected {expected_length} bytes, "
+            f"got {len(data)} bytes after {max_retries} attempts"
+        )
+    
     return data
 
 
 class PLMSearch(base.MSAFactory):
     """
-    Minimal PLM-Search client exposing an `align` method.
-
-    The `align` method will submit the sequences to the remote PLM-Search
-    server, wait for results, download the similarity file and return a
-    pandas.DataFrame with responses filtered by `similarity_cutoff`.
+    PLM-Search client for finding similar protein sequences.
+    
+    This class provides an interface to the PLM-Search remote service
+    (https://dmiip.sjtu.edu.cn/PLMSearch), which uses protein language models
+    to find similar sequences in various protein databases.
+    
+    The `align` method follows the `MSAFactory` interface defined in `base.py`.
+    
+    Attributes
+    ----------
+    interval_seconds : int
+        Wait interval (in seconds) between status polling requests.
     """
 
-    def __init__(self, interval_seconds: int = 5):
+    def __init__(self, interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS):
+        """
+        Initialize PLM-Search client.
+        
+        Parameters
+        ----------
+        interval_seconds : int, optional
+            Interval in seconds to wait between status checks (default: 5).
+        """
         super().__init__()
         self.interval_seconds = interval_seconds
 
@@ -97,94 +160,268 @@ class PLMSearch(base.MSAFactory):
         similarity_cutoff: float = 0.3,
     ) -> Optional[pd.DataFrame]:
         """
-        Submit sequences and return similarity results as a DataFrame.
-
+        Submit sequences to PLM-Search and retrieve similar sequences.
+        
+        Submits amino-acid sequences to the remote PLM-Search server,
+        polls for completion, downloads results, and filters by similarity.
+        UniProt metadata is fetched for matching sequences.
+        
         Parameters
         ----------
-        sequences: list of str
-            Amino-acid sequences to query.
-        descriptions: list of str, optional
-            Sequence descriptions/IDs to include in the fasta payload.
-            If omitted, numeric IDs will be generated.
-        database: str
-            Target dataset name for the server.
-        similarity_cutoff: float
-            Minimum similarity threshold to keep rows.
-
+        sequences : list of str
+            Amino-acid sequences to query (e.g., ["MKTAYIAKQ", "AKVISR"]).
+        descriptions : list of str, optional
+            Sequence identifiers/names to include in submission.
+            If None, numeric identifiers (seq1, seq2, ...) are generated.
+        database : str, optional
+            Target database for search (default: "uniref50").
+            Options: "uniref50", "PDB", "Swiss-Prot".
+        similarity_cutoff : float, optional
+            Minimum similarity score to include in results (default: 0.3).
+            Must be in range [0.0, 1.0].
+        
         Returns
         -------
         pd.DataFrame or None
-            Filtered DataFrame containing columns `query`, `response`,
-            `similarity` and `response_sequence`, or `None` on failure.
+            DataFrame with columns ["header", "sequence", "query", ...] from
+            UniProt metadata, or None if submission fails.
+            One row per matching sequence. Returns empty DataFrame if no
+            matches exceed similarity_cutoff.
+        
+        Raises
+        ------
+        ValueError
+            If similarity_cutoff is outside valid range.
         """
+        # Validate inputs
+        if not (0.0 <= similarity_cutoff <= 1.0):
+            raise ValueError(
+                f"similarity_cutoff must be in [0.0, 1.0], got {similarity_cutoff}"
+            )
+        
         if descriptions is None:
-            descriptions = [f"seq{i+1}" for i in range(len(sequences))]
-
+            descriptions = [f"seq{i + 1}" for i in range(len(sequences))]
+        
+        if len(descriptions) != len(sequences):
+            raise ValueError(
+                f"Number of descriptions ({len(descriptions)}) must match "
+                f"number of sequences ({len(sequences)})"
+            )
+        
+        # 1. Submit query to API
         query_id = self._send_post_request(descriptions, sequences, database)
         if not query_id:
             return None
-
-        filename = self._download_similarities(query_id)
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"filename: {filename}\n")
-        if not filename:
+                
+        # 2. Download results file
+        output_file = self._download_similarities(query_id)
+        if not output_file:
+            return None
+        
+        # 3. Parse results and fetch metadata
+        try:
+            df = self._parse_and_enrich_results(
+                output_file, similarity_cutoff
+            )
+            self.msa = df
+            return df
+        except Exception as e:
             return None
 
-        df = self._make_results(Path(filename), similarity_cutoff)
-        self.msa = df
-        return df
+    def _build_multipart_payload(
+        self, descriptions: List[str], sequences: List[str], database: str
+    ) -> str:
+        """
+        Build multipart form data payload for API submission.
+        
+        Parameters
+        ----------
+        descriptions : list of str
+            Sequence identifiers.
+        sequences : list of str
+            Sequence data.
+        database : str
+            Target database name.
+        
+        Returns
+        -------
+        str
+            Formatted multipart form data.
+        """
+        # Build FASTA section
+        fasta_lines = []
+        for desc, seq in zip(descriptions, sequences):
+            fasta_lines.append(f">{desc}")
+            fasta_lines.append(seq)
+        fasta_content = "\r\n".join(fasta_lines)
+        
+        # Build complete payload
+        parts = [
+            f"--{MULTIPART_BOUNDARY}",
+            'Content-Disposition: form-data; name="fasta"',
+            "",
+            fasta_content,
+            f"--{MULTIPART_BOUNDARY}",
+            'Content-Disposition: form-data; name="file"; filename=""',
+            "Content-Type: application/octet-stream",
+            "",
+            "",
+            f"--{MULTIPART_BOUNDARY}",
+            'Content-Disposition: form-data; name="target_dataset"',
+            "",
+            database,
+            f"--{MULTIPART_BOUNDARY}",
+            'Content-Disposition: form-data; name="model"',
+            "",
+            "plmsearch",
+            f"--{MULTIPART_BOUNDARY}--",
+            "",
+        ]
+        
+        return "\r\n".join(parts)
 
-    def _send_post_request(self, descriptions: List[str], sequences: List[str], database: str = "uniref50") -> Optional[str]:
-        sequence_data = ""
-        for description, sequence in zip(descriptions, sequences):
-            sequence_data = f"{sequence_data}\r\n>{description}\r\n{sequence}"
-        data =f"{BOUNDARY}\r\nContent-Disposition: form-data; name=\"fasta\"\r\n{sequence_data}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\"\r\nContent-Type: application/octet-stream\r\n\r\n\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"target_dataset\"\r\n\r\n{database}\r\n{BOUNDARY}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nplmsearch\r\n{BOUNDARY}--\r\n"   
+    def _send_post_request(
+        self, descriptions: List[str], sequences: List[str], database: str
+    ) -> Optional[str]:
+        """
+        Submit sequences to PLM-Search API.
+        
+        Parameters
+        ----------
+        descriptions : list of str
+            Sequence identifiers.
+        sequences : list of str
+            Sequence data.
+        database : str
+            Target database name.
+        
+        Returns
+        -------
+        str or None
+            Query ID if successful, None otherwise.
+        """
         try:
-            response = requests.post(PLM_SEARCH_URL, headers=HEADERS, data=data)
+            payload = self._build_multipart_payload(descriptions, sequences, database)
+            
+            response = requests.post(
+                PLM_SEARCH_SUBMIT_URL,
+                headers=REQUEST_HEADERS,
+                data=payload
+            )
             response.raise_for_status()
-            # extract query id from response body
-            query_id = response.text.split("https://dmiip.sjtu.edu.cn/PLMSearch/refresh/", 1)[1].split('"')[0]
-            return query_id
+            
+            # Extract query ID from response
+            # Response contains: ...https://dmiip.sjtu.edu.cn/PLMSearch/refresh/{QUERY_ID}"...
+            try:
+                query_id = (
+                    response.text
+                    .split(f"{PLM_SEARCH_BASE_URL}/refresh/", 1)[1]
+                    .split('"')[0]
+                )
+                if not query_id:
+                    raise ValueError("Empty query ID extracted")
+                return query_id
+            except (IndexError, ValueError) as e:
+                return None
+        
         except requests.exceptions.RequestException as e:
+
             print(f"An error occurred: {e}")
 
     def _download_similarities(self, query_id: str) -> Optional[Path]:
-        refresh_url = f"https://dmiip.sjtu.edu.cn/PLMSearch/refresh/{query_id}"
-        download_url = f"https://dmiip.sjtu.edu.cn/PLMSearch/{query_id}/similarity.txt"
-        output_filename = Path(f"{query_id}_similarity.txt")
-        waiting = True
-        while waiting:
+        """
+        Poll for completion and download similarity results.
+        
+        Periodically checks the query status via the refresh endpoint
+        until completion, then downloads the similarity.txt file.
+        
+        Parameters
+        ----------
+        query_id : str
+            Query identifier from API submission.
+        
+        Returns
+        -------
+        Path or None
+            Path to downloaded similarity.txt file, or None if failed.
+        """
+        refresh_url = PLM_SEARCH_REFRESH_URL_TEMPLATE.format(query_id=query_id)
+        download_url = PLM_SEARCH_DOWNLOAD_URL_TEMPLATE.format(query_id=query_id)
+        output_file = Path(f"{query_id}_similarity.txt")        
+        # Poll until done
+        max_wait_time = 3600  # 1 hour timeout
+        elapsed = 0
+        while elapsed < max_wait_time:
             try:
-                response = requests.get(refresh_url)
+                response = requests.get(refresh_url, timeout=10)
                 response.raise_for_status()
+                
                 if "Done" in response.text:
-                    waiting = False
-                else:
-                    time.sleep(self.interval_seconds)
-            except requests.exceptions.RequestException:
+                    break
+                
                 time.sleep(self.interval_seconds)
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}.")
-        with open("test.txt", "a") as myfile:
-            myfile.write(f"download {download_url}\n")
-        with requests.Session() as sess:
-            data = download_with_resume(sess,url=download_url)
-            with open(output_filename, "wb") as f:
-                f.write(data)
-            return output_filename
+                elapsed += self.interval_seconds
+            
+            except requests.exceptions.RequestException as e:
+                time.sleep(self.interval_seconds)
+                elapsed += self.interval_seconds
+        
+        if elapsed >= max_wait_time:
+            return None
+        
+        # Download file with resume capability
+        try:
+            with requests.Session() as session:
+                data = download_with_resume(session, download_url)
+                with open(output_file, "wb") as f:
+                    f.write(data)
+                return output_file
+        
+        except Exception as e:
+            return None
 
-    def _make_results(self, output_filepath: Path, similarity_cutoff: float = 0.3) -> pd.DataFrame:
-        df = pd.read_csv(output_filepath, sep="\t", names=["query", "response", "similarity"])
+    def _parse_and_enrich_results(
+        self, filepath: Path, similarity_cutoff: float
+    ) -> pd.DataFrame:
+        """
+        Parse similarity file and enrich with UniProt metadata.
+        
+        Parameters
+        ----------
+        filepath : Path
+            Path to similarity.txt file from API.
+        similarity_cutoff : float
+            Minimum similarity to include.
+        
+        Returns
+        -------
+        pd.DataFrame
+            Enriched results with UniProt metadata.
+        """
+        # Parse similarity file
+        df = pd.read_csv(
+            filepath,
+            sep="\t",
+            names=["query", "response", "similarity"]
+        )        
+        # Filter by cutoff
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
+        
+        if valid_df.empty:
+            return pd.DataFrame()
+        
+        # Enrich with UniProt metadata in batches
         dfs = []
         for query in valid_df["query"].unique():
-            seqids = valid_df.loc[valid_df["query"] == query, "response"].to_list()
-            for i in range(0, len(seqids), 100):
-                with open("test.txt", "a") as myfile:
-                    myfile.write(f"working on {i}: {seqids[i:i + 100]}")
-                seqids_chunk = seqids[i:i + 100]
-                curr_df = fetch_uniprot_metadata(seqids_chunk)
-                curr_df["query"] = query
-                dfs.append(curr_df)
-        return pd.concat(dfs, ignore_index=True)
+            seqids = valid_df.loc[valid_df["query"] == query, "response"].tolist()
+            
+            for i in range(0, len(seqids), BATCH_SIZE_UNIPROT):
+                batch = seqids[i : i + BATCH_SIZE_UNIPROT]
+                metadata_df = fetch_uniprot_metadata(batch)
+                metadata_df["query"] = query
+                dfs.append(metadata_df)
+        if not dfs:
+            return pd.DataFrame()
+        result = pd.concat(dfs, ignore_index=True)
+        return result
         

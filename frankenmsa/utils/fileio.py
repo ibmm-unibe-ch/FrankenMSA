@@ -3,7 +3,6 @@ Functions to read and write files.
 """
 
 import pandas as pd
-import numpy as np
 from typing import Tuple
 
 
@@ -193,6 +192,44 @@ def decode_a3m(a3m_str: str) -> pd.DataFrame:
 
     return pd.DataFrame({"header": headers, "sequence": sequences})
 
+def parse_fasta(input_text: str) -> tuple[list[str], list[str]]:
+    """
+    Parse FASTA format text and return sequences and descriptions.
+    
+    Parameters
+    ----------
+    input_text : str
+        Input text in FASTA format or plain sequence format.
+    
+    Returns
+    -------
+    tuple[list[str], list[str]]
+        Tuple of (sequences, descriptions).
+    """
+    sequences = []
+    descriptions = []
+    current_desc = None
+    current_seq = []
+    
+    for line in input_text.strip().split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith(">"):
+            if current_desc and current_seq:
+                sequences.append("".join(current_seq))
+                descriptions.append(current_desc)
+            current_desc = line[1:]
+            current_seq = []
+        else:
+            current_seq.append(line)
+    
+    # Add last sequence if exists
+    if current_desc and current_seq:
+        sequences.append("".join(current_seq))
+        descriptions.append(current_desc)
+    
+    return sequences, descriptions
 
 __all__ = [
     "read_a3m",
@@ -200,4 +237,5 @@ __all__ = [
     "write_a3m",
     "encode_a3m",
     "decode_a3m",
+    "read_fasta",
 ]
