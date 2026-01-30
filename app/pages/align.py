@@ -258,37 +258,7 @@ def mmseqs_colab_layout():
                     "alignItems": "start" 
                 }
             ),
-
-            # 5b. Max sequences slider
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.P("Max sequences per query", style={"fontWeight": "bold", "marginBottom": "10px"}),
-                            dcc.Slider(
-                                id="plm-max-sequences",
-                                min=1,
-                                max=1000,
-                                step=1,
-                                value=200,
-                                marks={1: "1", 200: "200", 500: "500", 1000: "1000"},
-                                tooltip={"placement": "bottom", "always_visible": False},
-                            ),
-                            html.Small(
-                                "Maximum number of similar sequences to return per query.",
-                                className="text-muted",
-                                style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
-                            ),
-                        ],
-                        width=12,
-                        style={"textAlign": "center"}
-                    )
-                ],
-                className="g-0",
-                style={"marginTop": "15px", "marginBottom": "15px", "width": "80%", "marginLeft": "auto", "marginRight": "auto"}
-            ),
-
-            # 6. Run Button
+            # 5. Run Button
             html.Button(
                 "Run MMseqs2",
                 id="mmseqs-run-button",
@@ -306,7 +276,7 @@ def mmseqs_colab_layout():
                 style={"marginTop": "10px", "marginBottom": "5px"}
             ),
             
-            # 7. Output / Status
+            # 6. Output / Status
             dcc.Loading(
                 html.Div(id="mmseqs-output", className="output-component", style={"marginTop": "10px", "width": "80%", "marginLeft": "auto", "marginRight": "auto"}),
                 type="dot",
@@ -378,7 +348,7 @@ def plm_search_layout():
                                 persistence_type="memory",
                             ),
                         ],
-                        width=6, 
+                        width=4, 
                         style={"textAlign": "center", "paddingRight": "20px"}
                     ),
 
@@ -402,9 +372,30 @@ def plm_search_layout():
                                 style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
                             ),
                         ],
-                        width=6,
+                        width=4,
                         style={"textAlign": "center", "borderLeft": "1px solid #ddd", "paddingLeft": "20px"}
                     ),
+                    dbc.Col(
+                        [
+                            html.P("Max sequences per query", style={"fontWeight": "bold", "marginBottom": "10px"}),
+                            dcc.Slider(
+                                id="plm-max-sequences",
+                                min=1,
+                                max=1000,
+                                step=1,
+                                value=200,
+                                marks={1: "1", 200: "200", 500: "500", 1000: "1000"},
+                                tooltip={"placement": "bottom", "always_visible": False},
+                            ),
+                            html.Small(
+                                "Maximum number of similar sequences to return per query.",
+                                className="text-muted",
+                                style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
+                            ),
+                        ],
+                        width=4,
+                        style={"textAlign": "center", "borderLeft": "1px solid #ddd", "paddingLeft": "20px"}
+                    )
                 ],
                 className="g-0", 
                 style={
