@@ -297,8 +297,9 @@ def plm_search_layout():
             html.Div([
                 html.Span("Find similar sequences using "),
                 html.A("PLM-Search", href="https://www.nature.com/articles/s41467-024-46808-5", target="_blank"),
-                html.Span("."),
-            ], style={"marginBottom": "20px", "fontSize": "1.1rem"}),
+                html.Span(". Please cite the paper if you use this feature. \n"),
+                html.Span("Downloading sequences might take some time, we advise to use sensible cutoffs for similarity or max sequences per query."),
+            ], style={"marginBottom": "20px", "fontSize": "1.1rem", "whiteSpace": "normal", "overflowWrap": "break-word", "wordBreak": "break-word"}),
 
             # 3. Instructions Section
             html.Div([
@@ -347,6 +348,11 @@ def plm_search_layout():
                                 persistence=True,
                                 persistence_type="memory",
                             ),
+                        html.Small(
+                                "Which PLM-Search database to query.",
+                                className="text-muted",
+                                style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
+                            ),
                         ],
                         width=4, 
                         style={"textAlign": "center", "paddingRight": "20px"}
@@ -364,7 +370,7 @@ def plm_search_layout():
                                 value=0.9,
                                 persistence=True,
                                 persistence_type="memory",
-                                style={"width": "100%"}
+                                style={"width": "80%"}
                             ),
                             html.Small(
                                 "Minimum similarity to include in results.",
@@ -384,11 +390,13 @@ def plm_search_layout():
                                 max=1000,
                                 step=1,
                                 value=200,
-                                marks={1: "1", 200: "200", 500: "500", 1000: "1000"},
+                                persistence=True,
+                                persistence_type="memory",
+                                marks={1: "1", 200: "200", 500: "500", 700: "700",  1000: "1000"},
                                 tooltip={"placement": "bottom", "always_visible": False},
                             ),
                             html.Small(
-                                "Maximum number of similar sequences to return per query.",
+                                "Max number of similar sequences to return per query.",
                                 className="text-muted",
                                 style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
                             ),
