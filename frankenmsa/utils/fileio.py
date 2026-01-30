@@ -192,7 +192,7 @@ def decode_a3m(a3m_str: str) -> pd.DataFrame:
 
     return pd.DataFrame({"header": headers, "sequence": sequences})
 
-def parse_fasta(input_text: str) -> tuple[list[str], list[str]]:
+def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
     """
     Parse FASTA format text and return sequences and descriptions.
     
