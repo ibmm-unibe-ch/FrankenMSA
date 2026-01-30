@@ -157,7 +157,8 @@ class PLMSearch(base.MSAFactory):
         sequences: List[str],
         descriptions: Optional[List[str]] = None,
         database: str = "uniref50",
-        similarity_cutoff: float = 0.3,
+        similarity_cutoff: float = 0.9,
+        max_sequences: int = 200,
     ) -> Optional[pd.DataFrame]:
         """
         Submit sequences to PLM-Search and retrieve similar sequences.
@@ -176,9 +177,13 @@ class PLMSearch(base.MSAFactory):
         database : str, optional
             Target database for search (default: "uniref50").
             Options: "uniref50", "PDB", "Swiss-Prot".
-        similarity_cutoff : float, optional
+            similarity_cutoff : float, optional
             Minimum similarity score to include in results (default: 0.3).
             Must be in range [0.0, 1.0].
+        max_sequences : int, optional
+            Maximum number of matching sequences to return per query
+            (default: 200). The limit is applied per input sequence,
+            not globally across all queries.
         
         Returns
         -------
@@ -221,7 +226,7 @@ class PLMSearch(base.MSAFactory):
         # 3. Parse results and fetch metadata
         try:
             df = self._parse_and_enrich_results(
-                output_file, similarity_cutoff
+                output_file, similarity_cutoff, max_sequences
             )
             self.msa = df
             return df
@@ -381,7 +386,7 @@ class PLMSearch(base.MSAFactory):
             return None
 
     def _parse_and_enrich_results(
-        self, filepath: Path, similarity_cutoff: float
+        self, filepath: Path, similarity_cutoff: float, max_sequences: int 
     ) -> pd.DataFrame:
         """
         Parse similarity file and enrich with UniProt metadata.
@@ -403,25 +408,33 @@ class PLMSearch(base.MSAFactory):
             filepath,
             sep="\t",
             names=["query", "response", "similarity"]
-        )        
-        # Filter by cutoff
+        )
+
+        # Keep only rows that meet similarity cutoff
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
-        
+
         if valid_df.empty:
             return pd.DataFrame()
-        
-        # Enrich with UniProt metadata in batches
+
+        # Enrich with UniProt metadata in batches, limiting results per query
         dfs = []
         for query in valid_df["query"].unique():
-            seqids = valid_df.loc[valid_df["query"] == query, "response"].tolist()
-            
+            group = (
+                valid_df[valid_df["query"] == query]
+                .sort_values(by="similarity", ascending=False)
+                .head(max_sequences)
+            )
+            seqids = group["response"].tolist()
+
             for i in range(0, len(seqids), BATCH_SIZE_UNIPROT):
                 batch = seqids[i : i + BATCH_SIZE_UNIPROT]
                 metadata_df = fetch_uniprot_metadata(batch)
                 metadata_df["query"] = query
                 dfs.append(metadata_df)
+
         if not dfs:
             return pd.DataFrame()
+
         result = pd.concat(dfs, ignore_index=True)
         return result
         

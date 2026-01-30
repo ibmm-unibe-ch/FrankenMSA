@@ -259,6 +259,35 @@ def mmseqs_colab_layout():
                 }
             ),
 
+            # 5b. Max sequences slider
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.P("Max sequences per query", style={"fontWeight": "bold", "marginBottom": "10px"}),
+                            dcc.Slider(
+                                id="plm-max-sequences",
+                                min=1,
+                                max=1000,
+                                step=1,
+                                value=200,
+                                marks={1: "1", 200: "200", 500: "500", 1000: "1000"},
+                                tooltip={"placement": "bottom", "always_visible": False},
+                            ),
+                            html.Small(
+                                "Maximum number of similar sequences to return per query.",
+                                className="text-muted",
+                                style={"display": "block", "marginTop": "8px", "fontSize": "0.85rem"}
+                            ),
+                        ],
+                        width=12,
+                        style={"textAlign": "center"}
+                    )
+                ],
+                className="g-0",
+                style={"marginTop": "15px", "marginBottom": "15px", "width": "80%", "marginLeft": "auto", "marginRight": "auto"}
+            ),
+
             # 6. Run Button
             html.Button(
                 "Run MMseqs2",
@@ -362,7 +391,7 @@ def plm_search_layout():
                                 min=0.0,
                                 max=1.0,
                                 step=0.05,
-                                value=0.3,
+                                value=0.9,
                                 persistence=True,
                                 persistence_type="memory",
                                 style={"width": "100%"}
@@ -542,10 +571,11 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
     State("plm-input", "value"),
     State("plm-database", "value"),
     State("plm-similarity-cutoff", "value"),
+    State("plm-max-sequences", "value"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
+def run_plm_search(n_clicks, input_data, database, similarity_cutoff, max_sequences, msa_data):
     """
     Execute PLM-Search query and store results in msa_data.
     
@@ -584,7 +614,7 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, msa_data):
         
         # 4. Execute PLM-Search
         runner = PLMSearch()
-        df = runner.align(sequences, descriptions, database, similarity_cutoff)
+        df = runner.align(sequences, descriptions, database, similarity_cutoff, max_sequences)
         
         if df is None or df.empty:
             return dash.no_update, dash.no_update, dbc.Alert(
