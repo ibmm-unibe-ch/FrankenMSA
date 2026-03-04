@@ -3,9 +3,9 @@ from dash import html, dcc
 from dash import callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import base64, re
-import os, tempfile
+import os
 from pathlib import Path
-from ..helpers.constants import COLAB_LINK, ON_COLAB, UPLOAD_DIR
+from helpers.constants import COLAB_LINK, ON_COLAB, UPLOAD_DIR
 
 dash.register_page(
     __name__,
