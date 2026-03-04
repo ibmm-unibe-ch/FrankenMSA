@@ -23,26 +23,6 @@ def layout():
                     ),
                     dbc.Col(
                         [
-                            dbc.Row(
-                                dbc.Col(
-                                    [
-                                        html.Label(
-                                            "Encoding",
-                                            style={"fontWeight": "600", "marginRight": "8px"},
-                                        ),
-                                        dbc.RadioItems(
-                                            id="visualise-encoding",
-                                            options=[
-                                                {"label": "onehot", "value": "onehot"},
-                                                {"label": "esm", "value": "esm"},
-                                            ],
-                                            value="onehot",
-                                            inline=True,
-                                        ),
-                                    ],
-                                    style={"display": "flex", "alignItems": "center", "gap": "8px", "padding": "8px 0"},
-                                ),
-                            ),
                             dcc.Loading(
                                 html.Div(
                                     id="cluster-visual-container",
@@ -577,9 +557,9 @@ def run_afcluster(
     Output("cluster-visual-container", "children"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
-    State("visualise-encoding", "value"),
+    #State("visualise-encoding", "value"),
 )
-def visualise_clusters(msa_data, main_msa, encoding):
+def visualise_clusters(msa_data, main_msa, encoding=None):
     if not msa_data or not main_msa:
         return no_msa_yet()
     df = pd.DataFrame.from_dict(msa_data[main_msa])
