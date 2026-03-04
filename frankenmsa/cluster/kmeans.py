@@ -5,7 +5,7 @@ Cluster an MSA using KMeans
 from typing import List, Union
 import pandas as pd
 from sklearn.cluster import KMeans as SKLearnKMeans
-from ..utils import seqtools
+from ..utils.seqtools import get_encoding_func
 from .base import BaseClusterer, CLUSTER_ID_COL
 
 
@@ -56,7 +56,7 @@ class KMeans(BaseClusterer):
         sequences: Union[List[str], pd.DataFrame, pd.Series],
         n_clusters: int = 10,
         columns: List[str] = None,
-        sequence_encoding: str = "onehot",
+        encoding: str = "onehot",
         *args,
         **kwargs,
     ) -> pd.DataFrame:
@@ -86,9 +86,7 @@ class KMeans(BaseClusterer):
         # Precheck data
         msa = self._precheck_data(sequences)
 
-        encoding_func = getattr(seqtools.sequence_encodings, sequence_encoding, None)
-        if encoding_func is None:
-            raise ValueError(f"Unknown sequence encoding method: {sequence_encoding}")
+        encoding_func = get_encoding_func(sequence_encoding)
 
         encoded_sequences = encoding_func(msa["sequence"])
         if encoded_sequences.ndim > 2:

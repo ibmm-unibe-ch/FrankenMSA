@@ -2,12 +2,7 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
-import requests
-import time
 import pandas as pd
-import tarfile
-from io import BytesIO
-import string
 
 from frankenmsa.align.plm_search import PLMSearch
 from frankenmsa.utils.fileio import read_fasta
@@ -15,109 +10,6 @@ from frankenmsa.utils.fileio import read_fasta
 dash.register_page(
     __name__,
 )
-
-# =============================================================================
-#  Local Backend Logic
-# =============================================================================
-class LocalMMSeqs2Colab:
-    def __init__(self):
-        self.base_url = "https://api.colabfold.com"
-
-    def align(self, sequence_str, pairing_mode):
-        lengths = []
-        header_line = None
-        
-        if ":" in sequence_str:
-            parts = sequence_str.split(":")
-            lengths = [len(p.strip()) for p in parts if p.strip()]
-            cardinalities = ["1"] * len(lengths)
-            header_line = f"#{','.join(map(str, lengths))}\t{','.join(cardinalities)}"
-        else:
-            lengths = [len(sequence_str.strip())]
-            header_line = None
-
-        query = f">101\n{sequence_str}\n"
-        
-        if pairing_mode == "greedy":
-            api_mode = "pairgreedy"
-        elif pairing_mode == "complete":
-            api_mode = "paircomplete"
-        else:
-            api_mode = "pairgreedy"
-
-        print(f"[DEBUG] Submitting to API. Mode: {api_mode}")
-
-        post_url = f"{self.base_url}/ticket/pair"
-        data = {"q": query, "mode": api_mode}
-
-        resp = requests.post(post_url, data=data)
-        resp.raise_for_status()
-        job_id = resp.json()['id']
-        print(f"[DEBUG] Job ID: {job_id}")
-
-        status = "PENDING"
-        while status in ["PENDING", "RUNNING"]:
-            time.sleep(3)
-            status_resp = requests.get(f"{self.base_url}/ticket/{job_id}")
-            status_resp.raise_for_status()
-            status = status_resp.json()['status']
-            print(f"[DEBUG] Status: {status}")
-        
-        if status == "ERROR":
-            raise Exception("ColabFold API returned ERROR status.")
-
-        download_url = f"{self.base_url}/result/download/{job_id}"
-        print(f"[DEBUG] Downloading from: {download_url}")
-        
-        res = requests.get(download_url)
-        res.raise_for_status()
-
-        final_df = pd.DataFrame()
-        
-        with tarfile.open(fileobj=BytesIO(res.content), mode="r:gz") as tar:
-            found = False
-            for member in tar.getmembers():
-                if "pair.a3m" in member.name:
-                    found = True
-                    f = tar.extractfile(member)
-                    content = f.read().decode("utf-8")
-                    
-                    headers = []
-                    seqs = []
-                    
-                    current_header = None
-                    current_seq = []
-                    
-                    for line in content.splitlines():
-                        line = line.strip()
-                        if not line: continue
-                        if line.startswith("#"): continue
-                        
-                        if line.startswith(">"):
-                            if current_header:
-                                headers.append(current_header)
-                                seqs.append("".join(current_seq))
-                            current_header = line.lstrip(">")
-                            current_seq = []
-                        else:
-                            current_seq.append(line)
-                    
-                    if current_header:
-                        headers.append(current_header)
-                        seqs.append("".join(current_seq))
-                        
-                    if len(lengths) > 1 and len(headers) > 0:
-                        new_ids = [str(101 + i) for i in range(len(lengths))]
-                        headers[0] = "\t".join(new_ids)
-
-                    final_df = pd.DataFrame({"header": headers, "sequence": seqs})
-                    break
-            
-            if not found:
-                 raise Exception("API finished but pair.a3m was not found in the result.")
-
-        return final_df, header_line, lengths
-
 
 # =============================================================================
 #  UI Layout
@@ -499,6 +391,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
         chain_lengths = []
         
         if is_multimer:
+            from frankenmsa.align import LocalMMSeqs2Colab
             runner = LocalMMSeqs2Colab()
             msa_df, header_str, chain_lengths = runner.align(full_sequence, pairing_mode)
             multimer_header_str = header_str
@@ -524,35 +417,11 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
         msa_data[new_main_key] = data_dict
         
         # 5. Handle multimer chain splitting
-        split_msg = ""
         if is_multimer and chain_lengths:
-            start = 0
-            split_keys = []
-            alphabet = string.ascii_uppercase
-            
-            for i, length in enumerate(chain_lengths):
-                end = start + length
-                chain_seqs = [s[start:end] for s in msa_df["sequence"]]
-                
-                # Update header for split file: first header becomes chain index
-                new_headers = list(msa_df["header"])
-                if len(new_headers) > 0:
-                    new_headers[0] = str(101 + i)
-                
-                chain_df = pd.DataFrame({
-                    "header": new_headers, 
-                    "sequence": chain_seqs
-                })
-                
-                chain_suffix = alphabet[i] if i < 26 else str(i+1)
-                split_key = f"{new_main_key}_chain{chain_suffix}"
-                
-                msa_data[split_key] = chain_df.to_dict("list")
-                split_keys.append(split_key)
-                start = end
-            
-            split_msg = f" Also generated split files: {', '.join(split_keys)}."
-
+            from frankenmsa.utils.seqtools import multimer_chain_splitting
+            split_msg, msa_data = multimer_chain_splitting(msa_df,chain_lengths, new_main_key)
+        else:
+            split_msg = ""
         msg = f"Success! Generated {new_main_key}.{split_msg}"
         return new_main_key, msa_data, dbc.Alert(msg, color="success")
 

@@ -23,6 +23,26 @@ def layout():
                     ),
                     dbc.Col(
                         [
+                            dbc.Row(
+                                dbc.Col(
+                                    [
+                                        html.Label(
+                                            "Encoding",
+                                            style={"fontWeight": "600", "marginRight": "8px"},
+                                        ),
+                                        dbc.RadioItems(
+                                            id="visualise-encoding",
+                                            options=[
+                                                {"label": "onehot", "value": "onehot"},
+                                                {"label": "esm", "value": "esm"},
+                                            ],
+                                            value="onehot",
+                                            inline=True,
+                                        ),
+                                    ],
+                                    style={"display": "flex", "alignItems": "center", "gap": "8px", "padding": "8px 0"},
+                                ),
+                            ),
                             dcc.Loading(
                                 html.Div(
                                     id="cluster-visual-container",
@@ -557,8 +577,9 @@ def run_afcluster(
     Output("cluster-visual-container", "children"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
+    State("visualise-encoding", "value"),
 )
-def visualise_clusters(msa_data, main_msa):
+def visualise_clusters(msa_data, main_msa, encoding):
     if not msa_data or not main_msa:
         return no_msa_yet()
     df = pd.DataFrame.from_dict(msa_data[main_msa])
@@ -572,6 +593,7 @@ def visualise_clusters(msa_data, main_msa):
             graph_id="pca-af",
             title="PCA of AFCluster Clusters",
             color_col="cluster_id",
+            encoding=encoding,
         )
     )
 
@@ -582,6 +604,7 @@ def visualise_clusters(msa_data, main_msa):
                 graph_id="pca-ward",
                 title="PCA of Ward-merged Clusters",
                 color_col="ward_id",
+                encoding=encoding,
             )
         )
 
@@ -595,44 +618,18 @@ def visualise_clusters(msa_data, main_msa):
     State("main-msa", "data"),
     prevent_initial_call=True,
 )
-def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa):
-    if not (n_clicks or 0) > 0:
+def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa, encoding):
+    if (not (n_clicks or 0) > 0) or (not msa_data or not main_msa) or (n_clusters is None or n_clusters < 1):
         return dash.no_update
-    if not msa_data or not main_msa:
-        return dash.no_update
-
-    import numpy as np
-    from sklearn.cluster import AgglomerativeClustering
-    from afcluster.af_cluster import _seqs_to_onehot
-
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    if "cluster_id" not in df.columns:
+    
+    from frankenmsa.cluster.ward import ward_linking
+
+    linked = ward_linking(df, n_clusters, encoding)
+    if linked is None:
         return dash.no_update
-
-    seq_len = len(df.iloc[0]["sequence"]) if len(df) else 0
-    if seq_len == 0:
-        return dash.no_update
-
-    centroids = []
-    cluster_keys = []
-    for cid, sub in df.groupby("cluster_id"):
-        X = _seqs_to_onehot(sub["sequence"].values, max_len=seq_len)
-        centroids.append(X.mean(axis=0))
-        cluster_keys.append(cid)
-    centroids = np.vstack(centroids)
-
-    if n_clusters is None or n_clusters < 1:
-        return dash.no_update
-
-    model = AgglomerativeClustering(n_clusters=int(n_clusters), linkage="ward")
-    ward_labels = model.fit_predict(centroids)
-
-    cid_to_wid = {cid: int(w) for cid, w in zip(cluster_keys, ward_labels)}
-    df["ward_id"] = df["cluster_id"].map(cid_to_wid)
-
-    msa_data[main_msa] = df.to_dict("list")
+    msa_data[main_msa] = linked
     return msa_data
-
 
 @callback(
     Output("ward-clusters-to-save-dropdown", "options"),
@@ -651,36 +648,13 @@ def update_ward_clusters_to_save_options(msa_data, main_msa):
     return options
 
 
-def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id"):
-    from sklearn.decomposition import PCA
-    from afcluster.af_cluster import _seqs_to_onehot
+def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id", encoding=None):
     import plotly.express as px
+    from frankenmsa.visual.dimension_reduction import compute_PCA
 
-    df = msa.copy()
-
-    # separate query row (first row) if present
-    query = df.iloc[:1]
-    rest = df.iloc[1:]
-
-    seq_len = (
-        len(query["sequence"].values[0])
-        if len(query)
-        else len(rest.iloc[0]["sequence"]) if len(rest) else 0
-    )
-    if seq_len == 0:
+    rest, query = compute_PCA(msa, encoding)
+    if rest is None:
         return dcc.Graph(id=graph_id)
-
-    rest_onehot = _seqs_to_onehot(rest["sequence"].values, max_len=seq_len)
-
-    pca = PCA(n_components=2, random_state=42)
-    embedding = pca.fit_transform(rest_onehot)
-    rest = rest.assign(**{"PC 1": embedding[:, 0], "PC 2": embedding[:, 1]})
-
-    # project query point with the same PCA
-    if len(query):
-        q_onehot = _seqs_to_onehot(query["sequence"].values, max_len=seq_len)
-        q_embed = pca.transform(q_onehot)
-        query = query.assign(**{"PC 1": q_embed[:, 0], "PC 2": q_embed[:, 1]})
 
     fig = px.scatter(
         rest,
@@ -838,6 +812,24 @@ def kmeans_controls(_):
         placement="top",
     )
 
+    encoding_label = html.Label("Encoding")
+    encoding_selector = dbc.RadioItems(
+        id="kmeans-encoding",
+        options=[
+            {"label": "onehot", "value": "onehot"},
+            {"label": "esm", "value": "esm"},
+        ],
+        value="onehot",
+        inline=True,
+        persistence=True,
+        persistence_type="memory",
+    )
+    encoding_tooltip = dbc.Tooltip(
+        "Encoding to use for sequence representation during clustering.",
+        target="kmeans-encoding",
+        placement="bottom",
+    )
+
     top_row = dbc.Row(
         [
             dbc.Col(
@@ -845,6 +837,14 @@ def kmeans_controls(_):
                     n_clusters_tooltip,
                     n_clusters_label,
                     n_clusters,
+                ],
+                width="auto",
+            ),
+            dbc.Col(
+                [
+                    encoding_tooltip,
+                    encoding_label,
+                    encoding_selector,
                 ],
                 width="auto",
             ),
@@ -898,6 +898,7 @@ def update_kmeans_other_columns_options(msa_data, main_msa):
     Input("run-kmeans-button", "n_clicks"),
     State("kmeans-n-clusters", "value"),
     State("kmeans-other-columns", "value"),
+    State("kmeans-encoding", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
@@ -906,6 +907,7 @@ def run_kmeans(
     n_clicks,
     n_clusters,
     columns_to_include,
+    encoding,
     main_msa,
     msa_data,
 ):
@@ -926,6 +928,7 @@ def run_kmeans(
         msa,
         n_clusters=n_clusters,
         columns=(columns_to_include or None),
+        encoding=encoding,
     )
 
     msa_data[main_msa] = msa.to_dict("list")
