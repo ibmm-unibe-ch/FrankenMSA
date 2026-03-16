@@ -57,8 +57,8 @@ def layout():
                                             ),
                                             dbc.Col(
                                                 html.Button(
-                                                    "Save Selected Clusters",
-                                                    id="save-selected-clusters-button",
+                                                    "Save AFCluster",
+                                                    id="save-afcluster-button",
                                                     className="button-component",
                                                     n_clicks=0,
                                                     style={
@@ -105,8 +105,56 @@ def layout():
                                             ),
                                             dbc.Col(
                                                 html.Button(
-                                                    "Save Ward Clusters",
+                                                    "Save Ward",
                                                     id="save-ward-selected-clusters-button",
+                                                    className="button-component",
+                                                    n_clicks=0,
+                                                    style={
+                                                        "height": "44px",
+                                                        "lineHeight": "44px",
+                                                        "alignSelf": "center",
+                                                        "padding": "0 18px",
+                                                        "width": "240px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
+                                                ),
+                                                width="auto",
+                                            ),
+                                        ],
+                                        style={
+                                            "alignItems": "center",
+                                            "justifyContent": "center",
+                                            "display": "flex",
+                                            "gap": "8px",
+                                            "marginTop": "4px",
+                                            "marginBottom": "4px",
+                                        },
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="kmeans-clusters-to-save-dropdown",
+                                                    options=[],
+                                                    value=[],
+                                                    multi=True,
+                                                    className="dropdown-component",
+                                                    placeholder="Select kmeans clusters to save",
+                                                    style={
+                                                        "height": "44px",
+                                                        "alignSelf": "center",
+                                                        "width": "280px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
+                                                ),
+                                                width=True,
+                                            ),
+                                            dbc.Col(
+                                                html.Button(
+                                                    "Save KMeans",
+                                                    id="save-kmeans-clusters-button",
                                                     className="button-component",
                                                     n_clicks=0,
                                                     style={
@@ -631,6 +679,23 @@ def update_ward_clusters_to_save_options(msa_data, main_msa):
     return options
 
 
+@callback(
+    Output("kmeans-clusters-to-save-dropdown", "options"),
+    Input("msa-data", "data"),
+    State("main-msa", "data"),
+)
+def update_kmeans_clusters_to_save_options(msa_data, main_msa):
+    if not msa_data or not main_msa:
+        return dash.no_update
+    df = pd.DataFrame.from_dict(msa_data[main_msa])
+    if "cluster_id" not in df.columns:
+        return dash.no_update
+    clusters = df["cluster_id"].unique()
+    options = [{"label": f"Cluster {c}", "value": c} for c in clusters]
+    options.insert(0, {"label": "All", "value": "all"})
+    return options
+
+
 def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id", encoding=None):
     import plotly.express as px
     from frankenmsa.visual.dimension_reduction import compute_PCA
@@ -738,15 +803,6 @@ def kmeans_layout():
                         ),
                     ),
                 ]
-            ),
-            dbc.Row(
-                html.Button(
-                    "Save KMeans Clusters",
-                    id="save-kmeans-clusters-button",
-                    className="button-component",
-                    n_clicks=0,
-                ),
-                style={"width": "100%"},
             ),
             html.Div(
                 id="kmeans-save-container",
@@ -928,44 +984,43 @@ def run_kmeans(
 
 
 @callback(
-    Output("kmeans-save-container", "children"),
     Output("msa-data", "data", allow_duplicate=True),
     Input("save-kmeans-clusters-button", "n_clicks"),
+    State("kmeans-clusters-to-save-dropdown", "value"),
     State("msa-data", "data"),
     State("main-msa", "data"),
     prevent_initial_call=True,
 )
 def save_kmeans_clusters(
     n_clicks,
+    selected,
     msa_data,
     main_msa,
 ):
     if not (n_clicks or 0) > 0:
-        return dash.no_update, dash.no_update
+        return dash.no_update
 
     if not msa_data or not main_msa:
-        return dash.no_update, dash.no_update
+        return dash.no_update
 
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
 
     if "cluster_id" not in msa.columns:
-        return dbc.Alert("No clusters found. Please run KMeans first."), msa_data
+        return dash.no_update
 
-    for cluster_id, subset in msa.groupby("cluster_id"):
+    if not selected:
+        return dash.no_update
 
+    if "all" in selected:
+        selected = msa["cluster_id"].unique()
+
+    for cluster_id in selected:
+        subset = msa[msa["cluster_id"] == cluster_id]
         name = f"{main_msa}_kmeans_cluster_{cluster_id}"
         msa_data[name] = subset.to_dict("list")
 
-    info = f"Saved {len(msa['cluster_id'].unique())} clusters to MSA data."
-    return (
-        dbc.Alert(
-            info,
-            color="success",
-            is_open=True,
-        ),
-        msa_data,
-    )
+    return msa_data
 
 
 @callback(
@@ -991,7 +1046,7 @@ def update_clusters_to_save_options(msa_data, main_msa):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
-    Input("save-selected-clusters-button", "n_clicks"),
+    Input("save-afcluster-button", "n_clicks"),
     State("clusters-to-save-dropdown", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
