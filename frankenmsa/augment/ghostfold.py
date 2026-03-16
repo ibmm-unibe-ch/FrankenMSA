@@ -6,7 +6,7 @@ from ..utils.fileio import read_fasta, write_a3m
 
 
 def log_message(message:str):
-    with open("app.log", "a") as log_file:
+    with open("/content/app/log.txt", "a") as log_file:
         log_file.write(f"{message}\n")
 
 GHOSTFOLD_PATH = "ghostfold"  # TODO: set this to the actual path of the ghostfold installation

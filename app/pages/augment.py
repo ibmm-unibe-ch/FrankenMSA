@@ -11,7 +11,7 @@ dash.register_page(
 )
 
 def log_message(message:str):
-    with open("app.log", "a") as log_file:
+    with open("/content/app/log.txt", "a") as log_file:
         log_file.write(f"{message}\n")
 
 def layout():
@@ -81,6 +81,7 @@ def run_ghostfold(n_clicks, input_data, msa_data):
     Validates input, handles monomers and multimers, submits to API,
     and splits multimer results by chain.
     """
+    log_message(f"GhostFold run button clicked {n_clicks} times. Received input: {input_data}")
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 

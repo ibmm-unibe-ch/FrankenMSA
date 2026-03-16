@@ -16,7 +16,7 @@ dash.register_page(
 # =============================================================================
 
 def log_message(message:str):
-    with open("app.log", "a") as log_file:
+    with open("/content/app/log.txt", "a") as log_file:
         log_file.write(f"{message}\n")
 
 def layout():

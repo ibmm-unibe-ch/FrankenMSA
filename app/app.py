@@ -24,7 +24,10 @@ app = Dash(
 # --- Download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
 
-
+def log_message(message:str):
+    with open("/content/app/log.txt", "a") as log_file:
+        log_file.write(f"{message}\n")
+log_message("App initialized, setting up download route...")
 def _collect_download_roots():
     roots = []
 
@@ -53,7 +56,7 @@ def _collect_download_roots():
         if normalized not in seen:
             seen.add(normalized)
             deduped.append(normalized)
-    logging.info(f"Collected download roots: {deduped}")
+    log_message(f"Collected download roots: {deduped}")
     return deduped
 
 
@@ -63,13 +66,13 @@ DOWNLOAD_ROOTS = _collect_download_roots()
 @app.server.route("/colab/download/<path:fname>")
 def serve_proteinmpnn_download(fname):
     """Serve ProteinMPNN output artifacts produced by Colab or local runs."""
-    logging.info(f"Download request for file: {fname}")
+    log_message(f"Download request for file: {fname}")
     for root in DOWNLOAD_ROOTS:
         path = os.path.join(root, fname)
         if os.path.isfile(path):
-            logging.info(f"Serving file from {path}")
+            log_message(f"Serving file from {path}")
             return send_file(path, as_attachment=True)
-    logging.warning(f"File not found: {fname}")
+    log_message(f"File not found: {fname}")
     return ("File not found", 404)
 
 
@@ -277,7 +280,7 @@ def launch(**kwargs):
     """Main function to run the Dash app.
     Stable, production-like settings; no hot-reload; explicit host/port.
     """
-    logging.info("Starting FrankenMSA Dash app launch process...")
+    log_message("Starting FrankenMSA Dash app launch process...")
     
     # Honor HOST/PORT env if provided
     host = kwargs.get("host", None)
@@ -287,12 +290,12 @@ def launch(**kwargs):
     if port is None:
         port = int(os.getenv("PORT", "8050"))
     
-    logging.info(f"App will run on host: {host}, port: {port}")
+    log_message(f"App will run on host: {host}, port: {port}")
 
     # Ensure production-ish mode
     os.environ["DASH_DEBUG_MODE"] = "0"
     os.environ["FLASK_ENV"] = "production"
-    logging.info("Set environment to production mode")
+    log_message("Set environment to production mode")
 
     # Decide render mode (inline/external) again
     render_mode = (
@@ -303,7 +306,7 @@ def launch(**kwargs):
     if render_mode not in {"inline", "external"}:
         render_mode = "external"
     
-    logging.info(f"Render mode: {render_mode}")
+    log_message(f"Render mode: {render_mode}")
 
     tunnel = os.environ.get("COLAB_TUNNEL_URL")
     if tunnel and render_mode == "inline":

@@ -39,7 +39,7 @@ CHUNK_SIZE = 8192
 BATCH_SIZE_UNIPROT = 100
 
 def log_message(message:str):
-    with open("app.log", "a") as log_file:
+    with open("/content/app/log.txt", "a") as log_file:
         log_file.write(f"{message}\n")
 
 def download_with_resume(session: requests.Session, url: str, max_retries: int = MAX_RETRIES) -> bytes:
