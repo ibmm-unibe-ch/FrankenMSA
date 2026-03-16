@@ -2,7 +2,6 @@
 Basic classes for augmentation algorithms.
 """
 
-from typing import Iterable, Union
 import pandas as pd
 
 
