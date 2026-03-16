@@ -10,6 +10,10 @@ dash.register_page(
     __name__,
 )
 
+def log_message(message:str):
+    with open("app.log", "a") as log_file:
+        log_file.write(f"{message}\n")
+
 def layout():
     return html.Div([
         dbc.Row([ghostfold_layout()])
@@ -90,8 +94,10 @@ def run_ghostfold(n_clicks, input_data, msa_data):
         return dash.no_update, dash.no_update, dbc.Alert("No valid sequences found.", color="danger")
     try:
         new_main_key = f"ghostfold_aug_{n_clicks}"
+        log_message(f"Running GhostFold augmentation for input: {input_data}")
         data_dict = GhostFoldAugmentation().align(sequence=input_data)    
         msa_data[new_main_key] = data_dict
+        log_message(f"GhostFold augmentation successful, generated {len(data_dict['sequence'])} sequences.")
         msg = f"Success! Generated {new_main_key} with {len(data_dict['sequence'])} sequences."
         return new_main_key, msa_data, dbc.Alert(msg, color="success")
 

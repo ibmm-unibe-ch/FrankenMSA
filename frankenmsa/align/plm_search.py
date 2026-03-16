@@ -38,6 +38,10 @@ MAX_RETRIES = 10
 CHUNK_SIZE = 8192
 BATCH_SIZE_UNIPROT = 100
 
+def log_message(message:str):
+    with open("app.log", "a") as log_file:
+        log_file.write(f"{message}\n")
+
 def download_with_resume(session: requests.Session, url: str, max_retries: int = MAX_RETRIES) -> bytes:
     """
     Download file content with automatic resume on connection errors.
@@ -214,21 +218,25 @@ class PLMSearch(base.MSAFactory):
             )
         
         # 1. Submit query to API
+        log_message(f"in file Submitting {len(sequences)} sequences to PLM-Search API with database '{database}' and similarity cutoff {similarity_cutoff}.")
         query_id = self._send_post_request(descriptions, sequences, database)
         if not query_id:
             return None
                 
         # 2. Download results file
+        log_message(f"PLM-Search submission successful, received query ID: {query_id}. Polling for results...")
         output_file = self._download_similarities(query_id)
         if not output_file:
             return None
         
         # 3. Parse results and fetch metadata
+        log_message(f"Results downloaded to {output_file}. Parsing results and fetching UniProt metadata...")
         try:
             df = self._parse_and_enrich_results(
                 output_file, similarity_cutoff, max_sequences
             )
             self.msa = df
+            log_message(f"PLM-Search alignment completed. Retrieved {len(df)} similar sequences after filtering by similarity cutoff.")
             return df
         except Exception as e:
             return None

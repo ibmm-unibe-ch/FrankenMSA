@@ -124,8 +124,8 @@ def make_header():
         "Perform inverse folding to generate sequences from a given protein structure",
     )
     ghostfold_icon = icon_link(
-        "icon_ghostfold_white_transparent",
-        "/ghostfold",
+        "icon_augment_white_transparent",
+        "/augment",
         "Perform GhostFold augmentation",
     )
     cluster_icon = icon_link(
@@ -307,11 +307,11 @@ def launch(**kwargs):
 
     tunnel = os.environ.get("COLAB_TUNNEL_URL")
     if tunnel and render_mode == "inline":
-        logging.info(f"🌐 Public tunnel is unused in 'inline' mode: {tunnel}")
+        print(f"🌐 Public tunnel is unused in 'inline' mode: {tunnel}")
     elif tunnel:
-        logging.info(f"🌐 Public tunnel: {tunnel}")
+        print(f"🌐 Public tunnel: {tunnel}")
 
-    logging.info(f"Dash starting on http://{host}:{port}")
+    print(f"Dash starting on http://{host}:{port}")
     #return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
     try:
         return app.run(host=host, port=port, debug=False)

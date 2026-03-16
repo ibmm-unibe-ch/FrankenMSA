@@ -15,6 +15,10 @@ dash.register_page(
 #  UI Layout
 # =============================================================================
 
+def log_message(message:str):
+    with open("app.log", "a") as log_file:
+        log_file.write(f"{message}\n")
+
 def layout():
     return html.Div([
         dbc.Row([mmseqs_colab_layout(), plm_search_layout()])
@@ -159,7 +163,6 @@ def mmseqs_colab_layout():
                 style={"width": "80%", "fontSize": "16px", "fontWeight": "bold", "padding": "12px"},
             ),
 
-            # --- [NEW] Explanatory Text below button ---
             html.Div(
                 html.Small(
                     "Output files (Main MSA + split chains) will be available in the file selector after computation.",
@@ -482,8 +485,9 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, max_sequen
         
         # 4. Execute PLM-Search
         runner = PLMSearch()
+        log_message(f"Running PLM-Search with {len(sequences)} query sequences, database={database}, similarity_cutoff={similarity_cutoff}, max_sequences={max_sequences}")
         df = runner.align(sequences, descriptions, database, similarity_cutoff, max_sequences)
-        
+        log_message(f"PLM-Search returned {len(df)} results.")
         if df is None or df.empty:
             return dash.no_update, dash.no_update, dbc.Alert(
                 "No results found with the given similarity cutoff.", 

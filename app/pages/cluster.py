@@ -9,6 +9,9 @@ dash.register_page(
     __name__,
 )
 
+def log_message(message:str):
+    with open("app.log", "a") as log_file:
+        log_file.write(f"{message}\n")
 
 def layout():
     return html.Div(
@@ -903,14 +906,14 @@ def run_kmeans(
 
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
-
+    log_message(f"Running KMeans with n_clusters={n_clusters}, columns_to_include={columns_to_include}, encoding={encoding} on MSA {main_msa} with {len(msa)} sequences.")
     msa = clusterer.cluster(
         msa,
         n_clusters=n_clusters,
         columns=(columns_to_include or None),
         encoding=encoding,
     )
-
+    log_message(f"KMeans clustering completed. Cluster assignments added to MSA {main_msa}.")
     msa_data[main_msa] = msa.to_dict("list")
     return msa_data
 
