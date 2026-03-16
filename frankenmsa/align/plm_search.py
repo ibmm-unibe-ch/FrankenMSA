@@ -24,12 +24,28 @@ PLM_SEARCH_REFRESH_URL_TEMPLATE = f"{PLM_SEARCH_BASE_URL}/refresh/{{query_id}}"
 PLM_SEARCH_DOWNLOAD_URL_TEMPLATE = f"{PLM_SEARCH_BASE_URL}/{{query_id}}/similarity.txt"
 
 # Multipart form data boundary
-MULTIPART_BOUNDARY = "------geckoformboundary72c107c29309639fa4b1520bc6e35692"
+MULTIPART_BOUNDARY = "------geckoformboundary4aeca06a4428bd98875a0a9648782b8"
 
 # HTTP headers for API requests
 REQUEST_HEADERS = {
-    "Referer": "https://github.com/ibmm-unibe-ch/FrankenMSA/",
+#    "Referer": "https://github.com/ibmm-unibe-ch/FrankenMSA/",
+#    "Content-Type": f"multipart/form-data; boundary={MULTIPART_BOUNDARY}",
+    "Host": "dmiip.sjtu.edu.cn",
+    "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:148.0) Gecko/20100101 Firefox/148.0",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
     "Content-Type": f"multipart/form-data; boundary={MULTIPART_BOUNDARY}",
+    "Origin": "https://dmiip.sjtu.edu.cn",
+    "Connection": "keep-alive",
+    "Referer": "https://dmiip.sjtu.edu.cn/PLMSearch",
+    "Cookie": "keepalive='wF7GXsT4xJQDrEZqA56uS8PgfdW5Ut/XTqWSY4P6wLQ=",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
+    "Priority": "u=0, i",
 }
 
 # API constants

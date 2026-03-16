@@ -739,6 +739,15 @@ def kmeans_layout():
                     ),
                 ]
             ),
+            dbc.Row(
+                html.Button(
+                    "Save KMeans Clusters",
+                    id="save-kmeans-clusters-button",
+                    className="button-component",
+                    n_clicks=0,
+                ),
+                style={"width": "100%"},
+            ),
             html.Div(
                 id="kmeans-save-container",
             ),
