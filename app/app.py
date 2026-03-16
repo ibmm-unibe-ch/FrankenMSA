@@ -118,6 +118,11 @@ def make_header():
         "/inversefold",
         "Perform inverse folding to generate sequences from a given protein structure",
     )
+    ghostfold_icon = icon_link(
+        "icon_ghostfold_white_transparent",
+        "/ghostfold",
+        "Perform GhostFold augmentation",
+    )
     cluster_icon = icon_link(
         "icon_cluster_white_transparent", "/cluster", "Cluster the MSA"
     )
@@ -150,6 +155,7 @@ def make_header():
             combine_icon,
             align_icon,
             inverse_fold_icon,
+            ghostfold_icon,
             cluster_icon,
             visualize_icon,
             select_main_msa,
