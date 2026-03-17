@@ -217,7 +217,7 @@ class sequence_encodings:
             embeddings.append(torch.mean(logits_output.embeddings[0], dim=0))
         log_message(f"Generated ESM embeddings for {len(embeddings)} sequences.")
         log_message(f"First embedding shape: {torch.stack(embeddings).shape}")
-        output = torch.stack(embeddings).numpy()
+        output = torch.stack(embeddings).cpu().numpy()
         log_message(f"Squeezed ESM embeddings") 
         return output
 
