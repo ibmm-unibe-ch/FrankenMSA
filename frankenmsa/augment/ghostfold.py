@@ -30,7 +30,7 @@ class GhostFoldAugmentation(base.AugmentationFactory):
             DataFrame containing the augmented sequences.
         """
         jobname = "ghostfold_job"
-        output_name = "ghostfold_output"
+        output_name = GHOSTFOLD_PATH / "ghostfold_output"
         Path(f"{output_name}").mkdir(exist_ok=True)
         log_message(f"In file running GhostFold augmentation for input sequence: {sequence}")
         write_a3m(pd.DataFrame({"header":["GhostFold_input"],"sequence": [sequence]}), f"{GHOSTFOLD_PATH/jobname}.fasta")
@@ -40,6 +40,7 @@ class GhostFoldAugmentation(base.AugmentationFactory):
         log_message(f"Running GhostFold command: {cmd_string}")
         subprocess.run(cmd_string.split(),check=True, cwd=GHOSTFOLD_PATH)
         output_fasta_name = f"{GHOSTFOLD_PATH/output_name}/msa/{jobname}/pstMSA.fasta"
+        log_message(f"GhostFold command completed, reading output from {output_fasta_name}...")
         output_sequences = read_fasta(output_fasta_name)
         log_message(f"GhostFold augmentation completed. Generated {len(output_sequences)} sequences.")
         return output_sequences
