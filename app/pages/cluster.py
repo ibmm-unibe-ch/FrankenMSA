@@ -33,6 +33,28 @@ def layout():
                                 ),
                                 color="white",
                             ),
+                            dbc.Row(
+                                dcc.Loading(
+                                    html.Div(
+                                        id="afcluster-status",
+                                        style={"marginTop": "10px"},
+                                    ),
+                                    type="dot",
+                                    color="#333",
+                                ),
+                                style={"marginTop": "10px"},
+                            ),
+                            dbc.Row(
+                                dcc.Loading(
+                                    html.Div(
+                                        id="kmeans-status",
+                                        style={"marginTop": "10px"},
+                                    ),
+                                    type="dot",
+                                    color="#333",
+                                ),
+                                style={"marginTop": "10px"},
+                            ),
                             html.Div(
                                 [
                                     dbc.Row(
@@ -562,6 +584,7 @@ def update_epsilon_value_from_slider(search_epsilon_value_range):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("afcluster-status", "children"),
     Input("run-afcluster-button", "n_clicks"),
     State("min-samples", "value"),
     State("epsilon", "value"),
@@ -579,29 +602,42 @@ def run_afcluster(
     msa_data,
 ):
     if not (n_clicks or 0) > 0:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     if not msa_data or not main_msa:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
-    from frankenmsa.cluster import AFCluster
+    try:
+        from frankenmsa.cluster import AFCluster
 
-    clusterer = AFCluster()
+        clusterer = AFCluster()
 
-    msa = msa_data[main_msa]
-    msa = pd.DataFrame.from_dict(msa)
+        msa = msa_data[main_msa]
+        msa = pd.DataFrame.from_dict(msa)
 
-    msa = clusterer.cluster(
-        msa,
-        min_samples=min_samples,
-        eps=epsilon,
-        columns=(columns_to_include or None),
-        consensus_sequence=False,
-        levenshtein=False,
-    )
+        msa = clusterer.cluster(
+            msa,
+            min_samples=min_samples,
+            eps=epsilon,
+            columns=(columns_to_include or None),
+            consensus_sequence=False,
+            levenshtein=False,
+        )
 
-    msa_data[main_msa] = msa.to_dict("list")
-    return msa_data
+        msa_data[main_msa] = msa.to_dict("list")
+        return (
+            msa_data,
+            dbc.Alert(
+                f"AFCluster completed: {len(msa)} sequences updated in {main_msa}.",
+                color="success",
+            ),
+        )
+    except Exception as e:
+        import traceback
+
+        log_message(f"Error running AFCluster: {e}")
+        log_message(traceback.format_exc())
+        return dash.no_update, dbc.Alert(f"AFCluster Error: {str(e)}", color="danger")
 
 
 @callback(
@@ -943,6 +979,7 @@ def update_kmeans_other_columns_options(msa_data, main_msa):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("kmeans-status", "children"),
     Input("run-kmeans-button", "n_clicks"),
     State("kmeans-n-clusters", "value"),
     State("kmeans-other-columns", "value"),
@@ -960,27 +997,40 @@ def run_kmeans(
     msa_data,
 ):
     if not (n_clicks or 0) > 0:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     if not msa_data or not main_msa:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
-    from frankenmsa.cluster import KMeans
+    try:
+        from frankenmsa.cluster import KMeans
 
-    clusterer = KMeans()
+        clusterer = KMeans()
 
-    msa = msa_data[main_msa]
-    msa = pd.DataFrame.from_dict(msa)
-    log_message(f"Running KMeans with n_clusters={n_clusters}, columns_to_include={columns_to_include}, encoding={encoding} on MSA {main_msa} with {len(msa)} sequences.")
-    msa = clusterer.cluster(
-        msa,
-        n_clusters=n_clusters,
-        columns=(columns_to_include or None),
-        encoding=encoding,
-    )
-    log_message(f"KMeans clustering completed. Cluster assignments added to MSA {main_msa}.")
-    msa_data[main_msa] = msa.to_dict("list")
-    return msa_data
+        msa = msa_data[main_msa]
+        msa = pd.DataFrame.from_dict(msa)
+        log_message(f"Running KMeans with n_clusters={n_clusters}, columns_to_include={columns_to_include}, encoding={encoding} on MSA {main_msa} with {len(msa)} sequences.")
+        msa = clusterer.cluster(
+            msa,
+            n_clusters=n_clusters,
+            columns=(columns_to_include or None),
+            encoding=encoding,
+        )
+        log_message(f"KMeans clustering completed. Cluster assignments added to MSA {main_msa}.")
+        msa_data[main_msa] = msa.to_dict("list")
+        return (
+            msa_data,
+            dbc.Alert(
+                f"KMeans completed: {len(msa)} sequences updated in {main_msa}.",
+                color="success",
+            ),
+        )
+    except Exception as e:
+        import traceback
+
+        log_message(f"Error running KMeans: {e}")
+        log_message(traceback.format_exc())
+        return dash.no_update, dbc.Alert(f"KMeans Error: {str(e)}", color="danger")
 
 
 @callback(

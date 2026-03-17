@@ -53,7 +53,7 @@ class GhostFoldAugmentation(base.AugmentationFactory):
             log_message(msg)
             raise subprocess.CalledProcessError(proc.returncode, proc.args, output=proc.stdout, stderr=proc.stderr)
 
-        output_fasta_name = f"{GHOSTFOLD_PATH/output_name}/msa/{jobname}/pstMSA.fasta"
+        output_fasta_name = f"{GHOSTFOLD_PATH/output_name}/msa/GhostFold_input/pstMSA.fasta"
         log_message(f"GhostFold command completed, reading output from {output_fasta_name}...")
         output_sequences = read_fasta(output_fasta_name)
         log_message(f"GhostFold augmentation completed. Generated {len(output_sequences)} sequences.")
