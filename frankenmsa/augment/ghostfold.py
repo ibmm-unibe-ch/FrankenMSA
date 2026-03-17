@@ -9,7 +9,7 @@ def log_message(message:str):
     with open("/content/app/log.txt", "a") as log_file:
         log_file.write(f"{message}\n")
 
-GHOSTFOLD_PATH = "ghostfold"  # TODO: set this to the actual path of the ghostfold installation
+GHOSTFOLD_PATH = "/content/ghostfold"  # TODO: set this to the actual path of the ghostfold installation
 
 class GhostFoldAugmentation(base.AugmentationFactory):
     """

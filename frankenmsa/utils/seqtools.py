@@ -179,10 +179,12 @@ class sequence_encodings:
             RuntimeError: If CUDA is requested but not available
             ValueError: If sequences are invalid or empty
         """
+        log_message(f"In file Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}...")
+
         import torch
         from esm.models.esmc import ESMC
         from esm.sdk.api import ESMProtein, LogitsConfig
-        if not sequences:
+        if sequences is None or len(sequences) == 0:
             raise ValueError("No sequences provided for embedding")
         # Initialize ESM3 model
         device = "cuda" if torch.cuda.is_available() else "cpu"
