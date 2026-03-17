@@ -57,6 +57,11 @@ def ghostfold_layout():
                 className="button-component",
                 style={"width": "80%", "fontSize": "16px", "fontWeight": "bold", "padding": "12px"},
             ),
+            # 5. Output message
+            html.Div(
+                id="ghostfold-output",
+                style={"marginTop": "20px", "width": "80%", "marginLeft": "auto", "marginRight": "auto"},
+            ),
         ],
         style={"textAlign": "center", "paddingBottom": "50px"}
     )

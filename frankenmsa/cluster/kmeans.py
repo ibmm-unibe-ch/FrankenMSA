@@ -91,6 +91,8 @@ class KMeans(BaseClusterer):
         log_message(f"Clustering {len(msa)} sequences using KMeans with n_clusters={n_clusters}, encoding={encoding}, and additional columns={columns}")
         encoding_func = get_encoding_func(encoding)
         log_message(f"Encoding sequences using {encoding} encoding...")
+        log_message(f"Encoding sequences using {encoding_func}...")
+        log_message(f"First 5 sequences before encoding: {msa['sequence'].head().tolist()}")
         encoded_sequences = encoding_func(msa["sequence"])
         log_message(f"Sequence encoding completed. Encoded shape: {encoded_sequences.shape}")
         if encoded_sequences.ndim > 2:
