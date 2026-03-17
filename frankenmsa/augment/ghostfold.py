@@ -2,7 +2,7 @@ from ..augment import base
 import pandas as pd
 from pathlib import Path
 import subprocess
-from ..utils.fileio import read_fasta, write_a3m
+from ..utils.fileio import read_a3m, write_a3m
 
 
 def log_message(message:str):
@@ -55,7 +55,7 @@ class GhostFoldAugmentation(base.AugmentationFactory):
 
         output_fasta_name = f"{GHOSTFOLD_PATH/output_name}/msa/GhostFold_input/pstMSA.fasta"
         log_message(f"GhostFold command completed, reading output from {output_fasta_name}...")
-        output_sequences, output_descriptions = read_fasta(output_fasta_name)
-        log_message(f"GhostFold augmentation completed. Generated {len(output_sequences)} sequences.")
-        return pd.DataFrame({"header": output_descriptions, "sequence": output_sequences})
+        output_df = read_a3m(output_fasta_name)
+        log_message(f"GhostFold augmentation completed. Generated {len(output_df)} sequences.")
+        return output_df
     

@@ -829,7 +829,7 @@ def kmeans_layout():
         [
             html.H1("Cluster Sequences with KMeans"),
             dcc.Markdown(
-                "Cluster sequences using KMeans of one-hot-encoding or using [ESM3 C](https://github.com/evolutionaryscale/esm?tab=readme-ov-file#esm-c-)-embeddings, similar to [VC-MSA](https://pubmed.ncbi.nlm.nih.gov/37414576/)"
+                "Cluster sequences using [KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) of [one hot encoding](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html) or using [ESM3 C](https://github.com/evolutionaryscale/esm?tab=readme-ov-file#esm-c-)-embeddings, similar to [VC-MSA](https://pubmed.ncbi.nlm.nih.gov/37414576/)"
             ),
             dbc.Row(
                 [
