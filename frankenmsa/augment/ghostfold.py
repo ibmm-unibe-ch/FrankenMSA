@@ -30,15 +30,29 @@ class GhostFoldAugmentation(base.AugmentationFactory):
             DataFrame containing the augmented sequences.
         """
         jobname = "ghostfold_job"
-        output_name = GHOSTFOLD_PATH / "ghostfold_output"
-        Path(f"{output_name}").mkdir(exist_ok=True)
+        output_name = "ghostfold_output"
+        Path(GHOSTFOLD_PATH/output_name).mkdir(exist_ok=True)
         log_message(f"In file running GhostFold augmentation for input sequence: {sequence}")
         write_a3m(pd.DataFrame({"header":["GhostFold_input"],"sequence": [sequence]}), f"{GHOSTFOLD_PATH/jobname}.fasta")
         log_message(f"Written input sequence to {GHOSTFOLD_PATH/jobname}.fasta, running GhostFold...")
         cmd_string = f"{GHOSTFOLD_PATH}/ghostfold.sh --project_name {output_name} --fasta_file {GHOSTFOLD_PATH/jobname}.fasta --msa-only"
         
         log_message(f"Running GhostFold command: {cmd_string}")
-        subprocess.run(cmd_string.split(),check=True, cwd=GHOSTFOLD_PATH)
+        proc = subprocess.run(
+            cmd_string.split(),
+            cwd=GHOSTFOLD_PATH,
+            capture_output=True,
+            text=True,
+        )
+
+        log_message(f"GhostFold stdout:\n{proc.stdout}")
+        log_message(f"GhostFold stderr:\n{proc.stderr}")
+
+        if proc.returncode != 0:
+            msg = f"GhostFold failed with returncode {proc.returncode}. Check ghostfold.log for output."
+            log_message(msg)
+            raise subprocess.CalledProcessError(proc.returncode, proc.args, output=proc.stdout, stderr=proc.stderr)
+
         output_fasta_name = f"{GHOSTFOLD_PATH/output_name}/msa/{jobname}/pstMSA.fasta"
         log_message(f"GhostFold command completed, reading output from {output_fasta_name}...")
         output_sequences = read_fasta(output_fasta_name)

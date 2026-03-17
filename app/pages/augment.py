@@ -109,5 +109,6 @@ def run_ghostfold(n_clicks, input_data, msa_data):
 
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        log_message(f"Error during GhostFold augmentation: {str(e)}")
+        log_message(f"Traceback:\n{traceback.format_exc()}")
         return dash.no_update, dash.no_update, dbc.Alert(f"API Error: {str(e)}", color="danger")
