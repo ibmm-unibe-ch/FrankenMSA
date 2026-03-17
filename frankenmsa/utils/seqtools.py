@@ -215,8 +215,10 @@ class sequence_encodings:
             # See: https://github.com/evolutionaryscale/esm/issues/116
             #      https://github.com/evolutionaryscale/esm/issues/162
             embeddings.append(torch.mean(logits_output.embeddings[0], dim=0))
-        
-        return embeddings.squeeze().numpy()
+        log_message(f"Generated ESM embeddings for {len(sequences)} sequences.")
+        squeezed = torch.stack(embeddings).squeeze().numpy()
+        log_message(f"Squeezed ESM embeddings shape: {squeezed.shape}")
+        return squeezed
 
 def multimer_chain_splitting(msa_df, chain_lengths, new_main_key, msa_data):    
     start = 0
