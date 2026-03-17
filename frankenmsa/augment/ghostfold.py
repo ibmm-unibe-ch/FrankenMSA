@@ -55,7 +55,7 @@ class GhostFoldAugmentation(base.AugmentationFactory):
 
         output_fasta_name = f"{GHOSTFOLD_PATH/output_name}/msa/GhostFold_input/pstMSA.fasta"
         log_message(f"GhostFold command completed, reading output from {output_fasta_name}...")
-        output_sequences = read_fasta(output_fasta_name)
+        output_sequences, output_descriptions = read_fasta(output_fasta_name)
         log_message(f"GhostFold augmentation completed. Generated {len(output_sequences)} sequences.")
-        return output_sequences
+        return pd.DataFrame({"header": output_descriptions, "sequence": output_sequences})
     

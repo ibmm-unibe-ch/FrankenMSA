@@ -651,7 +651,7 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
         return no_msa_yet()
     df = pd.DataFrame.from_dict(msa_data[main_msa])
     if "cluster_id" not in df.columns:
-        return dbc.Alert("No clusters found. Please run AFCluster first.")
+        return dbc.Alert("No clusters found. Please run clustering first.")
 
     graphs = []
     graphs.append(
@@ -788,7 +788,7 @@ def save_clusters(
 
     if "cluster_id" not in msa.columns:
         return dash.no_update, dbc.Alert(
-            "No clusters found. Please run AFCluster first."
+            "No clusters found. Please run clustering first."
         )
 
     for cluster_id, subset in msa.groupby("cluster_id"):
@@ -828,8 +828,8 @@ def kmeans_layout():
     return html.Div(
         [
             html.H1("Cluster Sequences with KMeans"),
-            html.P(
-                "Cluster sequences based on their similarity using KMeans clustering. Clusters can be saved as new MSAs to be used in downstream tasks."
+            dcc.Markdown(
+                "Cluster sequences using KMeans of one-hot-encoding or using [ESM3 C](https://github.com/evolutionaryscale/esm?tab=readme-ov-file#esm-c-)-embeddings, similar to [VC-MSA](https://pubmed.ncbi.nlm.nih.gov/37414576/)"
             ),
             dbc.Row(
                 [
