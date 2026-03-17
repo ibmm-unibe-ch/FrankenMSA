@@ -101,7 +101,7 @@ def run_ghostfold(n_clicks, input_data, msa_data):
     try:
         new_main_key = f"ghostfold_aug_{n_clicks}"
         log_message(f"Running GhostFold augmentation for input: {input_data}")
-        data_dict = GhostFoldAugmentation().align(sequence=input_data)    
+        data_dict = GhostFoldAugmentation().augment(sequence=input_data)    
         msa_data[new_main_key] = data_dict
         log_message(f"GhostFold augmentation successful, generated {len(data_dict['sequence'])} sequences.")
         msg = f"Success! Generated {new_main_key} with {len(data_dict['sequence'])} sequences."

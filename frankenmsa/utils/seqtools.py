@@ -25,6 +25,9 @@ missing_or_unknown = "X"
 Character to use for missing or unknown amino acids.
 """
 
+def log_message(message:str):
+    with open("/content/app/log.txt", "a") as log_file:
+        log_file.write(f"{message}\n")
 
 def is_valid_peptide_sequence(seq: str) -> bool:
     """
@@ -181,14 +184,16 @@ class sequence_encodings:
         from esm.sdk.api import ESMProtein, LogitsConfig
         if not sequences:
             raise ValueError("No sequences provided for embedding")
-        
         # Initialize ESM3 model
         device = "cuda" if torch.cuda.is_available() else "cpu"
         client = ESMC.from_pretrained("esmc_300m").to(device)
+        log_message(f"In file on {device} Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}...")
+
         embeddings = []
         if max_length is None:
             max_length = max(len(seq) for seq in sequences)
         for sequence in sequences:
+            log_message(f"Processing sequence of length {len(sequence)}: {sequence[:50]}...")  # Log first 50 chars
             if not sequence or not isinstance(sequence, str):
                 raise ValueError(f"Invalid sequence: {sequence}")
                 
