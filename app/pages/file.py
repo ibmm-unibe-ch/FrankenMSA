@@ -188,7 +188,6 @@ def _split_multimer_csv(df, base_name: str):
     Returns:
         Dictionary of {chain_name: DataFrame} for each chain
     """
-    import pandas as pd
 
     if "chain" not in df.columns:
         raise ValueError("CSV does not have a 'chain' column")
@@ -410,9 +409,6 @@ def upload_file(contents, filename, msa_data):
         )
         return err, dash.no_update, dash.no_update
 
-    return dash.no_update, dash.no_update, dash.no_update
-
-
 def file_download_layout():
 
     download_format_options = [
@@ -549,7 +545,6 @@ def populate_download_options(msa_data):
 )
 def manage_chain_list(add_clicks, remove_clicks, selected_msa, current_chains):
     """Add or remove chains from the multimer list."""
-    import sys
 
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -644,9 +639,7 @@ def download_file(n_clicks, selected_msas, msa_data, format_ext, filename):
     if not n_clicks:
         return None, ""
 
-    import os, re, tempfile, sys
-    import pandas as pd
-    from pathlib import Path
+    import sys
 
     # Validation
     if not msa_data:

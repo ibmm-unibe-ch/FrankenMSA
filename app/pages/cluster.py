@@ -9,6 +9,9 @@ dash.register_page(
     __name__,
 )
 
+def log_message(message:str):
+    with open("/content/app/log.txt", "a") as log_file:
+        log_file.write(f"{message}\n")
 
 def layout():
     return html.Div(
@@ -29,6 +32,28 @@ def layout():
                                     className="shaded-bordered",
                                 ),
                                 color="white",
+                            ),
+                            dbc.Row(
+                                dcc.Loading(
+                                    html.Div(
+                                        id="afcluster-status",
+                                        style={"marginTop": "10px"},
+                                    ),
+                                    type="dot",
+                                    color="#333",
+                                ),
+                                style={"marginTop": "10px"},
+                            ),
+                            dbc.Row(
+                                dcc.Loading(
+                                    html.Div(
+                                        id="kmeans-status",
+                                        style={"marginTop": "10px"},
+                                    ),
+                                    type="dot",
+                                    color="#333",
+                                ),
+                                style={"marginTop": "10px"},
                             ),
                             html.Div(
                                 [
@@ -54,8 +79,8 @@ def layout():
                                             ),
                                             dbc.Col(
                                                 html.Button(
-                                                    "Save Selected Clusters",
-                                                    id="save-selected-clusters-button",
+                                                    "Save AFCluster",
+                                                    id="save-afcluster-button",
                                                     className="button-component",
                                                     n_clicks=0,
                                                     style={
@@ -102,8 +127,56 @@ def layout():
                                             ),
                                             dbc.Col(
                                                 html.Button(
-                                                    "Save Ward Clusters",
+                                                    "Save Ward",
                                                     id="save-ward-selected-clusters-button",
+                                                    className="button-component",
+                                                    n_clicks=0,
+                                                    style={
+                                                        "height": "44px",
+                                                        "lineHeight": "44px",
+                                                        "alignSelf": "center",
+                                                        "padding": "0 18px",
+                                                        "width": "240px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
+                                                ),
+                                                width="auto",
+                                            ),
+                                        ],
+                                        style={
+                                            "alignItems": "center",
+                                            "justifyContent": "center",
+                                            "display": "flex",
+                                            "gap": "8px",
+                                            "marginTop": "4px",
+                                            "marginBottom": "4px",
+                                        },
+                                    ),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(
+                                                dcc.Dropdown(
+                                                    id="kmeans-clusters-to-save-dropdown",
+                                                    options=[],
+                                                    value=[],
+                                                    multi=True,
+                                                    className="dropdown-component",
+                                                    placeholder="Select kmeans clusters to save",
+                                                    style={
+                                                        "height": "44px",
+                                                        "alignSelf": "center",
+                                                        "width": "280px",
+                                                        "margin": "0",
+                                                        "boxSizing": "border-box",
+                                                    },
+                                                ),
+                                                width=True,
+                                            ),
+                                            dbc.Col(
+                                                html.Button(
+                                                    "Save KMeans",
+                                                    id="save-kmeans-clusters-button",
                                                     className="button-component",
                                                     n_clicks=0,
                                                     style={
@@ -159,7 +232,6 @@ def afcluster_layout():
             ),
             html.Div(
                 id="cluster-save-container",
-                # className="shaded-bordered",
             ),
             ward_controls_layout(),
         ],
@@ -407,10 +479,8 @@ def afcluster_controls(_):
             dbc.Col(
                 [
                     other_columns_to_include_tooltip,
-                    # other_columns_to_include_label,
                     other_columns_to_include,
                 ],
-                # width="auto",
             ),
         ],
         style={
@@ -426,7 +496,6 @@ def afcluster_controls(_):
         [
             dbc.Col(
                 [
-                    # search_epsilon_value_range_start_label,
                     search_epsilon_value_range_start_tooltip,
                     search_epsilon_value_range_start_input,
                 ],
@@ -440,7 +509,6 @@ def afcluster_controls(_):
             ),
             dbc.Col(
                 [
-                    # search_epsilon_value_range_end_label,
                     search_epsilon_value_range_end_tooltip,
                     search_epsilon_value_range_end_input,
                 ],
@@ -453,7 +521,6 @@ def afcluster_controls(_):
             "justify-contents": "center",
             "display": "flex",
             "flex-direction": "row",
-            # "flex-wrap": "wrap",
         },
     )
     bottomrow = dbc.Row(
@@ -517,6 +584,7 @@ def update_epsilon_value_from_slider(search_epsilon_value_range):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("afcluster-status", "children"),
     Input("run-afcluster-button", "n_clicks"),
     State("min-samples", "value"),
     State("epsilon", "value"),
@@ -534,42 +602,56 @@ def run_afcluster(
     msa_data,
 ):
     if not (n_clicks or 0) > 0:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     if not msa_data or not main_msa:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
-    from frankenmsa.cluster import AFCluster
+    try:
+        from frankenmsa.cluster import AFCluster
 
-    clusterer = AFCluster()
+        clusterer = AFCluster()
 
-    msa = msa_data[main_msa]
-    msa = pd.DataFrame.from_dict(msa)
+        msa = msa_data[main_msa]
+        msa = pd.DataFrame.from_dict(msa)
 
-    msa = clusterer.cluster(
-        msa,
-        min_samples=min_samples,
-        eps=epsilon,
-        columns=(columns_to_include or None),
-        consensus_sequence=False,
-        levenshtein=False,
-    )
+        msa = clusterer.cluster(
+            msa,
+            min_samples=min_samples,
+            eps=epsilon,
+            columns=(columns_to_include or None),
+            consensus_sequence=False,
+            levenshtein=False,
+        )
 
-    msa_data[main_msa] = msa.to_dict("list")
-    return msa_data
+        msa_data[main_msa] = msa.to_dict("list")
+        return (
+            msa_data,
+            dbc.Alert(
+                f"AFCluster completed: {len(msa)} sequences updated in {main_msa}.",
+                color="success",
+            ),
+        )
+    except Exception as e:
+        import traceback
+
+        log_message(f"Error running AFCluster: {e}")
+        log_message(traceback.format_exc())
+        return dash.no_update, dbc.Alert(f"AFCluster Error: {str(e)}", color="danger")
 
 
 @callback(
     Output("cluster-visual-container", "children"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
+    #State("visualise-encoding", "value"),
 )
-def visualise_clusters(msa_data, main_msa):
+def visualise_clusters(msa_data, main_msa, encoding=None):
     if not msa_data or not main_msa:
         return no_msa_yet()
     df = pd.DataFrame.from_dict(msa_data[main_msa])
     if "cluster_id" not in df.columns:
-        return dbc.Alert("No clusters found. Please run AFCluster first.")
+        return dbc.Alert("No clusters found. Please run clustering first.")
 
     graphs = []
     graphs.append(
@@ -578,6 +660,7 @@ def visualise_clusters(msa_data, main_msa):
             graph_id="pca-af",
             title="PCA of AFCluster Clusters",
             color_col="cluster_id",
+            encoding=encoding,
         )
     )
 
@@ -588,23 +671,11 @@ def visualise_clusters(msa_data, main_msa):
                 graph_id="pca-ward",
                 title="PCA of Ward-merged Clusters",
                 color_col="ward_id",
+                encoding=encoding,
             )
         )
 
     return html.Div(graphs)
-
-    if "ward_id" in df.columns:
-        graphs.append(
-            pca_plot(
-                df,
-                graph_id="pca-ward",
-                title="PCA of Ward-merged Clusters",
-                color_col="ward_id",
-            )
-        )
-
-    return html.Div(graphs)
-
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
@@ -614,44 +685,18 @@ def visualise_clusters(msa_data, main_msa):
     State("main-msa", "data"),
     prevent_initial_call=True,
 )
-def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa):
-    if not (n_clicks or 0) > 0:
+def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa, encoding):
+    if (not (n_clicks or 0) > 0) or (not msa_data or not main_msa) or (n_clusters is None or n_clusters < 1):
         return dash.no_update
-    if not msa_data or not main_msa:
-        return dash.no_update
-
-    import numpy as np
-    from sklearn.cluster import AgglomerativeClustering
-    from afcluster.af_cluster import _seqs_to_onehot
-
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    if "cluster_id" not in df.columns:
+    
+    from frankenmsa.cluster.ward import ward_linking
+
+    linked = ward_linking(df, n_clusters, encoding)
+    if linked is None:
         return dash.no_update
-
-    seq_len = len(df.iloc[0]["sequence"]) if len(df) else 0
-    if seq_len == 0:
-        return dash.no_update
-
-    centroids = []
-    cluster_keys = []
-    for cid, sub in df.groupby("cluster_id"):
-        X = _seqs_to_onehot(sub["sequence"].values, max_len=seq_len)
-        centroids.append(X.mean(axis=0))
-        cluster_keys.append(cid)
-    centroids = np.vstack(centroids)
-
-    if n_clusters is None or n_clusters < 1:
-        return dash.no_update
-
-    model = AgglomerativeClustering(n_clusters=int(n_clusters), linkage="ward")
-    ward_labels = model.fit_predict(centroids)
-
-    cid_to_wid = {cid: int(w) for cid, w in zip(cluster_keys, ward_labels)}
-    df["ward_id"] = df["cluster_id"].map(cid_to_wid)
-
-    msa_data[main_msa] = df.to_dict("list")
+    msa_data[main_msa] = linked
     return msa_data
-
 
 @callback(
     Output("ward-clusters-to-save-dropdown", "options"),
@@ -670,36 +715,30 @@ def update_ward_clusters_to_save_options(msa_data, main_msa):
     return options
 
 
-def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id"):
-    from sklearn.decomposition import PCA
-    from afcluster.af_cluster import _seqs_to_onehot
+@callback(
+    Output("kmeans-clusters-to-save-dropdown", "options"),
+    Input("msa-data", "data"),
+    State("main-msa", "data"),
+)
+def update_kmeans_clusters_to_save_options(msa_data, main_msa):
+    if not msa_data or not main_msa:
+        return dash.no_update
+    df = pd.DataFrame.from_dict(msa_data[main_msa])
+    if "cluster_id" not in df.columns:
+        return dash.no_update
+    clusters = df["cluster_id"].unique()
+    options = [{"label": f"Cluster {c}", "value": c} for c in clusters]
+    options.insert(0, {"label": "All", "value": "all"})
+    return options
+
+
+def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id", encoding=None):
     import plotly.express as px
+    from frankenmsa.visual.dimension_reduction import compute_PCA
 
-    df = msa.copy()
-
-    # separate query row (first row) if present
-    query = df.iloc[:1]
-    rest = df.iloc[1:]
-
-    seq_len = (
-        len(query["sequence"].values[0])
-        if len(query)
-        else len(rest.iloc[0]["sequence"]) if len(rest) else 0
-    )
-    if seq_len == 0:
+    rest, query = compute_PCA(msa, encoding)
+    if rest is None:
         return dcc.Graph(id=graph_id)
-
-    rest_onehot = _seqs_to_onehot(rest["sequence"].values, max_len=seq_len)
-
-    pca = PCA(n_components=2, random_state=42)
-    embedding = pca.fit_transform(rest_onehot)
-    rest = rest.assign(**{"PC 1": embedding[:, 0], "PC 2": embedding[:, 1]})
-
-    # project query point with the same PCA
-    if len(query):
-        q_onehot = _seqs_to_onehot(query["sequence"].values, max_len=seq_len)
-        q_embed = pca.transform(q_onehot)
-        query = query.assign(**{"PC 1": q_embed[:, 0], "PC 2": q_embed[:, 1]})
 
     fig = px.scatter(
         rest,
@@ -749,7 +788,7 @@ def save_clusters(
 
     if "cluster_id" not in msa.columns:
         return dash.no_update, dbc.Alert(
-            "No clusters found. Please run AFCluster first."
+            "No clusters found. Please run clustering first."
         )
 
     for cluster_id, subset in msa.groupby("cluster_id"):
@@ -789,8 +828,8 @@ def kmeans_layout():
     return html.Div(
         [
             html.H1("Cluster Sequences with KMeans"),
-            html.P(
-                "Cluster sequences based on their similarity using KMeans clustering. Clusters can be saved as new MSAs to be used in downstream tasks."
+            dcc.Markdown(
+                "Cluster sequences using [KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) of [one hot encoding](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html) or using [ESM3 C](https://github.com/evolutionaryscale/esm?tab=readme-ov-file#esm-c-)-embeddings, similar to [VC-MSA](https://pubmed.ncbi.nlm.nih.gov/37414576/)"
             ),
             dbc.Row(
                 [
@@ -803,7 +842,6 @@ def kmeans_layout():
             ),
             html.Div(
                 id="kmeans-save-container",
-                # className="shaded-bordered",
             ),
         ],
         className="shaded-bordered",
@@ -858,6 +896,24 @@ def kmeans_controls(_):
         placement="top",
     )
 
+    encoding_label = html.Label("Encoding")
+    encoding_selector = dbc.RadioItems(
+        id="kmeans-encoding",
+        options=[
+            {"label": "onehot", "value": "onehot"},
+            {"label": "esm", "value": "esm"},
+        ],
+        value="onehot",
+        inline=True,
+        persistence=True,
+        persistence_type="memory",
+    )
+    encoding_tooltip = dbc.Tooltip(
+        "Encoding to use for sequence representation during clustering.",
+        target="kmeans-encoding",
+        placement="bottom",
+    )
+
     top_row = dbc.Row(
         [
             dbc.Col(
@@ -870,10 +926,17 @@ def kmeans_controls(_):
             ),
             dbc.Col(
                 [
+                    encoding_tooltip,
+                    encoding_label,
+                    encoding_selector,
+                ],
+                width="auto",
+            ),
+            dbc.Col(
+                [
                     other_columns_to_include_tooltip,
                     other_columns_to_include,
                 ],
-                # width="auto",
             ),
         ],
         style={
@@ -916,9 +979,11 @@ def update_kmeans_other_columns_options(msa_data, main_msa):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
+    Output("kmeans-status", "children"),
     Input("run-kmeans-button", "n_clicks"),
     State("kmeans-n-clusters", "value"),
     State("kmeans-other-columns", "value"),
+    State("kmeans-encoding", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
@@ -927,71 +992,85 @@ def run_kmeans(
     n_clicks,
     n_clusters,
     columns_to_include,
+    encoding,
     main_msa,
     msa_data,
 ):
     if not (n_clicks or 0) > 0:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     if not msa_data or not main_msa:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
-    from frankenmsa.cluster import KMeans
+    try:
+        from frankenmsa.cluster import KMeans
 
-    clusterer = KMeans()
+        clusterer = KMeans()
 
-    msa = msa_data[main_msa]
-    msa = pd.DataFrame.from_dict(msa)
+        msa = msa_data[main_msa]
+        msa = pd.DataFrame.from_dict(msa)
+        log_message(f"Running KMeans with n_clusters={n_clusters}, columns_to_include={columns_to_include}, encoding={encoding} on MSA {main_msa} with {len(msa)} sequences.")
+        msa = clusterer.cluster(
+            msa,
+            n_clusters=n_clusters,
+            columns=(columns_to_include or None),
+            encoding=encoding,
+        )
+        log_message(f"KMeans clustering completed. Cluster assignments added to MSA {main_msa}.")
+        msa_data[main_msa] = msa.to_dict("list")
+        return (
+            msa_data,
+            dbc.Alert(
+                f"KMeans completed: {len(msa)} sequences updated in {main_msa}.",
+                color="success",
+            ),
+        )
+    except Exception as e:
+        import traceback
 
-    msa = clusterer.cluster(
-        msa,
-        n_clusters=n_clusters,
-        columns=(columns_to_include or None),
-    )
-
-    msa_data[main_msa] = msa.to_dict("list")
-    return msa_data
+        log_message(f"Error running KMeans: {e}")
+        log_message(traceback.format_exc())
+        return dash.no_update, dbc.Alert(f"KMeans Error: {str(e)}", color="danger")
 
 
 @callback(
-    Output("kmeans-save-container", "children"),
     Output("msa-data", "data", allow_duplicate=True),
     Input("save-kmeans-clusters-button", "n_clicks"),
+    State("kmeans-clusters-to-save-dropdown", "value"),
     State("msa-data", "data"),
     State("main-msa", "data"),
     prevent_initial_call=True,
 )
 def save_kmeans_clusters(
     n_clicks,
+    selected,
     msa_data,
     main_msa,
 ):
     if not (n_clicks or 0) > 0:
-        return dash.no_update, dash.no_update
+        return dash.no_update
 
     if not msa_data or not main_msa:
-        return dash.no_update, dash.no_update
+        return dash.no_update
 
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
 
     if "cluster_id" not in msa.columns:
-        return dbc.Alert("No clusters found. Please run KMeans first."), msa_data
+        return dash.no_update
 
-    for cluster_id, subset in msa.groupby("cluster_id"):
+    if not selected:
+        return dash.no_update
 
+    if "all" in selected:
+        selected = msa["cluster_id"].unique()
+
+    for cluster_id in selected:
+        subset = msa[msa["cluster_id"] == cluster_id]
         name = f"{main_msa}_kmeans_cluster_{cluster_id}"
         msa_data[name] = subset.to_dict("list")
 
-    info = f"Saved {len(msa['cluster_id'].unique())} clusters to MSA data."
-    return (
-        dbc.Alert(
-            info,
-            color="success",
-            is_open=True,
-        ),
-        msa_data,
-    )
+    return msa_data
 
 
 @callback(
@@ -1017,7 +1096,7 @@ def update_clusters_to_save_options(msa_data, main_msa):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
-    Input("save-selected-clusters-button", "n_clicks"),
+    Input("save-afcluster-button", "n_clicks"),
     State("clusters-to-save-dropdown", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),

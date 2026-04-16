@@ -66,7 +66,6 @@ def layout():
     )
     return html.Div(
         [
-            # html.H1("Visualise the MSA", style={"padding-bottom": "20px"}),
             visualise_controls,
             dcc.Loading(
                 id="loading",
@@ -86,11 +85,6 @@ def layout():
                             "height": "100%",
                             "width": "100%",
                             "overflow": "hidden",
-                            # "background-color": "transparent",
-                            # "display": "flex",
-                            # "flex-direction": "column",
-                            # "justify-content": "center",
-                            # "align-items": "stretch",
                         },
                     ),
                 ],
@@ -172,40 +166,6 @@ def update_visual_alignment(visualise_alignment, main, data):
         return alignment
     else:
         return html.Div()
-
-
-# @callback(
-#     Output("plotly-visualisation", "children"),
-#     Input("main-msa", "data"),
-#     Input("msa-data", "data"),
-# )
-# def update_plotly_visualisation(main, data):
-#     if not data:
-#         return no_msa_yet()
-
-#     import pandas as pd
-
-#     msa = data[main]
-#     msa = pd.DataFrame.from_dict(msa)
-
-#     alignment = show_alignment(msa)
-#     gaps = show_gaps(msa)
-#     conservation = show_conservation(msa)
-#     identity = show_query_identity(msa)
-
-#     plotly_component = html.Div([gaps, conservation, identity, alignment])
-#     if len(msa) > 150:
-#         plotly_component = html.Div(
-#             [
-#                 plotly_component,
-#                 html.P(
-#                     "Note: The MSA is too large to visualize fully, it was subsampled evenly to 150 entries.",
-#                     style={"color": "red"},
-#                 ),
-#             ],
-#         )
-#     return plotly_component
-
 
 def show_alignment(msa):
     from frankenmsa.utils import unify_length, encode_a3m

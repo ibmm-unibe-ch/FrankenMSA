@@ -1,4 +1,5 @@
 import os, sys
+import logging
 
 from pathlib import Path
 
@@ -23,7 +24,10 @@ app = Dash(
 # --- Download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
 
-
+def log_message(message:str):
+    with open("/content/app/log.txt", "a") as log_file:
+        log_file.write(f"{message}\n")
+log_message("App initialized, setting up download route...")
 def _collect_download_roots():
     roots = []
 
@@ -52,6 +56,7 @@ def _collect_download_roots():
         if normalized not in seen:
             seen.add(normalized)
             deduped.append(normalized)
+    log_message(f"Collected download roots: {deduped}")
     return deduped
 
 
@@ -61,10 +66,13 @@ DOWNLOAD_ROOTS = _collect_download_roots()
 @app.server.route("/colab/download/<path:fname>")
 def serve_proteinmpnn_download(fname):
     """Serve ProteinMPNN output artifacts produced by Colab or local runs."""
+    log_message(f"Download request for file: {fname}")
     for root in DOWNLOAD_ROOTS:
         path = os.path.join(root, fname)
         if os.path.isfile(path):
+            log_message(f"Serving file from {path}")
             return send_file(path, as_attachment=True)
+    log_message(f"File not found: {fname}")
     return ("File not found", 404)
 
 
@@ -118,6 +126,11 @@ def make_header():
         "/inversefold",
         "Perform inverse folding to generate sequences from a given protein structure",
     )
+    ghostfold_icon = icon_link(
+        "icon_augment_white_transparent",
+        "/augment",
+        "Perform GhostFold augmentation",
+    )
     cluster_icon = icon_link(
         "icon_cluster_white_transparent", "/cluster", "Cluster the MSA"
     )
@@ -150,6 +163,7 @@ def make_header():
             combine_icon,
             align_icon,
             inverse_fold_icon,
+            ghostfold_icon,
             cluster_icon,
             visualize_icon,
             select_main_msa,
@@ -261,63 +275,13 @@ app.layout = html.Div(
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def _consume_injected_a3m(injected, msa_data):
-    # Nothing to do
-    if not injected or not injected.get("text"):
-        return no_update, no_update, no_update
-
-    import tempfile
-    import os
-    from pathlib import Path
-
-    try:
-        from frankenmsa.utils import read_a3m
-    except Exception:
-        # Fallback: defer processing if utils unavailable
-        return no_update, no_update, no_update
-
-    raw_name = injected.get("name") or "mpnn.a3m"
-    name = (Path(raw_name).stem or "mpnn").strip()
-
-    # Ensure dict
-    msa_data = {} if msa_data is None else dict(msa_data)
-
-    # Drop duplicate name variants that include extensions
-    ext_variants = {
-        raw_name,
-        f"{name}.a3m",
-        f"{name}.fa",
-        f"{name}.fasta",
-        f"{name}.csv",
-    }
-    for k in list(msa_data.keys()):
-        if k in ext_variants and k != name:
-            msa_data.pop(k, None)
-
-    # If already present, select it and clear the one-shot store
-    if name in msa_data:
-        return msa_data, name, None
-
-    # Materialize text to a temp file and parse via existing reader
-    tmp_path = os.path.join(tempfile.gettempdir(), f"{name}.a3m")
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        f.write(injected["text"])
-
-    try:
-        msa = read_a3m(tmp_path)
-    except Exception:
-        return no_update, no_update, no_update
-
-    msa_data[name] = msa.to_dict("list")
-
-    # Update global stores and clear the one-shot injection store
-    return msa_data, name, None
-
 
 def launch(**kwargs):
     """Main function to run the Dash app.
     Stable, production-like settings; no hot-reload; explicit host/port.
     """
+    log_message("Starting FrankenMSA Dash app launch process...")
+    
     # Honor HOST/PORT env if provided
     host = kwargs.get("host", None)
     if host is None:
@@ -325,10 +289,13 @@ def launch(**kwargs):
     port = kwargs.get("port", None)
     if port is None:
         port = int(os.getenv("PORT", "8050"))
+    
+    log_message(f"App will run on host: {host}, port: {port}")
 
     # Ensure production-ish mode
     os.environ["DASH_DEBUG_MODE"] = "0"
     os.environ["FLASK_ENV"] = "production"
+    log_message("Set environment to production mode")
 
     # Decide render mode (inline/external) again
     render_mode = (
@@ -338,6 +305,8 @@ def launch(**kwargs):
     )
     if render_mode not in {"inline", "external"}:
         render_mode = "external"
+    
+    log_message(f"Render mode: {render_mode}")
 
     tunnel = os.environ.get("COLAB_TUNNEL_URL")
     if tunnel and render_mode == "inline":
@@ -346,8 +315,12 @@ def launch(**kwargs):
         print(f"🌐 Public tunnel: {tunnel}")
 
     print(f"Dash starting on http://{host}:{port}")
-    return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
-
+    #return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
+    try:
+        return app.run(host=host, port=port, debug=False)
+    except Exception as e:
+        logging.error(f"Error starting Dash app: {e}")
+        raise
 
 main = launch  # alias
 if __name__ == "__main__":

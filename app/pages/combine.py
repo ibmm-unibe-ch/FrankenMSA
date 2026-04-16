@@ -115,7 +115,6 @@ def combine_msa_block(msa_data, index):
 
     horizontal_index_tooltip = html.P(
         "Optionally select a specific range of sequence indices to add a slice of the MSA horizontally.",
-        # target={"type": "combine-msa-horizontal-index", "index": index},
     )
     horizontal_index_slider = dcc.RangeSlider(
         id={"type": "combine-msa-horizontal-index", "index": index},
@@ -144,7 +143,6 @@ def combine_msa_block(msa_data, index):
     )
     vertical_index_tooltip = html.P(
         "Optionally select a specific range of row indices to add a slice of the MSA vertically.",
-        # target={"type": "combine-msa-vertical-index", "index": index},
     )
     vertical_index_slider = dcc.RangeSlider(
         id={"type": "combine-msa-vertical-index", "index": index},
@@ -424,7 +422,6 @@ def combine_msas(
                 combined_msa["sequence"] = combined_msa["sequence"].str.cat(
                     msa["sequence"], sep=""
                 )
-                # print(combined_msa)
             else:
                 msa = unify_length(msa, int(combined_msa["sequence"].str.len()[0]))
                 combined_msa = pd.concat([combined_msa, msa], axis=0)

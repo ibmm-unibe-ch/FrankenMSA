@@ -5,9 +5,12 @@ Cluster an MSA using KMeans
 from typing import List, Union
 import pandas as pd
 from sklearn.cluster import KMeans as SKLearnKMeans
-from ..utils import seqtools
+from ..utils.seqtools import get_encoding_func
 from .base import BaseClusterer, CLUSTER_ID_COL
 
+def log_message(message:str):
+    with open("/content/app/log.txt", "a") as log_file:
+        log_file.write(f"{message}\n")
 
 def kmeans(
     sequences: Union[List[str], pd.DataFrame, pd.Series],
@@ -56,7 +59,7 @@ class KMeans(BaseClusterer):
         sequences: Union[List[str], pd.DataFrame, pd.Series],
         n_clusters: int = 10,
         columns: List[str] = None,
-        sequence_encoding: str = "onehot",
+        encoding: str = "onehot",
         *args,
         **kwargs,
     ) -> pd.DataFrame:
@@ -85,16 +88,18 @@ class KMeans(BaseClusterer):
         """
         # Precheck data
         msa = self._precheck_data(sequences)
-
-        encoding_func = getattr(seqtools.sequence_encodings, sequence_encoding, None)
-        if encoding_func is None:
-            raise ValueError(f"Unknown sequence encoding method: {sequence_encoding}")
-
+        log_message(f"Clustering {len(msa)} sequences using KMeans with n_clusters={n_clusters}, encoding={encoding}, and additional columns={columns}")
+        encoding_func = get_encoding_func(encoding)
+        log_message(f"Encoding sequences using {encoding} encoding...")
+        log_message(f"Encoding sequences using {encoding_func}...")
+        log_message(f"First 5 sequences before encoding: {msa['sequence'].head().tolist()}")
         encoded_sequences = encoding_func(msa["sequence"])
+        log_message(f"Sequence encoding completed. Encoded shape: {encoded_sequences.shape}")
         if encoded_sequences.ndim > 2:
             encoded_sequences = encoded_sequences.reshape(
                 encoded_sequences.shape[0], -1
             )
+        log_message(f"Reshaped encoded sequences to 2D array with shape: {encoded_sequences.shape}")
         if columns is not None:
             if not all(col in msa.columns for col in columns):
                 raise ValueError(
@@ -107,11 +112,12 @@ class KMeans(BaseClusterer):
 
         else:
             _clustering_data = encoded_sequences
-
+        log_message(f"Prepared clustering data with shape: {_clustering_data.shape}")
         if _clustering_data.ndim > 2:
             _clustering_data = _clustering_data.reshape(_clustering_data.shape[0], -1)
 
         kmeans = SKLearnKMeans(n_clusters=n_clusters, *args, **kwargs)
+        log_message(f"Fitting KMeans model...")
         msa[CLUSTER_ID_COL] = kmeans.fit_predict(_clustering_data)
-
+        log_message(f"KMeans clustering completed. Cluster centers shape: {kmeans.cluster_centers_.shape}")
         return msa.reset_index(drop=True)
