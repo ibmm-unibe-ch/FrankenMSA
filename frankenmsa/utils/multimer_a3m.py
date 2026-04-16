@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import List, Tuple
-
-print("[DEBUG] multimer_a3m loaded from:", __file__)
+import pandas as pd
 
 
 def parse_a3m(path: str) -> List[Tuple[str, str]]:
@@ -97,3 +96,101 @@ def combine_unpaired_a3m(
             lines.append("-" * pad_left + seq + "-" * pad_right)
 
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def read_a3m_with_chains(filename: str) -> pd.DataFrame:
+    """
+    Read an A3M file and automatically detect if it's multimeric.
+    If multimeric, returns a DataFrame with a "chain" column separating chains.
+    If monomeric, returns a simple DataFrame with just header and sequence columns.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the A3M file.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with "header" and "sequence" columns. If multimeric, also includes
+        a "chain" column (0-indexed) and a "_multimer_header" column for preservation.
+    """
+
+    with open(filename, "r") as f:
+        lines = [line.rstrip("\n") for line in f]
+
+    # Skip empty lines to find the first real line
+    first_real_line = None
+    first_real_idx = 0
+    for i, line in enumerate(lines):
+        if line.strip():
+            first_real_line = line
+            first_real_idx = i
+            break
+
+    if first_real_line is None:
+        raise ValueError(f"Empty A3M file: {filename}")
+
+    # Check if this is a multimer file (first line starts with #)
+    if first_real_line.startswith("#"):
+        # Parse multimer header
+        # Format: #chain_lengths\tchain_counts (e.g., #100,100\t1,1)
+        header_parts = first_real_line.split("\t")
+        chain_lengths_str = header_parts[0].lstrip("#")
+        chain_lengths = [int(x) for x in chain_lengths_str.split(",")]
+
+        # Compute cumulative lengths for chain detection
+        cumsum = [0]
+        for length in chain_lengths:
+            cumsum.append(cumsum[-1] + length)
+
+        # Parse sequences
+        headers = []
+        sequences = []
+        chains = []
+
+        for i in range(first_real_idx + 1, len(lines)):
+            line = lines[i].strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                headers.append(line[1:])
+            else:
+                # Count leading gaps to determine which chain this sequence belongs to
+                gap_count = 0
+                for char in line:
+                    if char == "-":
+                        gap_count += 1
+                    else:
+                        break
+
+                # Find which chain based on cumulative lengths
+                chain_idx = None
+                for j in range(len(chain_lengths)):
+                    if cumsum[j] <= gap_count < cumsum[j + 1]:
+                        chain_idx = j
+                        break
+
+                if chain_idx is None:
+                    chain_idx = len(chain_lengths) - 1  # Default to last chain
+
+                # Extract the actual sequence (remove padding gaps)
+                seq_start = cumsum[chain_idx]
+                seq_end = cumsum[chain_idx + 1]
+                actual_seq = line[seq_start:seq_end]
+
+                sequences.append(actual_seq)
+                chains.append(chain_idx)
+
+        return pd.DataFrame(
+            {
+                "header": headers,
+                "sequence": sequences,
+                "chain": chains,
+                "_multimer_header": [first_real_line] * len(headers),
+            }
+        )
+
+    else:
+        # Monomeric format - not multimer
+        return None

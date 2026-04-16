@@ -4,12 +4,15 @@ Functions to read and write files.
 
 import pandas as pd
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Generator
+from .multimer_a3m import read_a3m_with_chains
 
 
 def read_a3m(filename: str) -> pd.DataFrame:
     """
     Read an A3M file and return a DataFrame with the sequences and their headers.
+    Automatically detects if the file contains a multimeric assembly (if first line is # comment)
+    and adds a "chain" column if multimeric.
 
     Parameters
     ----------
@@ -19,10 +22,17 @@ def read_a3m(filename: str) -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        A DataFrame with the sequences and their headers.
+        A DataFrame with "header" and "sequence" columns. If multimeric, also includes
+        a "chain" column (0-indexed) indicating which chain each sequence belongs to,
+        and a "_multimer_header" column to preserve the multimer metadata for writing.
     """
 
-    # Initialize lists to store headers and sequences
+    # Try to read as multimeric first
+    result = read_a3m_with_chains(filename)
+    if result is not None:
+        return result
+
+    # Fall back to monomeric format
     headers = []
     sequences = []
 
@@ -46,7 +56,7 @@ def read_a3m(filename: str) -> pd.DataFrame:
     return out
 
 
-def iter_a3m(filename: str) -> Tuple[str]:
+def iter_a3m(filename: str) -> Generator[Tuple[str, str], None, None]:
     """
     Iterate over an A3M file and yield the header and sequence for each entry.
 

@@ -4,6 +4,7 @@ General funcionality for MSA manipulation.
 
 import pandas as pd
 from typing import Optional, Union
+from collections import defaultdict
 
 __all__ = [
     "unify_length",
@@ -618,3 +619,64 @@ def fix_at(df: pd.DataFrame, indices: list[int]):
 
     df["sequence"] = ["".join(chars) for chars in seq_lists]
     return df.reset_index(drop=True)
+
+
+def split_chains(df: pd.DataFrame) -> list[pd.DataFrame]:
+    """
+    Split a multimeric MSA DataFrame into a list of DataFrames, one per chain.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The multimeric MSA DataFrame. Must contain a "_multimer_header" column.
+
+    Returns
+    -------
+    list[pd.DataFrame]
+        A list of DataFrames, each corresponding to a chain in the multimeric MSA.
+    """
+    if "chain" not in df.columns:
+        raise ValueError("DataFrame must contain a 'chain' column to split chains.")
+
+    chain_dfs = []
+    num_chains = df["chain"].max() + 1
+    for chain_id in range(num_chains):
+        chain_df = df[df["chain"] == chain_id].reset_index(drop=True)
+        # Remove the 'chain' column for individual chain DataFrames
+        chain_df = chain_df.drop(columns=["chain"])
+        chain_dfs.append(chain_df)
+
+    return chain_dfs
+
+
+def merge_chains(dfs: list[pd.DataFrame]) -> pd.DataFrame:
+    """
+    Merge a list of chain DataFrames into a single multimeric MSA DataFrame.
+
+    Parameters
+    ----------
+    dfs : list[pd.DataFrame]
+        A list of DataFrames, each corresponding to a chain in the multimeric MSA.
+
+    Returns
+    -------
+    pd.DataFrame
+        The merged multimeric MSA DataFrame with a "chain" column.
+    """
+
+    chain_identifiers = defaultdict(int)
+    merged_df = pd.DataFrame()
+    for chain_id, chain_df in enumerate(dfs):
+        chain_df = chain_df.copy()
+        chain_df["chain"] = chain_id
+        query_seq = chain_df["sequence"].iloc[0].upper().strip()
+        chain_identifiers[query_seq] += 1
+        merged_df = pd.concat([merged_df, chain_df], ignore_index=True)
+
+    # create multimer header
+    lengths = [len(q) for q in chain_identifiers.keys()]
+    card = [str(chain_identifiers[q]) for q in chain_identifiers.keys()]
+    multimer_header = f"#" + ",".join(str(L) for L in lengths) + "\t" + ",".join(card)
+    merged_df["_multimer_header"] = multimer_header
+
+    return merged_df.reset_index(drop=True)
