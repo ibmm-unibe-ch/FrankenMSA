@@ -1321,6 +1321,27 @@ def edit_sequences_layout():
                 [
                     dbc.Col(
                         [
+                            html.H5("Unknown to Gaps"),
+                            html.P(
+                                "Replace all unknown residues ('X') with gaps ('-') in the MSA."
+                            ),
+                            html.Button(
+                                "Convert Unknown to Gaps",
+                                id="edit-unknown-to-gaps",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
                             html.H5("Replace at Position"),
                             html.P(
                                 "Replace a substring in all sequences at a specified position with a new sequence."
@@ -2103,7 +2124,7 @@ def set_depth(n_clicks, depth, main_msa, msa_data):
         new = len(new_msa)
         msa_data[main_msa] = new_msa.to_dict("list")
         # print("New MSA:")
-        return msa_data, "Set MSA depth successfully from {old} to {new}.", True
+        return msa_data, f"Set MSA depth successfully from {old} to {new}.", True
     else:
         # print("No button click detected.")
         return dash.no_update, dash.no_update, False
@@ -2276,14 +2297,14 @@ def separate_query(n_clicks, main_msa, msa_data):
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
+        if msa.empty:
+            return dash.no_update, "MSA is empty, cannot separate query.", True
+
         query = msa.iloc[[0]]
         msa = msa.iloc[1:]
 
         query_name = main_msa + "_query"
-        qdict = query.to_dict()
-        qdict = {i: [v] for i, v in qdict.items()}
-        msa_data[query_name] = qdict
-        print(msa_data[query_name])
+        msa_data[query_name] = query.to_dict("list")
         msa_data[main_msa] = msa.to_dict("list")
 
         return msa_data, "Query separated as a new MSA named: " + query_name, True
@@ -2637,4 +2658,32 @@ def insertions_to_gaps(n_clicks, main_msa, msa_data):
         )
     else:
         # print("No button click detected.")
+        return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("edit-unknown-to-gaps", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def unknown_to_gaps(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, dash.no_update, False
+
+        from pandas import DataFrame
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+
+        # Replace unknown residues in the sequence column with gaps.
+        msa["sequence"] = msa["sequence"].str.replace("X", "-", regex=False)
+        msa_data[main_msa] = msa.to_dict("list")
+
+        return msa_data, "Replaced all 'X' residues with gaps in the sequences.", True
+    else:
         return dash.no_update, dash.no_update, False
