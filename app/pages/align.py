@@ -15,6 +15,7 @@ from frankenmsa.align.workflows import (
     validate_mmseqs_request,
     validate_similarity_cutoff,
 )
+from frankenmsa.runtime import log_message
 
 dash.register_page(
     __name__,
@@ -23,18 +24,6 @@ dash.register_page(
 # =============================================================================
 #  UI Layout
 # =============================================================================
-
-def log_message(message: str):
-    if (
-        os.environ.get("ON_COLAB") == "1"
-        or os.environ.get("IN_COLAB") == "1"
-        or os.environ.get("FRANKEN_COLAB") == "1"
-    ):
-        logfile = "/content/app/log.txt"
-    else:
-        logfile = "log.txt"
-    with open(logfile, "a") as log_file:
-        log_file.write(f"{message}\n")
 
 def layout():
     return html.Div([

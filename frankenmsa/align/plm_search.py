@@ -15,6 +15,7 @@ import requests
 import pandas as pd
 
 from . import base
+from ..runtime import log_message
 from ..utils.uniprot import fetch_uniprot_metadata
 
 # PLM-Search API endpoints and configuration
@@ -53,10 +54,6 @@ DEFAULT_POLL_INTERVAL_SECONDS = 5
 MAX_RETRIES = 10
 CHUNK_SIZE = 8192
 BATCH_SIZE_UNIPROT = 100
-
-def log_message(message:str):
-    with open("/content/app/log.txt", "a") as log_file:
-        log_file.write(f"{message}\n")
 
 def download_with_resume(session: requests.Session, url: str, max_retries: int = MAX_RETRIES) -> bytes:
     """

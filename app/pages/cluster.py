@@ -9,15 +9,12 @@ from frankenmsa.cluster import cluster_pca_projection
 from frankenmsa.cluster import numeric_column_options
 from frankenmsa.cluster import run_ward_centroid_merge
 from frankenmsa.cluster import save_cluster_subsets
+from frankenmsa.runtime import log_message
 
 
 dash.register_page(
     __name__,
 )
-
-def log_message(message:str):
-    with open("/content/app/log.txt", "a") as log_file:
-        log_file.write(f"{message}\n")
 
 def layout():
     return html.Div(

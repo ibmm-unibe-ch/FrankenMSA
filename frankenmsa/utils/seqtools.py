@@ -8,6 +8,8 @@ from typing import List, Union, Iterable
 import numpy as np
 import string
 
+from ..runtime import log_message
+
 
 __all__ = [
     "is_valid_peptide_sequence",
@@ -24,10 +26,6 @@ missing_or_unknown = "X"
 """
 Character to use for missing or unknown amino acids.
 """
-
-def log_message(message:str):
-    with open("/content/app/log.txt", "a") as log_file:
-        log_file.write(f"{message}\n")
 
 def is_valid_peptide_sequence(seq: str) -> bool:
     """

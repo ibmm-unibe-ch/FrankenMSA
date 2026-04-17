@@ -391,9 +391,6 @@ import os
 from frankenmsa.inverse_fold import run_proteinmpnn
 
 
-ON_COLAB = os.environ.get("ON_COLAB") == "1"
-
-
 @callback(
     Output("pdb-upload-status", "children"),
     Output("pdb-upload-path", "data"),
