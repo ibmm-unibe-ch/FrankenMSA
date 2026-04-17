@@ -4,6 +4,12 @@ import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 import pandas as pd
 
+from frankenmsa.cluster import cluster_dropdown_options
+from frankenmsa.cluster import cluster_pca_projection
+from frankenmsa.cluster import numeric_column_options
+from frankenmsa.cluster import run_ward_centroid_merge
+from frankenmsa.cluster import save_cluster_subsets
+
 
 dash.register_page(
     __name__,
@@ -109,12 +115,12 @@ def layout():
                                         [
                                             dbc.Col(
                                                 dcc.Dropdown(
-                                                    id="ward-clusters-to-save-dropdown",
+                                                    id="ward-centroid-clusters-to-save-dropdown",
                                                     options=[],
                                                     value=[],
                                                     multi=True,
                                                     className="dropdown-component",
-                                                    placeholder="Select ward clusters to save",
+                                                    placeholder="Select centroid-merged clusters to save",
                                                     style={
                                                         "height": "44px",
                                                         "alignSelf": "center",
@@ -127,8 +133,8 @@ def layout():
                                             ),
                                             dbc.Col(
                                                 html.Button(
-                                                    "Save Ward",
-                                                    id="save-ward-selected-clusters-button",
+                                                    "Save Ward Centroid Merge",
+                                                    id="save-ward-centroid-selected-clusters-button",
                                                     className="button-component",
                                                     n_clicks=0,
                                                     style={
@@ -240,12 +246,12 @@ def afcluster_layout():
 
 
 def ward_controls_layout():
-    header = html.H4("Ward-Linking")
+    header = html.H4("Ward Centroid Merge")
 
     explain = dcc.Markdown(
-        "After `AF-Cluster` assigns cluster_id, merge clusters hierarchically using "
-        "[Agglomerative (Ward) linkage](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html) "
-        "on cluster centroids. For an application to AF-based conformational ensembles, see "
+        "After `AF-Cluster` assigns `cluster_id`, merge those existing clusters hierarchically using "
+        "size-weighted Ward merging on cluster centroids. This is a centroid merge over AFCluster groups, "
+        "not a fresh Ward clustering pass over every sequence. For an application to AF-based conformational ensembles, see "
         "[Piomponi et al., 2025](https://pubs.acs.org/doi/10.1021/acs.jcim.5c01090)."
     )
 
@@ -254,7 +260,7 @@ def ward_controls_layout():
         [
             dbc.Col(
                 dcc.Input(
-                    id="ward-n-clusters-min-box",
+                    id="ward-centroid-n-clusters-min-box",
                     type="number",
                     value=2,
                     min=2,
@@ -275,7 +281,7 @@ def ward_controls_layout():
                         },
                     ),
                     dcc.Slider(
-                        id="ward-n-clusters-slider",
+                        id="ward-centroid-n-clusters-slider",
                         min=2,
                         max=15,
                         step=1,
@@ -284,7 +290,7 @@ def ward_controls_layout():
                         tooltip={"placement": "bottom", "always_visible": True},
                     ),
                     dcc.Input(
-                        id="ward-n-clusters",
+                        id="ward-centroid-n-clusters",
                         type="number",
                         value=3,
                         min=2,
@@ -297,7 +303,7 @@ def ward_controls_layout():
             ),
             dbc.Col(
                 dcc.Input(
-                    id="ward-n-clusters-max-box",
+                    id="ward-centroid-n-clusters-max-box",
                     type="number",
                     value=15,
                     min=3,
@@ -321,8 +327,8 @@ def ward_controls_layout():
     # big button below, full width (similar to Run AFCluster)
     bottom_button = dbc.Row(
         html.Button(
-            "Run Ward-Linking",
-            id="run-ward-linking-button",
+            "Run Ward Centroid Merge",
+            id="run-ward-centroid-merge-button",
             className="button-component",
             n_clicks=0,
         ),
@@ -669,7 +675,7 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
             pca_plot(
                 df,
                 graph_id="pca-ward",
-                title="PCA of Ward-merged Clusters",
+                title="PCA of Ward Centroid-Merged Clusters",
                 color_col="ward_id",
                 encoding=encoding,
             )
@@ -679,40 +685,34 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
-    Input("run-ward-linking-button", "n_clicks"),
-    State("ward-n-clusters", "value"),
+    Input("run-ward-centroid-merge-button", "n_clicks"),
+    State("ward-centroid-n-clusters", "value"),
     State("msa-data", "data"),
     State("main-msa", "data"),
     prevent_initial_call=True,
 )
-def run_ward_linking(n_clicks, n_clusters, msa_data, main_msa, encoding):
+def run_ward_centroid_merge_callback(n_clicks, n_clusters, msa_data, main_msa, encoding=None):
     if (not (n_clicks or 0) > 0) or (not msa_data or not main_msa) or (n_clusters is None or n_clusters < 1):
         return dash.no_update
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    
-    from frankenmsa.cluster.ward import ward_linking
 
-    linked = ward_linking(df, n_clusters, encoding)
+    linked = run_ward_centroid_merge(df, n_clusters, encoding)
     if linked is None:
         return dash.no_update
-    msa_data[main_msa] = linked
+    msa_data[main_msa] = linked.to_dict("list")
     return msa_data
 
 @callback(
-    Output("ward-clusters-to-save-dropdown", "options"),
+    Output("ward-centroid-clusters-to-save-dropdown", "options"),
     Input("msa-data", "data"),
     State("main-msa", "data"),
 )
-def update_ward_clusters_to_save_options(msa_data, main_msa):
+def update_ward_centroid_clusters_to_save_options(msa_data, main_msa):
     if not msa_data or not main_msa:
         return dash.no_update
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    if "ward_id" not in df.columns:
-        return dash.no_update
-    clusters = df["ward_id"].unique()
-    options = [{"label": f"Ward {c}", "value": int(c)} for c in clusters]
-    options.insert(0, {"label": "All", "value": "all"})
-    return options
+    options = cluster_dropdown_options(df, cluster_column="ward_id", label_prefix="Ward")
+    return options or dash.no_update
 
 
 @callback(
@@ -724,19 +724,14 @@ def update_kmeans_clusters_to_save_options(msa_data, main_msa):
     if not msa_data or not main_msa:
         return dash.no_update
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    if "cluster_id" not in df.columns:
-        return dash.no_update
-    clusters = df["cluster_id"].unique()
-    options = [{"label": f"Cluster {c}", "value": c} for c in clusters]
-    options.insert(0, {"label": "All", "value": "all"})
-    return options
+    options = cluster_dropdown_options(df, cluster_column="cluster_id", label_prefix="Cluster")
+    return options or dash.no_update
 
 
 def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id", encoding=None):
     import plotly.express as px
-    from frankenmsa.visual.dimension_reduction import compute_PCA
 
-    rest, query = compute_PCA(msa, encoding)
+    rest, query = cluster_pca_projection(msa, encoding)
     if rest is None:
         return dcc.Graph(id=graph_id)
 
@@ -791,10 +786,13 @@ def save_clusters(
             "No clusters found. Please run clustering first."
         )
 
-    for cluster_id, subset in msa.groupby("cluster_id"):
-
-        name = f"{main_msa}_cluster_{cluster_id}"
-        msa_data[name] = subset.to_dict("list")
+    msa_data = save_cluster_subsets(
+        msa_data,
+        main_msa,
+        cluster_column="cluster_id",
+        selected=["all"],
+        name_template="{main}_cluster_{cluster}",
+    )
 
     info = f"Saved {len(msa['cluster_id'].unique())} clusters to MSA data."
     return msa_data, dbc.Alert(
@@ -816,12 +814,7 @@ def update_other_columns_options(msa_data, main_msa):
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
 
-    columns = msa.select_dtypes(include=["number"]).columns.tolist()
-
-    # Create options for the dropdown
-    options = [{"label": col, "value": col} for col in columns]
-
-    return options
+    return numeric_column_options(msa)
 
 
 def kmeans_layout():
@@ -969,12 +962,7 @@ def update_kmeans_other_columns_options(msa_data, main_msa):
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
 
-    columns = msa.select_dtypes(include=["number"]).columns.tolist()
-
-    # Create options for the dropdown
-    options = [{"label": col, "value": col} for col in columns]
-
-    return options
+    return numeric_column_options(msa)
 
 
 @callback(
@@ -1062,15 +1050,13 @@ def save_kmeans_clusters(
     if not selected:
         return dash.no_update
 
-    if "all" in selected:
-        selected = msa["cluster_id"].unique()
-
-    for cluster_id in selected:
-        subset = msa[msa["cluster_id"] == cluster_id]
-        name = f"{main_msa}_kmeans_cluster_{cluster_id}"
-        msa_data[name] = subset.to_dict("list")
-
-    return msa_data
+    return save_cluster_subsets(
+        msa_data,
+        main_msa,
+        cluster_column="cluster_id",
+        selected=selected,
+        name_template="{main}_kmeans_cluster_{cluster}",
+    )
 
 
 @callback(
@@ -1085,13 +1071,8 @@ def update_clusters_to_save_options(msa_data, main_msa):
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
 
-    if "cluster_id" not in msa.columns:
-        return dash.no_update
-
-    clusters = msa["cluster_id"].unique()
-    options = [{"label": f"Cluster {c}", "value": c} for c in clusters]
-    options.insert(0, {"label": "All", "value": "all"})
-    return options
+    options = cluster_dropdown_options(msa, cluster_column="cluster_id", label_prefix="Cluster")
+    return options or dash.no_update
 
 
 @callback(
@@ -1120,27 +1101,24 @@ def save_selected_clusters(
     if "cluster_id" not in msa.columns:
         return dash.no_update
 
-    if "all" in selected_clusters:
-        selected_clusters = msa["cluster_id"].unique()
-
-    for cluster_id in selected_clusters:
-        subset = msa[msa["cluster_id"] == cluster_id]
-        name = f"{main_msa}_selected_cluster_{cluster_id}"
-        msa_data[name] = subset.to_dict("list")
-
-    info = f"Saved {len(selected_clusters)} clusters to MSA data."
-    return msa_data
+    return save_cluster_subsets(
+        msa_data,
+        main_msa,
+        cluster_column="cluster_id",
+        selected=selected_clusters,
+        name_template="{main}_selected_cluster_{cluster}",
+    )
 
 
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
-    Input("save-ward-selected-clusters-button", "n_clicks"),
-    State("ward-clusters-to-save-dropdown", "value"),
+    Input("save-ward-centroid-selected-clusters-button", "n_clicks"),
+    State("ward-centroid-clusters-to-save-dropdown", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def save_ward_selected_clusters(n_clicks, selected, main_msa, msa_data):
+def save_ward_centroid_selected_clusters(n_clicks, selected, main_msa, msa_data):
     if not (n_clicks or 0) > 0:
         return dash.no_update
     if not msa_data or not main_msa:
@@ -1150,34 +1128,34 @@ def save_ward_selected_clusters(n_clicks, selected, main_msa, msa_data):
         return dash.no_update
     if not selected:
         return dash.no_update
-    if "all" in selected:
-        selected = df["ward_id"].unique()
-    for wid in selected:
-        subset = df[df["ward_id"] == wid]
-        name = f"{main_msa}_ward_cluster_{wid}"
-        msa_data[name] = subset.to_dict("list")
-    return msa_data
+    return save_cluster_subsets(
+        msa_data,
+        main_msa,
+        cluster_column="ward_id",
+        selected=selected,
+        name_template="{main}_ward_cluster_{cluster}",
+    )
 
 
-# sync ward-n-clusters-slider to hidden input for compatibility
+# sync ward-centroid-n-clusters-slider to hidden input for compatibility
 @callback(
-    Output("ward-n-clusters", "value"),
-    Input("ward-n-clusters-slider", "value"),
+    Output("ward-centroid-n-clusters", "value"),
+    Input("ward-centroid-n-clusters-slider", "value"),
     prevent_initial_call=True,
 )
-def _sync_ward_slider_to_input(val):
+def _sync_ward_centroid_slider_to_input(val):
     return val
 
 
-# sync ward-n-clusters input to slider
+# sync ward-centroid-n-clusters input to slider
 @callback(
-    Output("ward-n-clusters-slider", "value"),
-    Input("ward-n-clusters", "value"),
-    State("ward-n-clusters-min-box", "value"),
-    State("ward-n-clusters-max-box", "value"),
+    Output("ward-centroid-n-clusters-slider", "value"),
+    Input("ward-centroid-n-clusters", "value"),
+    State("ward-centroid-n-clusters-min-box", "value"),
+    State("ward-centroid-n-clusters-max-box", "value"),
     prevent_initial_call=True,
 )
-def _sync_ward_input_to_slider(val, min_box, max_box):
+def _sync_ward_centroid_input_to_slider(val, min_box, max_box):
     # Validate using the dynamic min/max from the boxes
     if val is None:
         return dash.no_update
@@ -1202,14 +1180,14 @@ def _sync_ward_input_to_slider(val, min_box, max_box):
 
 
 @callback(
-    Output("ward-n-clusters-slider", "min"),
-    Output("ward-n-clusters-slider", "max"),
-    Output("ward-n-clusters", "min"),
-    Output("ward-n-clusters", "max"),
-    Input("ward-n-clusters-min-box", "value"),
-    Input("ward-n-clusters-max-box", "value"),
+    Output("ward-centroid-n-clusters-slider", "min"),
+    Output("ward-centroid-n-clusters-slider", "max"),
+    Output("ward-centroid-n-clusters", "min"),
+    Output("ward-centroid-n-clusters", "max"),
+    Input("ward-centroid-n-clusters-min-box", "value"),
+    Input("ward-centroid-n-clusters-max-box", "value"),
 )
-def update_ward_slider_min_max(min_box, max_box):
+def update_ward_centroid_slider_min_max(min_box, max_box):
     # Ensure both boxes are present and form a valid range
     if min_box is None or max_box is None:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update

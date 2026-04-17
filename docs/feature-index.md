@@ -49,9 +49,9 @@ This document is the canonical inventory of functional capabilities currently pr
 | augment | GhostFold input cleanup and multimer result splitting | `app/pages/augment.py` | augmentation callback | `app-only` | `extract` | `frankenmsa.augment` or `frankenmsa.utils.fileio` | App-only orchestration currently hides reusable behavior. |
 | cluster | AFCluster sequence clustering | `frankenmsa/cluster/af_cluster.py`, `app/pages/cluster.py` | `AFCluster`, clustering callback | `library-backed` | `adopt` | `frankenmsa.cluster.af_cluster` | Core compute already belongs in the library. |
 | cluster | KMeans clustering | `frankenmsa/cluster/kmeans.py` | `KMeans` | `library-backed` | `refactor` | `frankenmsa.cluster.kmeans` | Present in library but not clearly exposed in the UI. |
-| cluster | Ward linkage post-clustering merge | `frankenmsa/cluster/ward.py`, `app/pages/cluster.py` | `ward_linking`, ward callback | `duplicated` | `refactor` | `frankenmsa.cluster.ward` | Implemented in library but still needs intentional public exposure. |
+| cluster | Size-weighted Ward centroid merge after AFCluster | `frankenmsa/cluster/ward.py`, `frankenmsa/cluster/workflows.py`, `app/pages/cluster.py` | `ward_merge_cluster_centroids`, `run_ward_centroid_merge`, ward callback | `library-backed` | `adopt` | `frankenmsa.cluster.ward` and `frankenmsa.cluster.workflows` | Library now exposes this as a weighted centroid merge over existing AFCluster groups; `ward_linking` remains as a compatibility alias. |
 | cluster | PCA preparation for cluster visualization | `frankenmsa/visual/dimension_reduction.py`, `app/pages/cluster.py` | `compute_PCA`, plot callbacks | `library-backed` | `keep` | `frankenmsa.visual.dimension_reduction` | Data prep can stay in library; plotting stays app-side. |
-| cluster | Scatter plot rendering, interactive cluster selection, settings persistence | `app/pages/cluster.py` | visualization and state callbacks | `ui-only` | `keep` | n/a | Dash-specific interaction layer. |
+| cluster | Scatter plot rendering, interactive cluster selection, settings persistence | `app/pages/cluster.py`, `frankenmsa/cluster/workflows.py` | visualization callbacks, save helpers, dropdown helpers | `duplicated` | `refactor` | `frankenmsa.cluster.workflows` plus app UI | Plot rendering stays app-side; reusable option/save logic moved to library workflows. |
 | inverse-fold | Public sequence generation API | `frankenmsa/inverse_fold/api.py` | `generate_sequences`, backend selection helpers | `library-backed` | `refactor` | `frankenmsa.inverse_fold.api` | Should become the single stable entry point for app and notebooks. |
 | inverse-fold | Local ProteinMPNN backend | `frankenmsa/inverse_fold/protein_mpnn.py` | `LocalProteinMPNN` | `library-backed` | `refactor` | `frankenmsa.inverse_fold.protein_mpnn` | Resolves an existing checkout and no longer owns installation. |
 | inverse-fold | Remote ProteinMPNN backend via Biolib | `frankenmsa/inverse_fold/remote_protein_mpnn.py` | `BiolibProteinMPNN` | `library-backed` | `refactor` | `frankenmsa.inverse_fold.remote_protein_mpnn` | Record limitations such as heteromer support. |
@@ -95,7 +95,7 @@ These are low-risk, high-value targets because they are pure functions and easy 
 | --- | --- |
 | GhostFold | Remove hardcoded Colab path assumptions and add explicit configuration. |
 | MMseqs2 and PLM-Search | Standardize result handling and public API wrappers. |
-| Ward linkage | Expose intentionally through the cluster package and document expected inputs/outputs. |
+| Ward centroid merge | Expose intentionally through the cluster package and document that it merges existing cluster centroids rather than reclustering all sequences. |
 | Visualization helpers | Separate reusable data computation from app-specific rendering. |
 
 ## Environment and Dependency Notes
