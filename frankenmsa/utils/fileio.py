@@ -4,7 +4,7 @@ Functions to read and write files.
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Generator
+from typing import Dict, List, Tuple, Generator
 from .multimer_a3m import read_a3m_with_chains
 
 
@@ -255,6 +255,41 @@ def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
     
     return sequences, descriptions
 
+
+def split_dataframe_by_chain(df: pd.DataFrame, base_name: str) -> Dict[str, pd.DataFrame]:
+    """Split a DataFrame with a `chain` column into one DataFrame per chain."""
+    from .multimer_a3m import chain_label
+
+    if "chain" not in df.columns:
+        raise ValueError("DataFrame does not have a 'chain' column")
+
+    chain_msas = {}
+    unique_chains: List[str] = sorted(df["chain"].dropna().unique())
+
+    for chain_value in unique_chains:
+        chain_df = df[df["chain"] == chain_value].copy()
+        chain_df = chain_df.drop(columns=["chain"])
+        label = chain_value if isinstance(chain_value, str) and chain_value else chain_label(0)
+        chain_msas[f"{base_name}{label}"] = chain_df
+
+    return chain_msas
+
+
+def build_multimer_csv(msa_data: dict, selected_msas: List[str]) -> pd.DataFrame:
+    """Build a CSV-ready DataFrame from multiple stored MSAs with a chain column."""
+    from .multimer_a3m import chain_label
+
+    combined_dfs = []
+    for idx, msa_name in enumerate(selected_msas):
+        df = pd.DataFrame(msa_data[msa_name]).copy()
+        df["chain"] = chain_label(idx)
+        combined_dfs.append(df)
+
+    if not combined_dfs:
+        raise ValueError("No MSAs selected")
+
+    return pd.concat(combined_dfs, ignore_index=True)
+
 __all__ = [
     "read_a3m",
     "iter_a3m",
@@ -262,4 +297,6 @@ __all__ = [
     "encode_a3m",
     "decode_a3m",
     "read_fasta",
+    "split_dataframe_by_chain",
+    "build_multimer_csv",
 ]

@@ -1,6 +1,98 @@
+import re
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 import pandas as pd
+
+
+def chain_label(index: int) -> str:
+    """Return spreadsheet-style chain labels: A-Z, AA-AZ, BA-BZ, ..."""
+    if index < 0:
+        raise ValueError("Chain index must be non-negative")
+    if index < 26:
+        return chr(65 + index)
+    first = chr(65 + (index // 26) - 1)
+    second = chr(65 + (index % 26))
+    return first + second
+
+
+def is_multimer_a3m_text(text: str) -> bool:
+    """Return whether the text starts with a ColabFold-style multimer header."""
+    lines = text.strip().splitlines()
+    if not lines:
+        return False
+    return bool(re.match(r"^#\d+[,\d]*\t\d+[,\d]*$", lines[0].strip()))
+
+
+def _parse_a3m_simple(path: str) -> List[Tuple[str, str]]:
+    """Read A3M records while skipping the optional multimer header line."""
+    records = []
+    header = None
+    seq_buf = []
+    with open(path, "r", encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.rstrip("\n")
+            if not line:
+                continue
+            if line.startswith("#"):
+                continue
+            if line.startswith(">"):
+                if header is not None:
+                    records.append((header, "".join(seq_buf)))
+                header = line[1:].strip()
+                seq_buf = []
+            else:
+                seq_buf.append(line)
+    if header is not None:
+        records.append((header, "".join(seq_buf)))
+    return records
+
+
+def split_multimer_a3m_file(path: str, base_name: str) -> Dict[str, pd.DataFrame]:
+    """Split a ColabFold-style multimer A3M into one DataFrame per chain."""
+    records = _parse_a3m_simple(path)
+
+    if not records:
+        raise ValueError("Empty A3M file")
+
+    with open(path, "r", encoding="utf-8") as fh:
+        first_line = fh.readline().strip()
+
+    if not first_line.startswith("#"):
+        raise ValueError("Not a valid multimer A3M")
+
+    header_parts = first_line[1:].split("\t")
+    if not header_parts or not header_parts[0]:
+        raise ValueError("Invalid multimer header format")
+
+    lengths = [int(value) for value in header_parts[0].split(",")]
+    num_chains = len(lengths)
+
+    filtered_records = []
+    for header, seq in records:
+        if re.match(r"^\d+$", header.strip()):
+            continue
+        filtered_records.append((header, seq))
+
+    chain_msas = {}
+    cumulative_lengths = [0]
+    for length in lengths:
+        cumulative_lengths.append(cumulative_lengths[-1] + length)
+
+    for chain_idx in range(num_chains):
+        start = cumulative_lengths[chain_idx]
+        end = cumulative_lengths[chain_idx + 1]
+        label = chain_label(chain_idx)
+
+        chain_records = []
+        for header, seq in filtered_records:
+            chain_seq = seq[start:end].replace("-", "")
+            if chain_seq:
+                chain_records.append({"header": header, "sequence": chain_seq})
+
+        if chain_records:
+            chain_msas[f"{base_name}{label}"] = pd.DataFrame(chain_records)
+
+    return chain_msas
 
 
 def parse_a3m(path: str) -> List[Tuple[str, str]]:
@@ -194,3 +286,13 @@ def read_a3m_with_chains(filename: str) -> pd.DataFrame:
     else:
         # Monomeric format - not multimer
         return None
+
+
+__all__ = [
+    "chain_label",
+    "is_multimer_a3m_text",
+    "parse_a3m",
+    "combine_unpaired_a3m",
+    "split_multimer_a3m_file",
+    "read_a3m_with_chains",
+]
