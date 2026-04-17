@@ -11,6 +11,8 @@ FrankenMSA offers a simple functional API to perform operations like:
 
 Built to rely only on a Pandas Dataframe with a "sequence" column the package is designed for minimal requirements and maximal user freedom and compatibility with other scientific software. 
 
+The current implementation inventory and migration tracker live in [docs/feature-index.md](docs/feature-index.md).
+
 ## Not a coder? - No problem!
 <a href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/dev/FrankenMSA_app_colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 

@@ -3,9 +3,18 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 import pandas as pd
+import os
 
 from frankenmsa.align.plm_search import PLMSearch
-from frankenmsa.utils.fileio import read_fasta
+from frankenmsa.align.workflows import (
+    attach_alignment_result,
+    attach_plm_search_results,
+    build_result_key,
+    normalize_mmseqs_input,
+    parse_plm_input,
+    validate_mmseqs_request,
+    validate_similarity_cutoff,
+)
 
 dash.register_page(
     __name__,
@@ -15,8 +24,16 @@ dash.register_page(
 #  UI Layout
 # =============================================================================
 
-def log_message(message:str):
-    with open("/content/app/log.txt", "a") as log_file:
+def log_message(message: str):
+    if (
+        os.environ.get("ON_COLAB") == "1"
+        or os.environ.get("IN_COLAB") == "1"
+        or os.environ.get("FRANKEN_COLAB") == "1"
+    ):
+        logfile = "/content/app/log.txt"
+    else:
+        logfile = "log.txt"
+    with open(logfile, "a") as log_file:
         log_file.write(f"{message}\n")
 
 def layout():
@@ -356,37 +373,11 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
-    if not input_data:
-        return dash.no_update, dash.no_update, dbc.Alert("Please provide input data.", color="danger")
-
-    # 1. Parse and clean input
-    sequence_parts = []
-    for line in input_data.strip().split("\n"):
-        line = line.strip()
-        if not line or line.startswith(">"):
-            continue
-        sequence_parts.append(line)
-    
-    full_sequence = "".join(sequence_parts)
-    full_sequence = "".join(full_sequence.split()).upper()
-
-    if not full_sequence:
-        return dash.no_update, dash.no_update, dbc.Alert("No valid sequences found.", color="danger")
-
-    # 2. Validate input/pairing mode combination
-    is_multimer = ":" in full_sequence
-    
-    if is_multimer and pairing_mode == "none":
-        return dash.no_update, dash.no_update, dbc.Alert(
-            "Error: You have ':' in sequence but selected 'None'. Please select 'Greedy' or 'All'.", 
-            color="danger"
-        )
-    
-    if not is_multimer and pairing_mode != "none":
-         return dash.no_update, dash.no_update, dbc.Alert(
-            "Error: Single sequence provided but 'Greedy/All' selected. Please select 'None'.", 
-            color="danger"
-        )
+    try:
+        full_sequence = normalize_mmseqs_input(input_data)
+        is_multimer = validate_mmseqs_request(full_sequence, pairing_mode)
+    except ValueError as exc:
+        return dash.no_update, dash.no_update, dbc.Alert(str(exc), color="danger")
 
     # 3. Execute alignment
     try:
@@ -406,18 +397,13 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
             msa_df = runner.align([full_sequence], True, filter_mode, None)
             base_name = "mmseqs"
 
-        if not isinstance(msa_data, dict):
-            msa_data = {}
-            
-        n_existing = sum(1 for i in msa_data.keys() if i.startswith(base_name) and "chain" not in i)
-        new_main_key = f"{base_name}_{n_existing + 1}"
-        
-        # 4. Store main MSA
-        data_dict = msa_df.to_dict("list")
-        if multimer_header_str:
-            data_dict["_multimer_header"] = [multimer_header_str] * len(msa_df)
-        
-        msa_data[new_main_key] = data_dict
+        new_main_key = build_result_key(msa_data, base_name)
+        msa_data = attach_alignment_result(
+            msa_data,
+            new_main_key,
+            msa_df,
+            multimer_header_str=multimer_header_str,
+        )
         
         # 5. Handle multimer chain splitting
         if is_multimer and chain_lengths:
@@ -456,28 +442,9 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, max_sequen
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
-    if not input_data or not input_data.strip():
-        return dash.no_update, dash.no_update, dbc.Alert(
-            "Please provide input data.", 
-            color="danger"
-        )
-
     try:
-        # 1. Parse FASTA input
-        sequences, descriptions = read_fasta(input_data)
-        
-        if not sequences:
-            return dash.no_update, dash.no_update, dbc.Alert(
-                "No valid sequences found.", 
-                color="danger"
-            )
-        
-        # 2. Validate similarity cutoff
-        if not (0.0 <= similarity_cutoff <= 1.0):
-            return dash.no_update, dash.no_update, dbc.Alert(
-                "Similarity cutoff must be between 0.0 and 1.0.", 
-                color="danger"
-            )
+        sequences, descriptions = parse_plm_input(input_data)
+        validate_similarity_cutoff(similarity_cutoff)
 
         # 3. Initialize msa_data if needed
         if not isinstance(msa_data, dict):
@@ -495,20 +462,9 @@ def run_plm_search(n_clicks, input_data, database, similarity_cutoff, max_sequen
             )
         
         # 5. Store results organized by query sequence
-        n_existing = sum(1 for key in msa_data.keys() if key.startswith("plm_search"))
-        unique_queries = df["query"].unique()
-        new_keys = []
-        
-        for idx, query in enumerate(unique_queries):
-            query_df = df[df["query"] == query][["header", "sequence"]].copy()
-            new_key = f"plm_search_{query}_{n_existing + idx + 1}"
-            msa_data[new_key] = query_df.to_dict("list")
-            new_keys.append(new_key)
-        
-        # 6. Set main_msa to first result
-        main_key = new_keys[0] if new_keys else None
+        msa_data, main_key, new_keys = attach_plm_search_results(msa_data, df)
         total_results = len(df)
-        num_queries = len(unique_queries)
+        num_queries = len(df["query"].unique())
         
         msg = (
             f"Found {total_results} results from {num_queries} "
