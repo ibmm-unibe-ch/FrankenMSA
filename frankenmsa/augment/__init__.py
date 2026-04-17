@@ -1,2 +1,2 @@
 from .base import AugmentationFactory
-from .ghostfold import GhostFoldAugmentation
+from .ghostfold import GhostFold
