@@ -388,14 +388,10 @@ from dash.dependencies import (
 # --- Colab integration: directly run ProteinMPNN inside Colab environment ---
 from dash import no_update
 import os
+from frankenmsa.inverse_fold import run_proteinmpnn
 
 
 ON_COLAB = os.environ.get("ON_COLAB") == "1"
-
-if ON_COLAB:
-    from helpers import proteinmpnn_colab_runner as proteinmpnn
-else:
-    from helpers import proteinmpnn_local_runner as proteinmpnn
 
 
 @callback(
@@ -467,15 +463,6 @@ def run_proteinmpnn_in_colab(
 ):
     if not n:
         return no_update, no_update, no_update, no_update
-    if proteinmpnn is None:
-        return (
-            no_update,
-            no_update,
-            no_update,
-            html.Div(
-                "❌ It seems that the ProteinMPNN runner script is not available."
-            ),
-        )
 
     uploaded_path = (pdb_upload_path or "").strip()
     code_clean = (pdb or "").strip().upper()
@@ -493,7 +480,7 @@ def run_proteinmpnn_in_colab(
     is_homomer = bool(homomer_val)
 
     try:
-        res = proteinmpnn.run_proteinmpnn(
+        res = run_proteinmpnn(
             sampling_temp=(temp or 1.0),
             num_seqs=(num or 128),
             pdb_code=("" if use_uploaded else code_clean),
@@ -507,6 +494,7 @@ def run_proteinmpnn_in_colab(
             clean_workspace=True,
             allow_upload=False,
             auto_download=False,
+            runtime="colab" if ON_COLAB else "local",
         )
     except Exception as e:
         return no_update, no_update, no_update, html.Div(f"❌ Run failed: {e}")

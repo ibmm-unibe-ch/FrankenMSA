@@ -32,3 +32,5 @@ fi
 echo "Installation complete. To start using FrankenMSA run:"
 echo "  source $VENV_DIR/bin/activate"
 echo "To run the app locally: python app/app.py"
+echo "Optional heavyweight tools are installed separately from scripts/installers/."
+echo "Example: python scripts/installers/install_proteinmpnn.py --root \"$HOME/tools/ProteinMPNN\""

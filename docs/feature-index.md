@@ -53,11 +53,12 @@ This document is the canonical inventory of functional capabilities currently pr
 | cluster | PCA preparation for cluster visualization | `frankenmsa/visual/dimension_reduction.py`, `app/pages/cluster.py` | `compute_PCA`, plot callbacks | `library-backed` | `keep` | `frankenmsa.visual.dimension_reduction` | Data prep can stay in library; plotting stays app-side. |
 | cluster | Scatter plot rendering, interactive cluster selection, settings persistence | `app/pages/cluster.py` | visualization and state callbacks | `ui-only` | `keep` | n/a | Dash-specific interaction layer. |
 | inverse-fold | Public sequence generation API | `frankenmsa/inverse_fold/api.py` | `generate_sequences`, backend selection helpers | `library-backed` | `refactor` | `frankenmsa.inverse_fold.api` | Should become the single stable entry point for app and notebooks. |
-| inverse-fold | Local ProteinMPNN backend | `frankenmsa/inverse_fold/protein_mpnn.py` | `LocalProteinMPNN` | `library-backed` | `refactor` | `frankenmsa.inverse_fold.protein_mpnn` | Needs alignment with app helper behavior and local repo resolution. |
+| inverse-fold | Local ProteinMPNN backend | `frankenmsa/inverse_fold/protein_mpnn.py` | `LocalProteinMPNN` | `library-backed` | `refactor` | `frankenmsa.inverse_fold.protein_mpnn` | Resolves an existing checkout and no longer owns installation. |
 | inverse-fold | Remote ProteinMPNN backend via Biolib | `frankenmsa/inverse_fold/remote_protein_mpnn.py` | `BiolibProteinMPNN` | `library-backed` | `refactor` | `frankenmsa.inverse_fold.remote_protein_mpnn` | Record limitations such as heteromer support. |
-| inverse-fold | ProteinMPNN chain JSONL writing and output packaging | `app/helpers/proteinmpnn_common.py` | helper functions | `app-only` | `extract` | `frankenmsa.inverse_fold` | Strong candidate for a shared backend support module. |
-| inverse-fold | Local ProteinMPNN runner orchestration | `app/helpers/proteinmpnn_local_runner.py`, `app/pages/inversefold.py` | `run_proteinmpnn`, page callback | `app-only` | `extract` | `frankenmsa.inverse_fold` | Current app path duplicates library backend responsibilities. |
-| inverse-fold | Colab-specific ProteinMPNN runner orchestration | `app/helpers/proteinmpnn_colab_runner.py`, notebooks | helper module | `app-only` | `extract` | `frankenmsa.inverse_fold` plus thin notebook adapter | Shared core logic should move down; Colab UI prompts stay out. |
+| inverse-fold | ProteinMPNN chain JSONL writing and output packaging | `frankenmsa/inverse_fold/protein_mpnn_workflow.py` | helper functions | `library-backed` | `adopt` | `frankenmsa.inverse_fold` | Shared workflow and packaging helpers now live in the library. |
+| inverse-fold | Local ProteinMPNN runner orchestration | `frankenmsa/inverse_fold/protein_mpnn_workflow.py`, `app/pages/inversefold.py` | `run_proteinmpnn`, page callback | `library-backed` | `adopt` | `frankenmsa.inverse_fold` | App page calls the library workflow directly; app helper runner removed. |
+| inverse-fold | Colab-specific ProteinMPNN runner orchestration | `frankenmsa/inverse_fold/protein_mpnn_workflow.py`, notebooks | workflow function | `library-backed` | `adopt` | `frankenmsa.inverse_fold` plus thin notebook adapter | Colab setup remains an explicit installer call, but the run workflow is now shared. |
+| install | Optional heavyweight dependency installers | `scripts/installers/` | installer scripts | `library-backed` | `keep` | `scripts/installers/` | Reusable pattern for external tool provisioning outside the base package install. |
 | inverse-fold | PDB upload, download by code, advanced chain options UI | `app/pages/inversefold.py` | page callbacks | `ui-only` | `keep` | n/a | Dash input flow should remain app-side. |
 | visualization | MSA alignment chart data generation | `frankenmsa/visual/alignment_chart.py`, `app/pages/visualize.py` | `visualise_msa`, visualization callbacks | `library-backed` | `refactor` | `frankenmsa.visual.alignment_chart` | Clarify whether the library returns figure data or renders directly. |
 | visualization | Gap, conservation, and identity summaries | `app/pages/visualize.py`, `frankenmsa/utils` helpers | visualization callbacks | `duplicated` | `extract` | `frankenmsa.visual` or `frankenmsa.utils.msatools` | Data computations are reusable; charts are UI-only. |
@@ -84,9 +85,9 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 | Capability | Source | Destination |
 | --- | --- | --- |
-| Chain JSONL and output packaging helpers | `app/helpers/proteinmpnn_common.py` | `frankenmsa/inverse_fold/` |
-| Local runner orchestration | `app/helpers/proteinmpnn_local_runner.py` | `frankenmsa/inverse_fold/` |
-| Shared Colab/local workflow core | `app/helpers/proteinmpnn_colab_runner.py` | `frankenmsa/inverse_fold/` |
+| Chain JSONL and output packaging helpers | `frankenmsa/inverse_fold/protein_mpnn_workflow.py` | completed |
+| Local runner orchestration | `frankenmsa/inverse_fold/protein_mpnn_workflow.py` | completed |
+| Shared Colab/local workflow core | `frankenmsa/inverse_fold/protein_mpnn_workflow.py` | completed |
 
 ### Priority 3: Normalize Existing Library Backends
 
@@ -102,7 +103,7 @@ These are low-risk, high-value targets because they are pure functions and easy 
 | Area | Current Assumption | Required Direction |
 | --- | --- | --- |
 | GhostFold | Colab filesystem assumptions | Replace with configured temp/work directories. |
-| ProteinMPNN | Mixed local helper logic and library backend logic | Unify around one backend abstraction. |
+| ProteinMPNN | Mixed local helper logic and library backend logic | Runtime now resolves one shared installation contract; installer logic lives outside the package. |
 | ESM encoding | Colab-oriented logging path in utility code | Remove hardcoded paths and make logging optional. |
 | HH-suite | System binary availability | Improve dependency checks and error reporting. |
 | MMseqs2 and PLM-Search | External service availability | Keep network boundaries explicit in public APIs. |
@@ -119,6 +120,6 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 1. Extract multimer split and CSV chain conversion helpers from the file page into `frankenmsa.utils`.
 2. Move regex, free-query, and character-transform editing logic into `frankenmsa.utils.msatools`.
-3. Consolidate ProteinMPNN helper logic into `frankenmsa.inverse_fold` and re-point the app to that API.
+3. Normalize notebook callers so they invoke `frankenmsa.inverse_fold.run_proteinmpnn` directly where appropriate.
 4. Remove hardcoded Colab path assumptions from existing library modules while extracting the shared helpers.
 5. Add focused tests around the extracted pure functions before refactoring the Dash pages to adopt them.

@@ -6,9 +6,13 @@ from pathlib import Path
 from collections import namedtuple
 from copy import deepcopy
 import os
+import sys
 import pandas as pd
 
 from . import backend
+from .protein_mpnn_support import resolve_proteinmpnn_root
+from .protein_mpnn_support import resolve_proteinmpnn_weights
+from ..utils.pdbtools import get_chain_ids
 
 MAX_LENGTH = 20000
 """
@@ -35,30 +39,14 @@ def has_local_protein_mpnn(directory=None):
     bool
         True if the local ProteinMPNN repository is available, False otherwise
     """
-    L = LocalProteinMPNN
-    if os.environ.get("ProteinMPNN_DIR") is not None:
-        local_path = Path(os.environ.get("ProteinMPNN_DIR"))
-        if local_path.name == L.module or (local_path / L.module).exists():
-            return True
-
-    elif directory is not None:
-        if (Path(directory) / L.module).exists() or (
-            Path(directory) / "ProteinMPNN"
-        ).exists():
-            return True
-    elif (Path.cwd() / L.module).exists() or (Path.cwd() / "ProteinMPNN").exists():
+    try:
+        resolve_proteinmpnn_root(directory)
         return True
-    elif (Path.home() / "ProteinMPNN").exists():
-        return True
-
-    elif (Path(__file__).parent / L.module).exists() or (
-        Path(__file__).parent / "ProteinMPNN"
-    ).exists():
-        return True
-    return False
+    except Exception:
+        return False
 
 
-class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
+class LocalProteinMPNN(backend.BaseSequenceGenerator):
     """
     Use ProteinMPNN to generate sequences from structures.
 
@@ -72,9 +60,11 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
     module = "protein_mpnn_utils"
     remote_url = "https://github.com/dauparas/ProteinMPNN.git"
     checkpoint_path = "vanilla_model_weights/v_48_020.pt"
+    needs_init = True
 
     def __init__(self):
-        super().__init__()
+        self._is_loaded = False
+        self.model = None
 
         self.setup_parameters = dict(
             hidden_dim=128,
@@ -86,26 +76,35 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
             augment_eps=0.0,
         )
 
-        name = "ProteinMPNN"
-
-        if os.environ.get("ProteinMPNN_DIR") is not None:
-            self.local_path = Path(os.environ.get("ProteinMPNN_DIR"))
-            if self.local_path.name == self.module:
-                self.local_path = self.local_path.parent
-
-        elif (Path.cwd() / name).exists():
-            self.local_path = Path.cwd()
-        elif (Path.home() / name).exists():
-            self.local_path = Path.home()
-        elif (Path(__file__).parent / name).exists():
-            self.local_path = Path(__file__).parent
-        else:
-            self.local_path = Path.cwd()
+        self.local_path = None
 
         self.pssm = {}
         self.pssm_settings()
 
-        self.pip_requirements = ["torch"]
+    @property
+    def device(self):
+        global torch
+
+        import torch
+
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        return torch.device("cpu")
+
+    def init(self):
+        if self._is_loaded:
+            return self
+        self.local_path = resolve_proteinmpnn_root(self.local_path)
+        self.load()
+        self._is_loaded = True
+        return self
+
+    def load(self):
+        local_path = str(Path(self.local_path).resolve())
+        if local_path not in sys.path:
+            sys.path.insert(0, local_path)
+        self.model = self.setup_model().to(self.device)
+        return self.model
 
     @classmethod
     def from_directory(cls, directory: str):
@@ -123,9 +122,7 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
             The ProteinMPNN sequence generator backend
         """
         generator = cls()
-        if Path(directory).name == generator.module:
-            directory = Path(directory).parent
-        generator.local_path = directory
+        generator.local_path = Path(directory).expanduser()
         return generator
 
     def pssm_settings(
@@ -162,14 +159,11 @@ class LocalProteinMPNN(backend.DownloadableSequenceGenerator):
         global torch
         global np
         global protein_mpnn_utils
-        global pdbio
-
         import torch
         import numpy as np
         import protein_mpnn_utils
-        import frankenfold.core.pdbio as pdbio
 
-        checkpoint_path = Path(self.local_path) / self.checkpoint_path
+        checkpoint_path = resolve_proteinmpnn_weights(Path(self.local_path)) / "v_48_020.pt"
         checkpoint = torch.load(str(checkpoint_path), weights_only=False)
         model = protein_mpnn_utils.ProteinMPNN(
             k_neighbors=checkpoint["num_edges"],
@@ -501,14 +495,10 @@ def _prepare_model_input(
     Prepare the input for the ProteinMPNN model.
     Supports heteromer design via chain_dict logic.
     """
-    import frankenfold.core.pdbio as pdbio
-
     all_chains_in_pdb = None
 
     if design_chains is None:
-        _pdb = pdbio.PDB.from_file(pdbfile)
-        all_chains_in_pdb = _pdb.chains
-        del _pdb
+        all_chains_in_pdb = get_chain_ids(pdbfile)
 
         if fixed_chains:
             design_chains = [c for c in all_chains_in_pdb if c not in fixed_chains]

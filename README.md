@@ -40,6 +40,23 @@ This script will:
 - install the package in editable mode (`pip install -e .`) and attempt to
 	install extras via `pip install -e .[all]` if available
 
+Heavy optional tools such as ProteinMPNN are provisioned separately from
+`scripts/installers/` rather than being auto-installed as part of the base
+package. The library assumes those tools already exist and resolves them at
+runtime via environment variables or the repository-local checkout.
+
+To provision ProteinMPNN explicitly:
+
+```bash
+python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
+```
+
+The runtime resolver prefers these environment variables:
+
+- `FRANKENMSA_PROTEINMPNN_ROOT`
+- `PROTEINMPNN_LOCAL_ROOT`
+- `ProteinMPNN_DIR`
+
 Manual alternative (if you prefer to run commands yourself):
 
 ```bash
