@@ -1,10 +1,12 @@
 import pandas as pd
 import pytest
 
-from frankenmsa.utils.fileio import build_multimer_csv, split_dataframe_by_chain
-from frankenmsa.utils.multimer_a3m import (
+import frankenmsa
+from frankenmsa.utils.fileio import (
+    build_multimer_csv,
     chain_label,
     is_multimer_a3m_text,
+    split_dataframe_by_chain,
     split_multimer_a3m_file,
 )
 
@@ -84,3 +86,22 @@ def test_build_multimer_csv_adds_chain_labels_in_order():
 
     assert result["chain"].tolist() == ["A", "A", "B", "C", "C"]
     assert result["header"].tolist() == ["q1", "h1", "q2", "q1", "h1"]
+
+
+def test_top_level_read_a3m_detects_multimer_format(tmp_path):
+    a3m_path = tmp_path / "complex.a3m"
+    a3m_path.write_text(
+        "#4,3\t1,1\n"
+        ">query\n"
+        "AAAA---\n"
+        ">query\n"
+        "----BBB\n",
+        encoding="utf-8",
+    )
+
+    result = frankenmsa.read_a3m(str(a3m_path))
+
+    assert ["header", "sequence", "chain", "_multimer_header"] == list(result.columns)
+    assert result["header"].tolist() == ["query", "query"]
+    assert result["sequence"].tolist() == ["AAAA", "BBB"]
+    assert result["chain"].tolist() == [0, 1]

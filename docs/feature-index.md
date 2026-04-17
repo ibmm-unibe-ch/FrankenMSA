@@ -25,9 +25,9 @@ This document is the canonical inventory of functional capabilities currently pr
 | Domain | Capability | Current Location | Current Entry Points | Status | Migration | Proposed Library Home | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | file-io | Read and write A3M/FASTA-style MSA files | `frankenmsa/utils/fileio.py` | `read_a3m`, `write_a3m`, `encode_a3m`, `decode_a3m` | `library-backed` | `keep` | `frankenmsa.utils.fileio` | Core file API already exists and should anchor app import/export work. |
-| file-io | Multimer A3M parsing and assembly | `frankenmsa/utils/multimer_a3m.py` | `parse_a3m`, `combine_unpaired_a3m`, `read_a3m_with_chains`, `split_multimer_a3m_file` | `library-backed` | `refactor` | `frankenmsa.utils.multimer_a3m` | Split logic has been extracted from the app; remaining work is broader parser normalization. |
+| file-io | Multimer A3M parsing and assembly | `frankenmsa/utils/fileio.py` | `parse_a3m`, `combine_unpaired_a3m`, `read_a3m_with_chains`, `split_multimer_a3m_file` | `library-backed` | `adopt` | `frankenmsa.utils.fileio` | Multimer helpers now live with the rest of the file I/O surface. |
 | file-io | Upload format detection for A3M, FASTA, CSV | `app/pages/file.py` | upload callback | `app-only` | `extract` | `frankenmsa.utils.fileio` | Reusable parser/dispatcher logic should not live in Dash callbacks. |
-| file-io | Multimer A3M splitting into per-chain MSAs | `frankenmsa/utils/multimer_a3m.py`, `app/pages/file.py` | `split_multimer_a3m_file`, file upload callback | `library-backed` | `adopt` | `frankenmsa.utils.multimer_a3m` | Extracted into the library; the app now consumes the shared helper. |
+| file-io | Multimer A3M splitting into per-chain MSAs | `frankenmsa/utils/fileio.py`, `app/pages/file.py` | `split_multimer_a3m_file`, file upload callback | `library-backed` | `adopt` | `frankenmsa.utils.fileio` | Extracted into the library; the app now consumes the shared helper. |
 | file-io | CSV chain-column splitting and multimer CSV assembly | `frankenmsa/utils/fileio.py`, `app/pages/file.py` | `split_dataframe_by_chain`, `build_multimer_csv`, file callbacks | `library-backed` | `adopt` | `frankenmsa.utils.fileio` | Extracted into the library; app-side duplication removed. |
 | file-io | Download/export orchestration | `app/pages/file.py`, `app/app.py` | download callback, `/colab/download` route | `ui-only` | `keep` | n/a | Route wiring and browser delivery stay app-side. |
 | msa-edit | Length normalization, slicing, insertion, replacement, merge/split chains | `frankenmsa/utils/msatools.py` | `unify_length`, `slice_sequences`, `insert_at`, `remove_at`, `replace_at`, `split_chains`, `merge_chains` | `library-backed` | `keep` | `frankenmsa.utils.msatools` | Existing core edit surface. |
@@ -46,7 +46,7 @@ This document is the canonical inventory of functional capabilities currently pr
 | align | PLM-Search remote lookup | `frankenmsa/align/plm_search.py`, `frankenmsa/align/workflows.py`, `app/pages/align.py` | `PLMSearch.align`, workflow helpers, PLM page callback | `library-backed` | `adopt` | `frankenmsa.align` | The app now uses shared workflow helpers for validation, parsing, and result registration around the backend. |
 | align | Sequence text parsing and multimer input validation | `frankenmsa/align/workflows.py`, `app/pages/align.py` | `normalize_mmseqs_input`, `validate_mmseqs_request`, `parse_plm_input` | `library-backed` | `adopt` | `frankenmsa.align.workflows` | Reusable input normalization and validation have been extracted from Dash callbacks into the library. |
 | augment | GhostFold augmentation backend | `frankenmsa/augment/ghostfold.py` | `GhostFoldAugmentation.augment` | `library-backed` | `refactor` | `frankenmsa.augment.ghostfold` | Hardcoded Colab paths must be removed. |
-| augment | GhostFold input cleanup and multimer result splitting | `app/pages/augment.py` | augmentation callback | `app-only` | `extract` | `frankenmsa.augment` or `frankenmsa.utils.multimer_a3m` | App-only orchestration currently hides reusable behavior. |
+| augment | GhostFold input cleanup and multimer result splitting | `app/pages/augment.py` | augmentation callback | `app-only` | `extract` | `frankenmsa.augment` or `frankenmsa.utils.fileio` | App-only orchestration currently hides reusable behavior. |
 | cluster | AFCluster sequence clustering | `frankenmsa/cluster/af_cluster.py`, `app/pages/cluster.py` | `AFCluster`, clustering callback | `library-backed` | `adopt` | `frankenmsa.cluster.af_cluster` | Core compute already belongs in the library. |
 | cluster | KMeans clustering | `frankenmsa/cluster/kmeans.py` | `KMeans` | `library-backed` | `refactor` | `frankenmsa.cluster.kmeans` | Present in library but not clearly exposed in the UI. |
 | cluster | Ward linkage post-clustering merge | `frankenmsa/cluster/ward.py`, `app/pages/cluster.py` | `ward_linking`, ward callback | `duplicated` | `refactor` | `frankenmsa.cluster.ward` | Implemented in library but still needs intentional public exposure. |
@@ -75,7 +75,7 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 | Capability | Source | Destination |
 | --- | --- | --- |
-| Multimer A3M split logic | `app/pages/file.py` | `frankenmsa/utils/multimer_a3m.py` |
+| Multimer A3M split logic | `app/pages/file.py` | `frankenmsa/utils/fileio.py` |
 | CSV chain split and assembly | `app/pages/file.py` | `frankenmsa/utils/fileio.py` |
 | Sequence text parsing for alignment inputs | `app/pages/align.py` | `frankenmsa/utils/seqtools.py` |
 | Regex and free-query filters | `app/pages/edit.py` | `frankenmsa/utils/msatools.py` |

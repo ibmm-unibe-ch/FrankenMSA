@@ -2,10 +2,12 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
-from frankenmsa.utils.fileio import build_multimer_csv, split_dataframe_by_chain
-from frankenmsa.utils.multimer_a3m import (
+from frankenmsa.utils.fileio import (
+    build_multimer_csv,
     chain_label,
+    combine_unpaired_a3m,
     is_multimer_a3m_text,
+    split_dataframe_by_chain,
     split_multimer_a3m_file,
 )
 
@@ -591,7 +593,6 @@ def _download_multimer(selected_msas, msa_data, format_ext, filename):
     elif format_ext == ".a3m":
         # A3M multimer: use combine_unpaired_a3m
         from frankenmsa.utils import write_a3m
-        from frankenmsa.utils.multimer_a3m import combine_unpaired_a3m
 
         # Create temp directory for intermediate files
         tmpdir = Path(tempfile.gettempdir()) / "frankenmsa"
