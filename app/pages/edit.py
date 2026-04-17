@@ -688,25 +688,12 @@ def run_regex_filter(n_clicks, pattern, method, inverse_flags, main_msa, msa_dat
 
     try:
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import filter_by_regex
 
         msa = msa_data[main_msa]
         msa_df = DataFrame.from_dict(msa)
-
-        if "sequence" not in msa_df.columns:
-            return dash.no_update, "No 'sequence' column found to filter on.", True
-
-        seqs = msa_df["sequence"].astype(str)
-
-        if method == "match":
-            mask = seqs.str.match(pattern, na=False)
-        else:
-            mask = seqs.str.contains(pattern, regex=True, na=False)
-
         inverse = "inverse" in (inverse_flags or [])
-        if inverse:
-            mask = ~mask
-
-        filtered_msa = msa_df[mask]
+        filtered_msa = filter_by_regex(msa_df, pattern, method=method, inverse=inverse)
         msa_data[main_msa] = filtered_msa.to_dict("list")
 
         mode_desc = "match" if method == "match" else "contains"
@@ -789,10 +776,11 @@ def run_free_query_filter(n_clicks, query_string, main_msa, msa_data):
             return dash.no_update, "No data to filter!", True
 
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import filter_by_query
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        filtered_msa = msa.query(query_string)
+        filtered_msa = filter_by_query(msa, query_string)
         msa_data[main_msa] = filtered_msa.to_dict("list")
         return msa_data, f"Filtered by '{query_string}' successfully.", True
     else:
@@ -1609,7 +1597,7 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
             return dash.no_update, "No data to sort!", True
 
         from pandas import DataFrame
-        import pandas as pd
+        from frankenmsa.utils.msatools import sort_by_column
 
         # print("Sorting MSA with the following parameters:")
         # print(f"sort_by: {sort_by}")
@@ -1618,10 +1606,7 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        query = msa.iloc[[0]]
-        msa = msa.iloc[1:]
-        sorted_msa = msa.sort_values(by=sort_by, ascending=(sort_order == "asc"))
-        sorted_msa = pd.concat([query, sorted_msa], ignore_index=True)
+        sorted_msa = sort_by_column(msa, sort_by, ascending=(sort_order == "asc"))
         msa_data[main_msa] = sorted_msa.to_dict("list")
         return msa_data, "Sequences sorted successfully", True
     else:
@@ -1644,19 +1629,12 @@ def shuffle_msa(n_clicks, main_msa, msa_data):
             # print("No MSA data available to shuffle.")
             return dash.no_update, "No data to shuffle!", True
 
-        from pandas import DataFrame, concat
-
-        # print("Shuffling MSA with the following parameters:")
-        # print(f"msa_data: {msa_data}")
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import shuffle_rows
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        query = msa.iloc[[0]]
-        print(query)
-        msa = msa.iloc[1:]  # Exclude the first row (query)
-        shuffled_msa = msa.sample(frac=1).reset_index(drop=True)
-        shuffled_msa = concat([query, shuffled_msa], ignore_index=True)
-        print(shuffled_msa)
+        shuffled_msa = shuffle_rows(msa)
         msa_data[main_msa] = shuffled_msa.to_dict("list")
         return msa_data, "MSA shuffled successfully.", True
     else:
@@ -2552,12 +2530,11 @@ def insertions_to_gaps(n_clicks, main_msa, msa_data):
             return dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import replace_insertions_with_gaps
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-
-        # replace all lowercase characters in the sequence column with '-'
-        msa["sequence"] = msa["sequence"].str.replace(r"[a-z]", "-", regex=True)
+        msa = replace_insertions_with_gaps(msa)
         msa_data[main_msa] = msa.to_dict("list")
         return (
             msa_data,
@@ -2583,12 +2560,11 @@ def unknown_to_gaps(n_clicks, main_msa, msa_data):
             return dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import replace_unknown_with_gaps
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-
-        # Replace unknown residues in the sequence column with gaps.
-        msa["sequence"] = msa["sequence"].str.replace("X", "-", regex=False)
+        msa = replace_unknown_with_gaps(msa)
         msa_data[main_msa] = msa.to_dict("list")
 
         return msa_data, "Replaced all 'X' residues with gaps in the sequences.", True

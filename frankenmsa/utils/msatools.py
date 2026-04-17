@@ -11,13 +11,22 @@ __all__ = [
     "crop_to_depth",
     "drop_duplicates",
     "filter_gaps",
+    "filter_by_regex",
+    "filter_by_query",
     "sort_gaps",
     "sort_identity",
+    "sort_by_column",
     "filter_identity",
     "slice_sequences",
     "adjust_depth",
     "extend_to_depth",
     "crop_to_depth",
+    "replace_characters",
+    "replace_insertions_with_gaps",
+    "replace_unknown_with_gaps",
+    "uppercase_sequences",
+    "lowercase_sequences",
+    "shuffle_rows",
     "shuffle_msa",
 ]
 
@@ -235,6 +244,90 @@ def filter_gaps(df: pd.DataFrame, allowed_gaps_faction: float) -> pd.DataFrame:
     return filtered_df
 
 
+def filter_by_regex(
+    df: pd.DataFrame,
+    pattern: str,
+    method: str = "contains",
+    inverse: bool = False,
+) -> pd.DataFrame:
+    """Filter rows by applying a regex against the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    if not pattern:
+        raise ValueError("pattern must not be empty")
+    if method not in {"contains", "match"}:
+        raise ValueError("method must be 'contains' or 'match'.")
+
+    seqs = df[sequence_col].astype(str)
+    if method == "match":
+        mask = seqs.str.match(pattern, na=False)
+    else:
+        mask = seqs.str.contains(pattern, regex=True, na=False)
+
+    if inverse:
+        mask = ~mask
+
+    return df[mask].reset_index(drop=True)
+
+
+def filter_by_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
+    """Filter rows using the pandas DataFrame.query interface."""
+    if not query_string or not str(query_string).strip():
+        raise ValueError("query_string must not be empty")
+    return df.query(query_string).reset_index(drop=True)
+
+
+def replace_characters(
+    df: pd.DataFrame,
+    pattern: str,
+    replacement: str,
+    regex: bool = False,
+) -> pd.DataFrame:
+    """Replace characters or regex matches in the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    if pattern is None or pattern == "":
+        raise ValueError("pattern must not be empty")
+
+    result = df.copy()
+    result[sequence_col] = result[sequence_col].astype(str).str.replace(
+        pattern, replacement, regex=regex
+    )
+    return result
+
+
+def replace_insertions_with_gaps(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace lowercase insertion characters with gaps."""
+    return replace_characters(df, r"[a-z]", "-", regex=True)
+
+
+def replace_unknown_with_gaps(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace unknown X residues with gaps."""
+    return replace_characters(df, "X", "-", regex=False)
+
+
+def uppercase_sequences(df: pd.DataFrame) -> pd.DataFrame:
+    """Uppercase the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    result = df.copy()
+    result[sequence_col] = result[sequence_col].astype(str).str.upper()
+    return result
+
+
+def lowercase_sequences(df: pd.DataFrame) -> pd.DataFrame:
+    """Lowercase the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    result = df.copy()
+    result[sequence_col] = result[sequence_col].astype(str).str.lower()
+    return result
+
+
 def sort_gaps(
     df: pd.DataFrame,
     ascending: bool = True,
@@ -308,6 +401,25 @@ def sort_identity(
     return sorted_df.reset_index(drop=True)
 
 
+def sort_by_column(
+    df: pd.DataFrame,
+    column: str,
+    ascending: bool = True,
+    preserve_query: bool = True,
+) -> pd.DataFrame:
+    """Sort a DataFrame by a column while optionally keeping the first row fixed."""
+    if column not in df.columns:
+        raise ValueError(f"DataFrame must contain column '{column}'.")
+
+    if preserve_query and len(df) > 0:
+        query = df.iloc[[0]]
+        remainder = df.iloc[1:]
+        sorted_df = remainder.sort_values(by=column, ascending=ascending)
+        return pd.concat([query, sorted_df], ignore_index=True).reset_index(drop=True)
+
+    return df.sort_values(by=column, ascending=ascending).reset_index(drop=True)
+
+
 def filter_identity(
     df: pd.DataFrame,
     identity_threshold: float,
@@ -357,6 +469,20 @@ def filter_identity(
     filtered_df = pd.concat([query_sequence, filtered_df], ignore_index=True)
     filtered_df = filtered_df.reset_index(drop=True)
     return filtered_df
+
+
+def shuffle_rows(
+    df: pd.DataFrame,
+    random_state: Optional[int] = None,
+    preserve_query: bool = True,
+) -> pd.DataFrame:
+    """Shuffle rows while optionally keeping the first row fixed."""
+    if preserve_query and len(df) > 0:
+        query = df.iloc[[0]]
+        remainder = df.iloc[1:].sample(frac=1, random_state=random_state)
+        return pd.concat([query, remainder], ignore_index=True).reset_index(drop=True)
+
+    return df.sample(frac=1, random_state=random_state).reset_index(drop=True)
 
 
 def shuffle_msa(
