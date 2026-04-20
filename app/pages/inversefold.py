@@ -11,6 +11,7 @@ dash.register_page(
     __name__,
 )
 
+
 def layout():
     return html.Div(proteinmpnn_layout(), className="gradient-background")
 
@@ -398,7 +399,7 @@ from frankenmsa.inverse_fold import run_proteinmpnn
     State("pdb-upload", "filename"),
     prevent_initial_call=True,
 )
-def _save_uploaded_pdb(contents, filename): # can be deleted?
+def _save_uploaded_pdb(contents, filename):  # can be deleted?
     if not contents or not filename:
         return html.Small(""), ""
     try:

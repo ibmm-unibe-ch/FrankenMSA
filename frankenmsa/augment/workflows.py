@@ -25,7 +25,9 @@ def normalize_ghostfold_input(input_data: str) -> str:
     if not full_sequence:
         raise ValueError("No valid sequences found.")
     if ":" in full_sequence:
-        raise ValueError("GhostFold augmentation currently supports monomer sequences only.")
+        raise ValueError(
+            "GhostFold augmentation currently supports monomer sequences only."
+        )
     if not re.fullmatch(r"[A-Z]+", full_sequence):
         raise ValueError("GhostFold input must contain only amino-acid letters.")
 

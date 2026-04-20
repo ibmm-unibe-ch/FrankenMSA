@@ -36,7 +36,9 @@ def proteinmpnn_weight_subdir(
 
 def is_valid_proteinmpnn_root(path: Path | str) -> bool:
     root = _normalize_root_candidate(path)
-    return (root / "protein_mpnn_run.py").is_file() and (root / "helper_scripts").is_dir()
+    return (root / "protein_mpnn_run.py").is_file() and (
+        root / "helper_scripts"
+    ).is_dir()
 
 
 def resolve_proteinmpnn_root(custom_root: Optional[str] = None) -> Path:
@@ -73,7 +75,9 @@ def resolve_proteinmpnn_weights(
         if target.is_dir():
             return target
 
-    env_hint = ", ".join(PROTEINMPNN_WEIGHTS_DIR_ENV_VARS + PROTEINMPNN_WEIGHTS_ROOT_ENV_VARS)
+    env_hint = ", ".join(
+        PROTEINMPNN_WEIGHTS_DIR_ENV_VARS + PROTEINMPNN_WEIGHTS_ROOT_ENV_VARS
+    )
     raise RuntimeError(
         "Unable to locate ProteinMPNN model weights. "
         f"Set one of {env_hint} or install the weights inside the ProteinMPNN checkout."
@@ -82,7 +86,11 @@ def resolve_proteinmpnn_weights(
 
 def resolve_proteinmpnn_out_dir(repo_root: Path | str, default_name: str) -> Path:
     override = os.environ.get(PROTEINMPNN_OUT_DIR_ENV_VAR)
-    out_dir = Path(override).expanduser() if override else _normalize_root_candidate(repo_root) / default_name
+    out_dir = (
+        Path(override).expanduser()
+        if override
+        else _normalize_root_candidate(repo_root) / default_name
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 

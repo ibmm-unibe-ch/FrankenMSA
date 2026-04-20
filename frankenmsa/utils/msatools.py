@@ -306,8 +306,8 @@ def replace_characters(
         raise ValueError("pattern must not be empty")
 
     result = df.copy()
-    result[sequence_col] = result[sequence_col].astype(str).str.replace(
-        pattern, replacement, regex=regex
+    result[sequence_col] = (
+        result[sequence_col].astype(str).str.replace(pattern, replacement, regex=regex)
     )
     return result
 

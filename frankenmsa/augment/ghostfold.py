@@ -134,9 +134,7 @@ class GhostFold(base.AugmentationFactory):
             input_fasta = work_dir / f"{jobname}.fasta"
 
             write_a3m(
-                pd.DataFrame(
-                    {"header": ["GhostFold_input"], "sequence": [sequence]}
-                ),
+                pd.DataFrame({"header": ["GhostFold_input"], "sequence": [sequence]}),
                 str(input_fasta),
             )
             log_message(f"Written GhostFold input FASTA to {input_fasta}.")

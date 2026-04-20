@@ -74,7 +74,9 @@ def merge_outputs_to_fasta(out_dir: str | Path, stem: str) -> Tuple[str, int]:
     fasta_path = out_dir / f"{stem}_proteinmpnn.fasta"
     count = 0
     with fasta_path.open("w", encoding="utf-8") as fout:
-        for filename in sorted(glob.glob(os.path.join(out_dir, "**", "*.fa*"), recursive=True)):
+        for filename in sorted(
+            glob.glob(os.path.join(out_dir, "**", "*.fa*"), recursive=True)
+        ):
             with open(filename, encoding="utf-8", errors="ignore") as fin:
                 for line in fin:
                     if line.startswith(">"):
@@ -159,7 +161,11 @@ def split_fasta_by_chain_separator(
     try:
         for idx, chain_id in enumerate(labels):
             fasta_path = out_dir / f"{base_name}_chain{chain_id}.fasta"
-            chain_files[idx] = {"path": fasta_path, "handle": fasta_path.open("w", encoding="utf-8"), "id": chain_id}
+            chain_files[idx] = {
+                "path": fasta_path,
+                "handle": fasta_path.open("w", encoding="utf-8"),
+                "id": chain_id,
+            }
 
         current_header = None
         for raw_line in lines:
@@ -175,12 +181,16 @@ def split_fasta_by_chain_separator(
                 continue
             for idx, seq_part in enumerate(parts):
                 chain_file = chain_files[idx]
-                chain_file["handle"].write(f"{current_header}_chain{chain_file['id']}\n{seq_part}\n")
+                chain_file["handle"].write(
+                    f"{current_header}_chain{chain_file['id']}\n{seq_part}\n"
+                )
 
         for chain_file in chain_files.values():
             chain_file["handle"].close()
             a3m_path = fasta_to_a3m(chain_file["path"])
-            split_results[f"{base_name}_chain{chain_file['id']}"] = read_text_safe(a3m_path)
+            split_results[f"{base_name}_chain{chain_file['id']}"] = read_text_safe(
+                a3m_path
+            )
     finally:
         for chain_file in chain_files.values():
             handle = chain_file["handle"]
@@ -224,9 +234,19 @@ def download_pdb_by_code(
     )
     target_dir.mkdir(parents=True, exist_ok=True)
     outfile = target_dir / f"{code}.pdb"
-    if _download_with_retries(f"https://files.rcsb.org/download/{code}.pdb", outfile, tries=tries, sleep_sec=sleep_sec):
+    if _download_with_retries(
+        f"https://files.rcsb.org/download/{code}.pdb",
+        outfile,
+        tries=tries,
+        sleep_sec=sleep_sec,
+    ):
         return str(outfile)
-    if _download_with_retries(f"https://files.rcsb.org/view/{code}.pdb", outfile, tries=tries, sleep_sec=sleep_sec):
+    if _download_with_retries(
+        f"https://files.rcsb.org/view/{code}.pdb",
+        outfile,
+        tries=tries,
+        sleep_sec=sleep_sec,
+    ):
         return str(outfile)
     raise RuntimeError(f"Failed to download PDB for code: {code}")
 
@@ -236,7 +256,9 @@ def provision_proteinmpnn(
     install_python_deps: bool = True,
 ) -> Dict[str, str]:
     if not _INSTALLER_SCRIPT.is_file():
-        raise RuntimeError(f"ProteinMPNN installer script not found: {_INSTALLER_SCRIPT}")
+        raise RuntimeError(
+            f"ProteinMPNN installer script not found: {_INSTALLER_SCRIPT}"
+        )
 
     install_cmd = [sys.executable, str(_INSTALLER_SCRIPT), "--root", root]
     if install_python_deps:
@@ -247,9 +269,13 @@ def provision_proteinmpnn(
     return {
         "root": str(resolved_root),
         "weights_vanilla": str(resolve_proteinmpnn_weights(resolved_root)),
-        "weights_soluble": str(resolve_proteinmpnn_weights(resolved_root, use_soluble_model=True)),
+        "weights_soluble": str(
+            resolve_proteinmpnn_weights(resolved_root, use_soluble_model=True)
+        ),
         "weights_ca": str(resolve_proteinmpnn_weights(resolved_root, ca_only=True)),
-        "out_dir": str(resolve_proteinmpnn_out_dir(resolved_root, default_name="outputs_run")),
+        "out_dir": str(
+            resolve_proteinmpnn_out_dir(resolved_root, default_name="outputs_run")
+        ),
     }
 
 
@@ -292,7 +318,9 @@ def run_proteinmpnn(
         )
 
     repo_root = resolve_proteinmpnn_root(str(runtime_settings["repo_root"]))
-    out_dir = resolve_proteinmpnn_out_dir(repo_root, default_name=runtime_settings["out_dir_name"])
+    out_dir = resolve_proteinmpnn_out_dir(
+        repo_root, default_name=runtime_settings["out_dir_name"]
+    )
     weights_root = resolve_proteinmpnn_weights(
         repo_root,
         use_soluble_model=use_soluble_model,
@@ -347,7 +375,9 @@ def run_proteinmpnn(
         base_name=pdb_stem,
         chain_labels=designed_list if designed_list else None,
     )
-    zip_path = zip_outputs(out_dir, base=pdb_stem, destination=runtime_settings["zip_destination"])
+    zip_path = zip_outputs(
+        out_dir, base=pdb_stem, destination=runtime_settings["zip_destination"]
+    )
 
     if auto_download and runtime == "colab":
         try:
@@ -380,7 +410,9 @@ def run_proteinmpnn(
     }
 
 
-def _resolve_runtime_settings(runtime: str, proteinmpnn_root: Optional[str]) -> Dict[str, object]:
+def _resolve_runtime_settings(
+    runtime: str, proteinmpnn_root: Optional[str]
+) -> Dict[str, object]:
     runtime = (runtime or "local").strip().lower()
     if runtime == "colab":
         repo_root = Path(proteinmpnn_root or "/content/ProteinMPNN")
@@ -395,7 +427,11 @@ def _resolve_runtime_settings(runtime: str, proteinmpnn_root: Optional[str]) -> 
             "content_root": Path("/content"),
         }
     if runtime == "local":
-        repo_root = Path(proteinmpnn_root) if proteinmpnn_root else resolve_proteinmpnn_root(None)
+        repo_root = (
+            Path(proteinmpnn_root)
+            if proteinmpnn_root
+            else resolve_proteinmpnn_root(None)
+        )
         return {
             "provision": False,
             "install_python_deps": False,
@@ -420,7 +456,10 @@ def _pick_pdb_input(
             raise RuntimeError(f"Uploaded pdb_path not found: {uploaded_path}")
         return uploaded_path, "uploaded_file"
     if pdb_code:
-        return download_pdb_by_code(pdb_code, target_dir=download_target_dir), "pdb_code"
+        return (
+            download_pdb_by_code(pdb_code, target_dir=download_target_dir),
+            "pdb_code",
+        )
     if allow_upload:
         raise RuntimeError(
             "Interactive upload is not supported from the library workflow. Provide pdb_path from the UI instead."
@@ -526,7 +565,9 @@ def _build_proteinmpnn_command(
 
     cmd.extend(["--pdb_path", str(staged_pdb)])
     if not homomer:
-        chain_jsonl = jsonl_assigned or write_chain_jsonl(out_dir, staged_pdb, designed_list, fixed_list)
+        chain_jsonl = jsonl_assigned or write_chain_jsonl(
+            out_dir, staged_pdb, designed_list, fixed_list
+        )
         if chain_jsonl:
             cmd.extend(["--chain_id_jsonl", chain_jsonl])
     return cmd
@@ -541,7 +582,9 @@ def _download_with_retries(
     request = urllib.request.Request(str(url), headers={"User-Agent": "Mozilla/5.0"})
     for attempt in range(1, tries + 1):
         try:
-            with urllib.request.urlopen(request, timeout=20) as response, out_path.open("wb") as handle:
+            with urllib.request.urlopen(request, timeout=20) as response, out_path.open(
+                "wb"
+            ) as handle:
                 handle.write(response.read())
             return True
         except urllib.error.HTTPError as err:

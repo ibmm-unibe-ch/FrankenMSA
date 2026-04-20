@@ -8,6 +8,7 @@ from sklearn.cluster import KMeans as SKLearnKMeans
 from ..utils.seqtools import get_encoding_func
 from .base import BaseClusterer, CLUSTER_ID_COL
 
+
 def kmeans(
     sequences: Union[List[str], pd.DataFrame, pd.Series],
     n_clusters: int = 10,

@@ -163,7 +163,9 @@ class LocalProteinMPNN(backend.BaseSequenceGenerator):
         import numpy as np
         import protein_mpnn_utils
 
-        checkpoint_path = resolve_proteinmpnn_weights(Path(self.local_path)) / "v_48_020.pt"
+        checkpoint_path = (
+            resolve_proteinmpnn_weights(Path(self.local_path)) / "v_48_020.pt"
+        )
         checkpoint = torch.load(str(checkpoint_path), weights_only=False)
         model = protein_mpnn_utils.ProteinMPNN(
             k_neighbors=checkpoint["num_edges"],

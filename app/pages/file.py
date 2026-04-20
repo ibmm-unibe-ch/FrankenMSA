@@ -234,6 +234,7 @@ def upload_file(contents, filename, msa_data):
         )
         return err, dash.no_update, dash.no_update
 
+
 def file_download_layout():
 
     download_format_options = [

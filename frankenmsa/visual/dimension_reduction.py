@@ -1,9 +1,9 @@
 from sklearn.decomposition import PCA
 import pandas as pd
-from ..utils.seqtools import get_encoding_func 
+from ..utils.seqtools import get_encoding_func
 
 
-def compute_PCA(msa:pd.DataFrame, encoding=None):
+def compute_PCA(msa: pd.DataFrame, encoding=None):
     df = msa.copy()
 
     # separate query row (first row) if present

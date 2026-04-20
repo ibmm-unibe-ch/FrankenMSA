@@ -27,6 +27,7 @@ missing_or_unknown = "X"
 Character to use for missing or unknown amino acids.
 """
 
+
 def is_valid_peptide_sequence(seq: str) -> bool:
     """
     Check if a peptide sequence is valid
@@ -87,12 +88,13 @@ amino_acid_alphabet = "ACDEFGHIKLMNPQRSTVWY-" + missing_or_unknown
 
 amino_acid_mapping = {aa: i for i, aa in enumerate(amino_acid_alphabet)}
 
+
 def get_encoding_func(encoding_name):
     if encoding_name is None:
         encoding_name = "onehot"
     encoding_func = getattr(sequence_encodings, encoding_name, None)
     if encoding_func is None:
-            raise ValueError(f"Unknown sequence encoding method: {encoding_name}")
+        raise ValueError(f"Unknown sequence encoding method: {encoding_name}")
     return encoding_func
 
 
@@ -161,51 +163,57 @@ class sequence_encodings:
                 if aa in amino_acid_mapping:
                     num_vector[i, j] = amino_acid_mapping[aa]
         return num_vector
-    
+
     @staticmethod
-    def esm(sequences: Iterable[str], max_length:int =None):
+    def esm(sequences: Iterable[str], max_length: int = None):
         """
         Generate ESM3 embeddings for a list of protein sequences.
-        
+
         Args:
             sequences: List of protein sequence strings to embed
-                        
+
         Returns:
             List of embedding tensors for each input sequence
-            
+
         Raises:
             RuntimeError: If CUDA is requested but not available
             ValueError: If sequences are invalid or empty
         """
-        log_message(f"In file Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}...")
+        log_message(
+            f"In file Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}..."
+        )
 
         import torch
         from esm.models.esmc import ESMC
         from esm.sdk.api import ESMProtein, LogitsConfig
+
         if sequences is None or len(sequences) == 0:
             raise ValueError("No sequences provided for embedding")
         # Initialize ESM3 model
         device = "cuda" if torch.cuda.is_available() else "cpu"
         client = ESMC.from_pretrained("esmc_300m").to(device)
-        log_message(f"In file on {device} Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}...")
+        log_message(
+            f"In file on {device} Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}..."
+        )
 
         embeddings = []
         if max_length is None:
             max_length = max(len(seq) for seq in sequences)
         for sequence in sequences:
-            log_message(f"Processing sequence of length {len(sequence)}: {sequence[:50]}...")  # Log first 50 chars
+            log_message(
+                f"Processing sequence of length {len(sequence)}: {sequence[:50]}..."
+            )  # Log first 50 chars
             if not sequence or not isinstance(sequence, str):
                 raise ValueError(f"Invalid sequence: {sequence}")
-                
+
             protein = ESMProtein(sequence=sequence[:max_length])
             protein_tensor = client.encode(protein)
-            
+
             # Get logits and embeddings
             logits_output = client.logits(
-                protein_tensor, 
-                LogitsConfig(sequence=True, return_embeddings=True)
+                protein_tensor, LogitsConfig(sequence=True, return_embeddings=True)
             )
-            
+
             # logits_output.embeddings shape: [1, length+2, 960]
             # (batch=1, seq_length=sequence_length+beginining+cls token, embedding_dim=960)
 
@@ -216,34 +224,32 @@ class sequence_encodings:
         log_message(f"Generated ESM embeddings for {len(embeddings)} sequences.")
         log_message(f"First embedding shape: {torch.stack(embeddings).shape}")
         output = torch.stack(embeddings).cpu().numpy()
-        log_message(f"Squeezed ESM embeddings") 
+        log_message(f"Squeezed ESM embeddings")
         return output
 
-def multimer_chain_splitting(msa_df, chain_lengths, new_main_key, msa_data):    
+
+def multimer_chain_splitting(msa_df, chain_lengths, new_main_key, msa_data):
     start = 0
     split_keys = []
     alphabet = string.ascii_uppercase
-    
+
     for i, length in enumerate(chain_lengths):
         end = start + length
         chain_seqs = [s[start:end] for s in msa_df["sequence"]]
-        
+
         # Update header for split file: first header becomes chain index
         new_headers = list(msa_df["header"])
         if len(new_headers) > 0:
             new_headers[0] = str(101 + i)
-        
-        chain_df = pd.DataFrame({
-            "header": new_headers, 
-            "sequence": chain_seqs
-        })
-        
-        chain_suffix = alphabet[i] if i < 26 else str(i+1)
+
+        chain_df = pd.DataFrame({"header": new_headers, "sequence": chain_seqs})
+
+        chain_suffix = alphabet[i] if i < 26 else str(i + 1)
         split_key = f"{new_main_key}_chain{chain_suffix}"
-        
+
         msa_data[split_key] = chain_df.to_dict("list")
         split_keys.append(split_key)
         start = end
-    
+
     split_msg = f" Also generated split files: {', '.join(split_keys)}."
     return split_msg, msa_data

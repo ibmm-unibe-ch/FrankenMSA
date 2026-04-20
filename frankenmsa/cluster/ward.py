@@ -27,7 +27,11 @@ def _cluster_centroid_features(df, encoding):
 
 def _ward_merge_cost(left, right):
     diff = left["centroid"] - right["centroid"]
-    return (left["size"] * right["size"]) / (left["size"] + right["size"]) * float(np.dot(diff, diff))
+    return (
+        (left["size"] * right["size"])
+        / (left["size"] + right["size"])
+        * float(np.dot(diff, diff))
+    )
 
 
 def _weighted_ward_labels(centroids, sizes, n_clusters):
@@ -74,7 +78,9 @@ def _weighted_ward_labels(centroids, sizes, n_clusters):
         next_cluster_id += 1
 
     labels = np.empty(len(centroids), dtype=int)
-    final_clusters = sorted(active.values(), key=lambda cluster: min(cluster["members"]))
+    final_clusters = sorted(
+        active.values(), key=lambda cluster: min(cluster["members"])
+    )
     for ward_id, cluster in enumerate(final_clusters):
         labels[cluster["members"]] = ward_id
     return labels
@@ -89,7 +95,9 @@ def ward_merge_cluster_centroids(df, n_clusters, encoding=None):
         return None
 
     ward_labels = _weighted_ward_labels(centroids, cluster_sizes, int(n_clusters))
-    cluster_to_ward = {cluster_id: int(label) for cluster_id, label in zip(cluster_keys, ward_labels)}
+    cluster_to_ward = {
+        cluster_id: int(label) for cluster_id, label in zip(cluster_keys, ward_labels)
+    }
 
     df = df.copy()
     df["ward_id"] = df["cluster_id"].map(cluster_to_ward)
@@ -98,4 +106,3 @@ def ward_merge_cluster_centroids(df, n_clusters, encoding=None):
 
 def ward_linking(df, n_clusters, encoding=None):
     return ward_merge_cluster_centroids(df, n_clusters=n_clusters, encoding=encoding)
-   

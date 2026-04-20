@@ -24,7 +24,9 @@ def cluster_dropdown_options(
         return []
 
     clusters = df[cluster_column].dropna().unique().tolist()
-    options = [{"label": f"{label_prefix} {cluster}", "value": cluster} for cluster in clusters]
+    options = [
+        {"label": f"{label_prefix} {cluster}", "value": cluster} for cluster in clusters
+    ]
     if include_all:
         options.insert(0, {"label": "All", "value": "all"})
     return options

@@ -166,7 +166,9 @@ def combine_unpaired_a3m(
     chains = norm_chains
     lengths = per_chain_lengths
     card = ["1"] * len(chains)
-    header_line = f"#" + ",".join(str(length) for length in lengths) + "\t" + ",".join(card)
+    header_line = (
+        f"#" + ",".join(str(length) for length in lengths) + "\t" + ",".join(card)
+    )
 
     lines = [header_line]
 
@@ -471,15 +473,16 @@ def decode_a3m(a3m_str: str) -> pd.DataFrame:
 
     return pd.DataFrame({"header": headers, "sequence": sequences})
 
+
 def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
     """
     Parse FASTA format text and return sequences and descriptions.
-    
+
     Parameters
     ----------
     input_text : str
         Input text in FASTA format or plain sequence format.
-    
+
     Returns
     -------
     tuple[list[str], list[str]]
@@ -489,7 +492,7 @@ def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
     descriptions = []
     current_desc = None
     current_seq = []
-    
+
     for line in input_text.strip().split("\n"):
         line = line.strip()
         if not line:
@@ -502,16 +505,18 @@ def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
             current_seq = []
         else:
             current_seq.append(line)
-    
+
     # Add last sequence if exists
     if current_desc and current_seq:
         sequences.append("".join(current_seq))
         descriptions.append(current_desc)
-    
+
     return sequences, descriptions
 
 
-def split_dataframe_by_chain(df: pd.DataFrame, base_name: str) -> Dict[str, pd.DataFrame]:
+def split_dataframe_by_chain(
+    df: pd.DataFrame, base_name: str
+) -> Dict[str, pd.DataFrame]:
     """Split a DataFrame with a `chain` column into one DataFrame per chain."""
 
     if "chain" not in df.columns:
@@ -523,7 +528,11 @@ def split_dataframe_by_chain(df: pd.DataFrame, base_name: str) -> Dict[str, pd.D
     for chain_value in unique_chains:
         chain_df = df[df["chain"] == chain_value].copy()
         chain_df = chain_df.drop(columns=["chain"])
-        label = chain_value if isinstance(chain_value, str) and chain_value else chain_label(0)
+        label = (
+            chain_value
+            if isinstance(chain_value, str) and chain_value
+            else chain_label(0)
+        )
         chain_msas[f"{base_name}{label}"] = chain_df
 
     return chain_msas
@@ -541,6 +550,7 @@ def build_multimer_csv(msa_data: dict, selected_msas: List[str]) -> pd.DataFrame
         raise ValueError("No MSAs selected")
 
     return pd.concat(combined_dfs, ignore_index=True)
+
 
 __all__ = [
     "read_a3m",
