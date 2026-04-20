@@ -12,7 +12,9 @@ def run_checked(command: list[str], cwd: Path | None = None) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
-def ensure_git_checkout(repository_url: str, target_root: Path, ref: str = "main") -> Path:
+def ensure_git_checkout(
+    repository_url: str, target_root: Path, ref: str = "main"
+) -> Path:
     target_root = target_root.expanduser().resolve()
     parent = target_root.parent
     parent.mkdir(parents=True, exist_ok=True)
@@ -20,7 +22,9 @@ def ensure_git_checkout(repository_url: str, target_root: Path, ref: str = "main
     if not target_root.exists():
         run_checked(["git", "clone", repository_url, str(target_root)])
     elif not (target_root / ".git").is_dir():
-        raise RuntimeError(f"Target path exists but is not a git checkout: {target_root}")
+        raise RuntimeError(
+            f"Target path exists but is not a git checkout: {target_root}"
+        )
 
     run_checked(["git", "fetch", "--all", "--tags"], cwd=target_root)
     run_checked(["git", "checkout", ref], cwd=target_root)
@@ -46,7 +50,9 @@ def best_effort_git_lfs_pull(target_root: Path) -> None:
 
 def download_file(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(url, timeout=60) as response, destination.open("wb") as handle:
+    with urllib.request.urlopen(url, timeout=60) as response, destination.open(
+        "wb"
+    ) as handle:
         handle.write(response.read())
 
 

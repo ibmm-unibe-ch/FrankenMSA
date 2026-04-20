@@ -10,7 +10,11 @@ from common import install_python_packages
 from common import is_colab_runtime
 
 
-DEFAULT_ROOT = Path("/content/ProteinMPNN") if is_colab_runtime() else Path.cwd() / "external" / "ProteinMPNN"
+DEFAULT_ROOT = (
+    Path("/content/ProteinMPNN")
+    if is_colab_runtime()
+    else Path.cwd() / "external" / "ProteinMPNN"
+)
 DEFAULT_REF = "main"
 REPOSITORY_URL = "https://github.com/dauparas/ProteinMPNN.git"
 WEIGHT_CATEGORIES = ("vanilla", "soluble", "ca")
@@ -18,8 +22,12 @@ WEIGHT_FILENAME = "v_48_020.pt"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Install or refresh a ProteinMPNN checkout.")
-    parser.add_argument("--root", default=str(DEFAULT_ROOT), help="Installation target directory.")
+    parser = argparse.ArgumentParser(
+        description="Install or refresh a ProteinMPNN checkout."
+    )
+    parser.add_argument(
+        "--root", default=str(DEFAULT_ROOT), help="Installation target directory."
+    )
     parser.add_argument("--ref", default=DEFAULT_REF, help="Git ref to check out.")
     parser.add_argument(
         "--install-python-deps",
