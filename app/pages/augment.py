@@ -2,9 +2,8 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
-from frankenmsa.augment import GhostFold
+from frankenmsa.augment import run_ghostfold_augmentation
 from frankenmsa.runtime import log_message
-import pandas as pd
 
 
 dash.register_page(
@@ -98,43 +97,22 @@ def ghostfold_layout():
     prevent_initial_call=True,
 )
 def run_ghostfold(n_clicks, input_data, msa_data):
-    """
-    Execute GhostFold augmentation and store results in msa_data.
-
-    Validates input, handles monomers and multimers, submits to API,
-    and splits multimer results by chain.
-    """
+    """Execute GhostFold augmentation and store the created MSA."""
     log_message(
         f"GhostFold run button clicked {n_clicks} times. Received input: {input_data}"
     )
     if not n_clicks:
         raise dash.exceptions.PreventUpdate
 
-    if not input_data:
-        return (
-            dash.no_update,
-            dash.no_update,
-            dbc.Alert("Please provide input data.", color="danger"),
-        )
-
-    # 1. Parse and clean input
-    input_data = "".join(input_data.strip().upper().split())
-
-    if not input_data or not all(c in "ACDEFGHIKLMNPQRSTVWY:" for c in input_data):
-        return (
-            dash.no_update,
-            dash.no_update,
-            dbc.Alert("No valid sequences found.", color="danger"),
-        )
     try:
-        new_main_key = f"ghostfold_aug_{n_clicks}"
-        log_message(f"Running GhostFold augmentation for input: {input_data}")
-        data_dict = GhostFold().augment(sequence=input_data)
-        msa_data[new_main_key] = data_dict.to_dict("list")
-        log_message(
-            f"GhostFold augmentation successful, generated {len(data_dict['sequence'])} sequences."
+        msa_data, new_main_key, _, result_df = run_ghostfold_augmentation(
+            input_data,
+            msa_data,
         )
-        msg = f"Success! Generated {new_main_key} with {len(data_dict['sequence'])} sequences."
+        log_message(
+            f"GhostFold augmentation successful, generated {len(result_df['sequence'])} sequences."
+        )
+        msg = f"Success! Generated {new_main_key} with {len(result_df['sequence'])} sequences."
         return new_main_key, msa_data, dbc.Alert(msg, color="success")
 
     except Exception as e:
@@ -145,5 +123,5 @@ def run_ghostfold(n_clicks, input_data, msa_data):
         return (
             dash.no_update,
             dash.no_update,
-            dbc.Alert(f"API Error: {str(e)}", color="danger"),
+            dbc.Alert(str(e), color="danger"),
         )

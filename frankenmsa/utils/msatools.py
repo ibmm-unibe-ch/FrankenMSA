@@ -26,6 +26,9 @@ __all__ = [
     "replace_unknown_with_gaps",
     "uppercase_sequences",
     "lowercase_sequences",
+    "slice_rows",
+    "build_combined_msa_name",
+    "combine_msa_operations",
     "shuffle_rows",
     "shuffle_msa",
 ]
@@ -94,6 +97,17 @@ def slice_sequences(
 
     df["sequence"] = df["sequence"].str.slice(start, end)
     return df
+
+
+def slice_rows(
+    df: pd.DataFrame,
+    start: int = 0,
+    end: Optional[int] = None,
+) -> pd.DataFrame:
+    """Slice rows in a DataFrame by index range."""
+    start = 0 if start is None else int(start)
+    end = len(df) if end is None else int(end)
+    return df.iloc[start:end].reset_index(drop=True)
 
 
 def adjust_depth(
@@ -326,6 +340,79 @@ def lowercase_sequences(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
     result[sequence_col] = result[sequence_col].astype(str).str.lower()
     return result
+
+
+def build_combined_msa_name(
+    msa_data: Optional[dict],
+    requested_name: Optional[str] = None,
+    prefix: str = "combined",
+) -> str:
+    """Return the requested combined-MSA name or generate the next numbered one."""
+    if requested_name and str(requested_name).strip():
+        return str(requested_name).strip()
+
+    msa_data = msa_data or {}
+    count_combined = sum(1 for key in msa_data.keys() if str(key).startswith(prefix))
+    return f"{prefix}_{count_combined + 1}"
+
+
+def combine_msa_operations(
+    msas: list[pd.DataFrame],
+    directions: list[str],
+    horizontal_ranges: Optional[list[tuple[int, int]]] = None,
+    vertical_ranges: Optional[list[tuple[int, int]]] = None,
+) -> pd.DataFrame:
+    """Combine multiple MSAs horizontally or vertically after applying per-input slices."""
+    if not msas:
+        raise ValueError("No MSAs provided for combination.")
+    if len(msas) != len(directions):
+        raise ValueError("The number of MSAs and directions must match.")
+
+    if horizontal_ranges is None:
+        horizontal_ranges = [(0, None)] * len(msas)
+    if vertical_ranges is None:
+        vertical_ranges = [(0, None)] * len(msas)
+
+    if len(horizontal_ranges) != len(msas) or len(vertical_ranges) != len(msas):
+        raise ValueError("Each MSA must have a horizontal and vertical slice range.")
+
+    combined_msa: Optional[pd.DataFrame] = None
+
+    for msa, direction, h_range, v_range in zip(
+        msas, directions, horizontal_ranges, vertical_ranges
+    ):
+        if direction not in {"horizontal", "vertical"}:
+            raise ValueError("direction must be 'horizontal' or 'vertical'.")
+
+        h_start, h_end = h_range
+        v_start, v_end = v_range
+
+        current = slice_sequences(msa.copy(), h_start, h_end)
+        current = slice_rows(current, v_start, v_end)
+
+        if combined_msa is None:
+            combined_msa = current.reset_index(drop=True)
+            continue
+
+        if direction == "horizontal":
+            if len(current) != len(combined_msa):
+                current = adjust_depth(current, len(combined_msa))
+
+            combined_msa = combined_msa.copy()
+            combined_msa["sequence"] = combined_msa["sequence"].str.cat(
+                current["sequence"],
+                sep="",
+            )
+            continue
+
+        reference_length = int(combined_msa["sequence"].str.len().iloc[0])
+        current = unify_length(current.copy(), reference_length)
+        combined_msa = pd.concat([combined_msa, current], axis=0, ignore_index=True)
+
+    if combined_msa is None:
+        raise ValueError("No MSAs provided for combination.")
+
+    return combined_msa.reset_index(drop=True)
 
 
 def sort_gaps(

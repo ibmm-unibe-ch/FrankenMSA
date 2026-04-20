@@ -36,19 +36,19 @@ This document is the canonical inventory of functional capabilities currently pr
 | msa-edit | Free-form DataFrame query filtering | `frankenmsa/utils/msatools.py`, `app/pages/edit.py` | `filter_by_query`, free query callback | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | Query filtering now has a reusable library API. |
 | msa-edit | Row cropping and column cropping | `frankenmsa/utils/msatools.py`, `app/pages/edit.py` | `crop_to_depth`, `slice_sequences`, crop callbacks | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | Both crop directions are already represented in the library; remaining work is mainly callback cleanup. |
 | msa-edit | Character removal and replacement | `frankenmsa/utils/msatools.py` | `replace_characters`, `replace_insertions_with_gaps`, `replace_unknown_with_gaps` | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | Generic replacement and the current app-used gap conversions now live in the library. |
-| msa-edit | Uppercase and lowercase sequence transforms | `app/pages/edit.py` | case conversion callbacks | `app-only` | `extract` | `frankenmsa.utils.msatools` | Small but should live with other sequence transforms. |
+| msa-edit | Uppercase and lowercase sequence transforms | `frankenmsa/utils/msatools.py`, `app/pages/edit.py` | `uppercase_sequences`, `lowercase_sequences`, case conversion callbacks | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | Case conversion helpers now live in the library and the edit page calls them directly. |
 | msa-edit | Shuffle MSA rows | `frankenmsa/utils/msatools.py`, `app/pages/edit.py` | `shuffle_rows`, shuffle callback | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | Row shuffling with the query preserved is now implemented in the library and consumed by the app. |
 | filter | HH-suite wrapper filtering | `frankenmsa/filter/hhsuite.py`, `app/pages/edit.py` | `hhfilter`, HHFilter callback | `library-backed` | `refactor` | `frankenmsa.filter.hhsuite` | Existing backend should stay in library; improve environment and error handling. |
-| combine | Horizontal MSA concatenation with optional slicing | `app/pages/combine.py` | combine callback | `app-only` | `extract` | `frankenmsa.utils.msatools` | Reusable composition logic belongs in the library. |
-| combine | Vertical stacking with depth and length normalization | `app/pages/combine.py`, `frankenmsa/utils/msatools.py` | combine callback, `adjust_depth`, `unify_length` | `duplicated` | `refactor` | `frankenmsa.utils.msatools` | App orchestration should be thinned down to API calls. |
+| combine | Horizontal MSA concatenation with optional slicing | `frankenmsa/utils/msatools.py`, `app/pages/combine.py` | `combine_msa_operations`, combine callback | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | The reusable composition orchestration now lives in the library and the page only collects UI inputs. |
+| combine | Vertical stacking with depth and length normalization | `frankenmsa/utils/msatools.py`, `app/pages/combine.py` | `combine_msa_operations`, `adjust_depth`, `unify_length`, combine callback | `library-backed` | `adopt` | `frankenmsa.utils.msatools` | Vertical stacking, row slicing, default naming, and normalization are now library-driven. |
 | align | MMseqs2 alignment via ColabFold API | `frankenmsa/align/mmseqs_colab.py` | `MMSeqs2Colab.align` | `library-backed` | `refactor` | `frankenmsa.align` | Keep backend but normalize incomplete and Colab-oriented assumptions. |
 | align | Local multimer MMseqs2 workflow | `frankenmsa/align/mmseqs_local.py`, `frankenmsa/align/workflows.py`, `app/pages/align.py` | `LocalMMSeqs2Colab.align`, workflow helpers, MMseqs page callback | `duplicated` | `refactor` | `frankenmsa.align` | Input normalization and result registration moved into library workflow helpers; backend/result splitting cleanup remains. |
 | align | PLM-Search remote lookup | `frankenmsa/align/plm_search.py`, `frankenmsa/align/workflows.py`, `app/pages/align.py` | `PLMSearch.align`, workflow helpers, PLM page callback | `library-backed` | `adopt` | `frankenmsa.align` | The app now uses shared workflow helpers for validation, parsing, and result registration around the backend. |
 | align | Sequence text parsing and multimer input validation | `frankenmsa/align/workflows.py`, `app/pages/align.py` | `normalize_mmseqs_input`, `validate_mmseqs_request`, `parse_plm_input` | `library-backed` | `adopt` | `frankenmsa.align.workflows` | Reusable input normalization and validation have been extracted from Dash callbacks into the library. |
-| augment | GhostFold augmentation backend | `frankenmsa/augment/ghostfold.py` | `GhostFoldAugmentation.augment` | `library-backed` | `refactor` | `frankenmsa.augment.ghostfold` | Hardcoded Colab paths must be removed. |
-| augment | GhostFold input cleanup and multimer result splitting | `app/pages/augment.py` | augmentation callback | `app-only` | `extract` | `frankenmsa.augment` or `frankenmsa.utils.fileio` | App-only orchestration currently hides reusable behavior. |
+| augment | GhostFold augmentation backend | `frankenmsa/augment/ghostfold.py` | `GhostFold.augment` | `library-backed` | `refactor` | `frankenmsa.augment.ghostfold` | Backend now resolves a configured GhostFold CLI or legacy checkout and runs in a temporary working directory rather than assuming `/content/ghostfold`. |
+| augment | GhostFold input normalization and result registration | `frankenmsa/augment/workflows.py`, `app/pages/augment.py` | `normalize_ghostfold_input`, `run_ghostfold_augmentation`, augmentation callback | `library-backed` | `adopt` | `frankenmsa.augment.workflows` | GhostFold is now treated as a single-sequence augmentation flow; input validation and store registration live in the library and the page is a thin adapter. |
 | cluster | AFCluster sequence clustering | `frankenmsa/cluster/af_cluster.py`, `app/pages/cluster.py` | `AFCluster`, clustering callback | `library-backed` | `adopt` | `frankenmsa.cluster.af_cluster` | Core compute already belongs in the library. |
-| cluster | KMeans clustering | `frankenmsa/cluster/kmeans.py` | `KMeans` | `library-backed` | `refactor` | `frankenmsa.cluster.kmeans` | Present in library but not clearly exposed in the UI. |
+| cluster | KMeans clustering | `frankenmsa/cluster/kmeans.py`, `app/pages/cluster.py` | `KMeans`, clustering callback | `library-backed` | `keep` | `frankenmsa.cluster.kmeans` | App UI now calls the shared backend directly; hardcoded app log writes were removed from the library implementation. |
 | cluster | Size-weighted Ward centroid merge after AFCluster | `frankenmsa/cluster/ward.py`, `frankenmsa/cluster/workflows.py`, `app/pages/cluster.py` | `ward_merge_cluster_centroids`, `run_ward_centroid_merge`, ward callback | `library-backed` | `adopt` | `frankenmsa.cluster.ward` and `frankenmsa.cluster.workflows` | Library now exposes this as a weighted centroid merge over existing AFCluster groups; `ward_linking` remains as a compatibility alias. |
 | cluster | PCA preparation for cluster visualization | `frankenmsa/visual/dimension_reduction.py`, `app/pages/cluster.py` | `compute_PCA`, plot callbacks | `library-backed` | `keep` | `frankenmsa.visual.dimension_reduction` | Data prep can stay in library; plotting stays app-side. |
 | cluster | Scatter plot rendering, interactive cluster selection, settings persistence | `app/pages/cluster.py`, `frankenmsa/cluster/workflows.py` | visualization callbacks, save helpers, dropdown helpers | `duplicated` | `refactor` | `frankenmsa.cluster.workflows` plus app UI | Plot rendering stays app-side; reusable option/save logic moved to library workflows. |
@@ -62,10 +62,10 @@ This document is the canonical inventory of functional capabilities currently pr
 | inverse-fold | PDB upload, download by code, advanced chain options UI | `app/pages/inversefold.py` | page callbacks | `ui-only` | `keep` | n/a | Dash input flow should remain app-side. |
 | visualization | MSA alignment chart data generation | `frankenmsa/visual/alignment_chart.py`, `app/pages/visualize.py` | `visualise_msa`, visualization callbacks | `library-backed` | `refactor` | `frankenmsa.visual.alignment_chart` | Clarify whether the library returns figure data or renders directly. |
 | visualization | Gap, conservation, and identity summaries | `app/pages/visualize.py`, `frankenmsa/utils` helpers | visualization callbacks | `duplicated` | `extract` | `frankenmsa.visual` or `frankenmsa.utils.msatools` | Data computations are reusable; charts are UI-only. |
-| runtime | Runtime detection, upload directories, branch-aware Colab links | `app/helpers/constants.py` | constants module | `app-only` | `extract` | `frankenmsa.config` or `frankenmsa.utils` | Split reusable path/config logic from app presentation. |
+| runtime | Runtime detection, upload directories, branch-aware Colab links | `frankenmsa/runtime.py`, `app/helpers/constants.py` | `detect_runtime`, `normalize_runtime_environment`, `get_upload_dir`, constants module | `library-backed` | `keep` | `frankenmsa.runtime` | Shared runtime detection, upload-dir selection, launch-env construction, and log-path logic now live in `frankenmsa.runtime`; app constants consume the shared helper. |
 | runtime | Dash page registration, routing, navbar, stores, injected MSA flow | `app/app.py` | app bootstrap | `ui-only` | `keep` | n/a | App integration only. |
-| notebooks | Local notebook launch and render mode selection | `FrankenMSA_app_local.ipynb` | notebook cells | `ui-only` | `keep` | n/a | Notebook remains a launcher surface over shared APIs. |
-| notebooks | Colab notebook install and app launch flow | `FrankenMSA_app_colab.ipynb` | notebook cells | `ui-only` | `keep` | n/a | Colab-specific runtime flow should call extracted library helpers where applicable. |
+| notebooks | Local notebook launch and render mode selection | `FrankenMSA_app_local.ipynb` | notebook cells | `ui-only` | `keep` | n/a | Notebook remains a launcher surface, but now uses the shared runtime helpers and app launch environment builder. |
+| notebooks | Colab notebook install and app launch flow | `FrankenMSA_app_colab.ipynb` | notebook cells | `ui-only` | `keep` | n/a | Colab launcher now sets the canonical runtime env and uses the shared launch-env helper instead of maintaining its own runtime wiring. |
 
 ## Extraction Priorities
 
@@ -75,11 +75,11 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 | Capability | Source | Destination |
 | --- | --- | --- |
-| Multimer A3M split logic | `app/pages/file.py` | `frankenmsa/utils/fileio.py` |
-| CSV chain split and assembly | `app/pages/file.py` | `frankenmsa/utils/fileio.py` |
-| Sequence text parsing for alignment inputs | `app/pages/align.py` | `frankenmsa/utils/seqtools.py` |
-| Regex and free-query filters | `app/pages/edit.py` | `frankenmsa/utils/msatools.py` |
-| Character transforms | `app/pages/edit.py` | `frankenmsa/utils/msatools.py` |
+| Multimer A3M split logic | `app/pages/file.py` | completed in `frankenmsa/utils/fileio.py` |
+| CSV chain split and assembly | `app/pages/file.py` | completed in `frankenmsa/utils/fileio.py` |
+| Sequence text parsing for alignment inputs | `app/pages/align.py` | completed in `frankenmsa/align/workflows.py` |
+| Regex and free-query filters | `app/pages/edit.py` | completed in `frankenmsa/utils/msatools.py` |
+| Character transforms | `app/pages/edit.py` | completed in `frankenmsa/utils/msatools.py` |
 
 ### Priority 2: ProteinMPNN Consolidation
 
@@ -93,18 +93,18 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 | Capability | Action |
 | --- | --- |
-| GhostFold | Remove hardcoded Colab path assumptions and add explicit configuration. |
+| GhostFold | Completed: resolve installed CLI or configured root explicitly and keep temporary work directories isolated. |
 | MMseqs2 and PLM-Search | Standardize result handling and public API wrappers. |
-| Ward centroid merge | Expose intentionally through the cluster package and document that it merges existing cluster centroids rather than reclustering all sequences. |
+| Ward centroid merge | Completed: exposed through the cluster package and documented as a centroid merge over existing clusters. |
 | Visualization helpers | Separate reusable data computation from app-specific rendering. |
 
 ## Environment and Dependency Notes
 
 | Area | Current Assumption | Required Direction |
 | --- | --- | --- |
-| GhostFold | Colab filesystem assumptions | Replace with configured temp/work directories. |
+| GhostFold | Colab filesystem assumptions | Completed for the backend: use configured CLI resolution plus temporary work directories. |
 | ProteinMPNN | Mixed local helper logic and library backend logic | Runtime now resolves one shared installation contract; installer logic lives outside the package. |
-| ESM encoding | Colab-oriented logging path in utility code | Remove hardcoded paths and make logging optional. |
+| ESM encoding | Heavy model-loading and verbose utility logging | Keep runtime-aware logging centralized and make optional diagnostic logging easier to disable. |
 | HH-suite | System binary availability | Improve dependency checks and error reporting. |
 | MMseqs2 and PLM-Search | External service availability | Keep network boundaries explicit in public APIs. |
 
@@ -118,8 +118,5 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 ## Next Implementation Steps
 
-1. Extract multimer split and CSV chain conversion helpers from the file page into `frankenmsa.utils`.
-2. Move regex, free-query, and character-transform editing logic into `frankenmsa.utils.msatools`.
-3. Normalize notebook callers so they invoke `frankenmsa.inverse_fold.run_proteinmpnn` directly where appropriate.
-4. Remove hardcoded Colab path assumptions from existing library modules while extracting the shared helpers.
-5. Add focused tests around the extracted pure functions before refactoring the Dash pages to adopt them.
+1. Extract upload format detection and parser dispatch from the file page into `frankenmsa.utils.fileio`.
+2. Separate reusable visualization summary computations from `app/pages/visualize.py` and keep only chart rendering in the app.

@@ -1,14 +1,109 @@
-from ..augment import base
-import pandas as pd
-from pathlib import Path
+from __future__ import annotations
+
+import os
+import shutil
 import subprocess
+import tempfile
+from pathlib import Path
+
+import pandas as pd
+
+from ..augment import base
 from ..runtime import log_message
 from ..utils.fileio import read_a3m, write_a3m
 
 
-GHOSTFOLD_PATH = Path(
-    "/content/ghostfold"
-)  # TODO: set this to the actual path of the ghostfold installation
+GHOSTFOLD_BIN_ENV_VARS = (
+    "FRANKENMSA_GHOSTFOLD_BIN",
+    "GHOSTFOLD_BIN",
+)
+GHOSTFOLD_ROOT_ENV_VARS = (
+    "FRANKENMSA_GHOSTFOLD_ROOT",
+    "GHOSTFOLD_ROOT",
+)
+LEGACY_GHOSTFOLD_ROOT = Path("/content/ghostfold")
+
+
+def _iter_ghostfold_commands() -> list[list[str]]:
+    commands: list[list[str]] = []
+
+    for env_var in GHOSTFOLD_BIN_ENV_VARS:
+        command = os.environ.get(env_var)
+        if command:
+            commands.append([command])
+
+    for env_var in GHOSTFOLD_ROOT_ENV_VARS:
+        root_value = os.environ.get(env_var)
+        if not root_value:
+            continue
+        root = Path(root_value).expanduser()
+        for candidate in (root / "ghostfold.sh", root / "ghostfold"):
+            if candidate.is_file():
+                commands.append([str(candidate)])
+
+    resolved_cli = shutil.which("ghostfold")
+    if resolved_cli:
+        commands.append([resolved_cli])
+
+    legacy_script = LEGACY_GHOSTFOLD_ROOT / "ghostfold.sh"
+    if legacy_script.is_file():
+        commands.append([str(legacy_script)])
+
+    deduped: list[list[str]] = []
+    seen: set[tuple[str, ...]] = set()
+    for command in commands:
+        key = tuple(command)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(command)
+
+    return deduped
+
+
+def resolve_ghostfold_command() -> list[str]:
+    commands = _iter_ghostfold_commands()
+    if commands:
+        return commands[0]
+
+    raise FileNotFoundError(
+        "GhostFold executable not found. Install it with "
+        "`python scripts/installers/install_ghostfold.py` or set one of "
+        f"{', '.join(GHOSTFOLD_BIN_ENV_VARS + GHOSTFOLD_ROOT_ENV_VARS)}."
+    )
+
+
+def _build_ghostfold_command(fasta_path: Path, project_name: str) -> list[str]:
+    command = resolve_ghostfold_command()
+    executable_name = Path(command[0]).name
+
+    if executable_name == "ghostfold.sh":
+        return command + [
+            "--project_name",
+            project_name,
+            "--fasta_file",
+            str(fasta_path),
+            "--msa-only",
+        ]
+
+    return command + [
+        "msa",
+        "--project-name",
+        project_name,
+        "--fasta-path",
+        str(fasta_path),
+    ]
+
+
+def _find_ghostfold_output(project_dir: Path) -> Path:
+    for pattern in ("msa/*/pstMSA.a3m", "msa/*/pstMSA.fasta"):
+        matches = sorted(project_dir.glob(pattern))
+        if matches:
+            return matches[0]
+
+    raise FileNotFoundError(
+        f"GhostFold did not produce a pseudoMSA under {project_dir / 'msa'}."
+    )
 
 
 class GhostFold(base.AugmentationFactory):
@@ -31,46 +126,50 @@ class GhostFold(base.AugmentationFactory):
             DataFrame containing the augmented sequences.
         """
         jobname = "ghostfold_job"
-        output_name = "ghostfold_output"
-        Path(GHOSTFOLD_PATH / output_name).mkdir(exist_ok=True)
-        log_message(
-            f"In file running GhostFold augmentation for input sequence: {sequence}"
-        )
-        write_a3m(
-            pd.DataFrame({"header": ["GhostFold_input"], "sequence": [sequence]}),
-            f"{GHOSTFOLD_PATH/jobname}.fasta",
-        )
-        log_message(
-            f"Written input sequence to {GHOSTFOLD_PATH/jobname}.fasta, running GhostFold..."
-        )
-        cmd_string = f"{GHOSTFOLD_PATH}/ghostfold.sh --project_name {output_name} --fasta_file {GHOSTFOLD_PATH/jobname}.fasta --msa-only"
+        project_name = "ghostfold_output"
+        log_message(f"Running GhostFold augmentation for input sequence: {sequence}")
 
-        log_message(f"Running GhostFold command: {cmd_string}")
-        proc = subprocess.run(
-            cmd_string.split(),
-            cwd=GHOSTFOLD_PATH,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.TemporaryDirectory(prefix="frankenmsa-ghostfold-") as tmp_dir:
+            work_dir = Path(tmp_dir)
+            input_fasta = work_dir / f"{jobname}.fasta"
 
-        log_message(f"GhostFold stdout:\n{proc.stdout}")
-        log_message(f"GhostFold stderr:\n{proc.stderr}")
+            write_a3m(
+                pd.DataFrame(
+                    {"header": ["GhostFold_input"], "sequence": [sequence]}
+                ),
+                str(input_fasta),
+            )
+            log_message(f"Written GhostFold input FASTA to {input_fasta}.")
 
-        if proc.returncode != 0:
-            msg = f"GhostFold failed with returncode {proc.returncode}. Check ghostfold.log for output."
-            log_message(msg)
-            raise subprocess.CalledProcessError(
-                proc.returncode, proc.args, output=proc.stdout, stderr=proc.stderr
+            command = _build_ghostfold_command(input_fasta, project_name)
+            log_message(f"Running GhostFold command: {' '.join(command)}")
+            proc = subprocess.run(
+                command,
+                cwd=work_dir,
+                capture_output=True,
+                text=True,
             )
 
-        output_fasta_name = (
-            f"{GHOSTFOLD_PATH/output_name}/msa/GhostFold_input/pstMSA.fasta"
-        )
-        log_message(
-            f"GhostFold command completed, reading output from {output_fasta_name}..."
-        )
-        output_df = read_a3m(output_fasta_name)
-        log_message(
-            f"GhostFold augmentation completed. Generated {len(output_df)} sequences."
-        )
-        return output_df
+            log_message(f"GhostFold stdout:\n{proc.stdout}")
+            log_message(f"GhostFold stderr:\n{proc.stderr}")
+
+            if proc.returncode != 0:
+                msg = (
+                    f"GhostFold failed with returncode {proc.returncode}. "
+                    "Check the FrankenMSA log for stdout/stderr details."
+                )
+                log_message(msg)
+                raise subprocess.CalledProcessError(
+                    proc.returncode,
+                    proc.args,
+                    output=proc.stdout,
+                    stderr=proc.stderr,
+                )
+
+            output_path = _find_ghostfold_output(work_dir / project_name)
+            log_message(f"Reading GhostFold output from {output_path}.")
+            output_df = read_a3m(str(output_path))
+            log_message(
+                f"GhostFold augmentation completed. Generated {len(output_df)} sequences."
+            )
+            return output_df

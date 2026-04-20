@@ -1285,6 +1285,44 @@ def edit_sequences_layout():
                 [
                     dbc.Col(
                         [
+                            html.H5("Uppercase Sequences"),
+                            html.P(
+                                "Convert all sequence characters in the MSA to uppercase."
+                            ),
+                            html.Button(
+                                "Uppercase Sequences",
+                                id="edit-uppercase-sequences",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Lowercase Sequences"),
+                            html.P(
+                                "Convert all sequence characters in the MSA to lowercase."
+                            ),
+                            html.Button(
+                                "Lowercase Sequences",
+                                id="edit-lowercase-sequences",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
                             html.H5("Replace at Position"),
                             html.P(
                                 "Replace a substring in all sequences at a specified position with a new sequence."
@@ -2570,3 +2608,55 @@ def unknown_to_gaps(n_clicks, main_msa, msa_data):
         return msa_data, "Replaced all 'X' residues with gaps in the sequences.", True
     else:
         return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("edit-uppercase-sequences", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def uppercase_msa(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, dash.no_update, False
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import uppercase_sequences
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+        msa = uppercase_sequences(msa)
+        msa_data[main_msa] = msa.to_dict("list")
+        return msa_data, "Converted all sequences to uppercase.", True
+
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("edit-lowercase-sequences", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def lowercase_msa(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, dash.no_update, False
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import lowercase_sequences
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+        msa = lowercase_sequences(msa)
+        msa_data[main_msa] = msa.to_dict("list")
+        return msa_data, "Converted all sequences to lowercase.", True
+
+    return dash.no_update, dash.no_update, False

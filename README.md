@@ -51,11 +51,25 @@ To provision ProteinMPNN explicitly:
 python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
 ```
 
+To provision GhostFold explicitly:
+
+```bash
+python scripts/installers/install_ghostfold.py
+```
+
 The runtime resolver prefers these environment variables:
 
 - `FRANKENMSA_PROTEINMPNN_ROOT`
 - `PROTEINMPNN_LOCAL_ROOT`
 - `ProteinMPNN_DIR`
+
+GhostFold resolution prefers these environment variables before falling back to
+the `ghostfold` executable on `PATH`:
+
+- `FRANKENMSA_GHOSTFOLD_BIN`
+- `GHOSTFOLD_BIN`
+- `FRANKENMSA_GHOSTFOLD_ROOT`
+- `GHOSTFOLD_ROOT`
 
 Manual alternative (if you prefer to run commands yourself):
 
