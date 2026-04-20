@@ -11,6 +11,8 @@ FrankenMSA offers a simple functional API to perform operations like:
 
 Built to rely only on a Pandas Dataframe with a "sequence" column the package is designed for minimal requirements and maximal user freedom and compatibility with other scientific software. 
 
+The current implementation inventory and migration tracker live in [docs/feature-index.md](docs/feature-index.md).
+
 ## Not a coder? - No problem!
 <a href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/dev/FrankenMSA_app_colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
@@ -38,6 +40,37 @@ This script will:
 - install the package in editable mode (`pip install -e .`) and attempt to
 	install extras via `pip install -e .[all]` if available
 
+Heavy optional tools such as ProteinMPNN are provisioned separately from
+`scripts/installers/` rather than being auto-installed as part of the base
+package. The library assumes those tools already exist and resolves them at
+runtime via environment variables or the repository-local checkout.
+
+To provision ProteinMPNN explicitly:
+
+```bash
+python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
+```
+
+To provision GhostFold explicitly:
+
+```bash
+python scripts/installers/install_ghostfold.py
+```
+
+The runtime resolver prefers these environment variables:
+
+- `FRANKENMSA_PROTEINMPNN_ROOT`
+- `PROTEINMPNN_LOCAL_ROOT`
+- `ProteinMPNN_DIR`
+
+GhostFold resolution prefers these environment variables before falling back to
+the `ghostfold` executable on `PATH`:
+
+- `FRANKENMSA_GHOSTFOLD_BIN`
+- `GHOSTFOLD_BIN`
+- `FRANKENMSA_GHOSTFOLD_ROOT`
+- `GHOSTFOLD_ROOT`
+
 Manual alternative (if you prefer to run commands yourself):
 
 ```bash
@@ -53,5 +86,18 @@ After installation you can run the app locally with:
 ```bash
 source .venv/bin/activate
 python app/app.py
+```
+
+## Documentation
+
+Sphinx documentation lives under `docs/` and includes API reference pages,
+placeholders for GUI documentation, and a tutorial section prepared for
+notebook-backed guides.
+
+Install the documentation dependencies and build the site with:
+
+```bash
+python -m pip install -e .[docs]
+sphinx-build -b html docs docs/_build/html
 ```
 

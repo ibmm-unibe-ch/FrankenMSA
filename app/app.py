@@ -10,9 +10,15 @@ import dash
 from dash import Dash, html, dcc, callback, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 
+from frankenmsa.runtime import collect_download_roots
+from frankenmsa.runtime import log_message
+from frankenmsa.runtime import normalize_runtime_environment
+
 RENDER_MODE = os.environ.get("FRANKEN_RENDER_MODE", "external").strip().lower()
 if RENDER_MODE not in {"external", "inline"}:
     RENDER_MODE = "external"
+
+normalize_runtime_environment()
 
 app = Dash(
     __name__,
@@ -21,41 +27,15 @@ app = Dash(
     external_stylesheets=[dbc.themes.MINTY, dbc.icons.FONT_AWESOME],
 )
 
-# --- Download route (serve result files like ZIP/FASTA/A3M) ---
 from flask import send_file
 
-def log_message(message:str):
-    with open("/content/app/log.txt", "a") as log_file:
-        log_file.write(f"{message}\n")
+
 log_message("App initialized, setting up download route...")
+
+
 def _collect_download_roots():
-    roots = []
-
-    if (
-        os.environ.get("ON_COLAB") == "1"
-        or os.environ.get("IN_COLAB") == "1"
-        or os.environ.get("FRANKEN_COLAB") == "1"
-    ):
-        roots.extend(["/content", "/content/ProteinMPNN/outputs_run"])
-
     project_root = Path(__file__).resolve().parent.parent
-    local_repo = project_root / "ProteinMPNN"
-    roots.append(str(local_repo / "outputs_run"))
-    roots.append(str(local_repo / "outputs_local"))
-
-    out_override = os.environ.get("PROTEINMPNN_OUT_DIR")
-    if out_override:
-        roots.append(out_override)
-
-    deduped = []
-    seen = set()
-    for root in roots:
-        if not root:
-            continue
-        normalized = str(Path(root).expanduser())
-        if normalized not in seen:
-            seen.add(normalized)
-            deduped.append(normalized)
+    deduped = collect_download_roots(project_root=project_root)
     log_message(f"Collected download roots: {deduped}")
     return deduped
 
@@ -275,13 +255,13 @@ app.layout = html.Div(
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-
 def launch(**kwargs):
     """Main function to run the Dash app.
     Stable, production-like settings; no hot-reload; explicit host/port.
     """
+    normalize_runtime_environment(runtime=kwargs.get("runtime"))
     log_message("Starting FrankenMSA Dash app launch process...")
-    
+
     # Honor HOST/PORT env if provided
     host = kwargs.get("host", None)
     if host is None:
@@ -289,7 +269,7 @@ def launch(**kwargs):
     port = kwargs.get("port", None)
     if port is None:
         port = int(os.getenv("PORT", "8050"))
-    
+
     log_message(f"App will run on host: {host}, port: {port}")
 
     # Ensure production-ish mode
@@ -305,7 +285,7 @@ def launch(**kwargs):
     )
     if render_mode not in {"inline", "external"}:
         render_mode = "external"
-    
+
     log_message(f"Render mode: {render_mode}")
 
     tunnel = os.environ.get("COLAB_TUNNEL_URL")
@@ -315,12 +295,13 @@ def launch(**kwargs):
         print(f"🌐 Public tunnel: {tunnel}")
 
     print(f"Dash starting on http://{host}:{port}")
-    #return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
+    # return app.run(jupyter_mode=render_mode, host=host, port=port, debug=False)
     try:
         return app.run(host=host, port=port, debug=False)
     except Exception as e:
         logging.error(f"Error starting Dash app: {e}")
         raise
+
 
 main = launch  # alias
 if __name__ == "__main__":

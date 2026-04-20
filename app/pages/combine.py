@@ -84,15 +84,6 @@ def layout():
     )
 
 
-def nothing_to_combine():
-    return dbc.Alert(
-        "No MSAs have been added to combine. Please add MSAs to combine.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
-
-
 def combine_msa_block(msa_data, index):
 
     target = dcc.Dropdown(
@@ -384,48 +375,23 @@ def combine_msas(
 ):
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
-    if not name:
-        count_combined = sum(1 for i in msa_data.keys() if i.startswith("combined"))
-        name = f"combined_{count_combined + 1}"
-
     if not src_dropdowns:
-        return (dash.no_update, dash.no_update, [nothing_to_combine()])
+        return dash.no_update, dash.no_update, dash.no_update
 
-    import pandas as pd
-    from frankenmsa.utils import slice_sequences, adjust_depth, unify_length
+    from frankenmsa.utils import build_combined_msa_name, combine_msa_operations
 
-    combined_msa = None
-    for (
-        selected_msa,
-        direction,
-        h_start,
-        h_end,
-        v_start,
-        v_end,
-    ) in zip(src_dropdowns, directions, h_starts, h_ends, v_starts, v_ends):
-
-        msa = msa_data[selected_msa]
-        msa = DataFrame.from_dict(msa)
-
-        add_horizontal = direction == "horizontal"
-        msa = slice_sequences(msa, h_start, h_end)
-
-        msa = msa.iloc[v_start:v_end].reset_index(drop=True)
-
-        if combined_msa is None:
-            combined_msa = msa
-        else:
-            if add_horizontal:
-                if len(msa) != len(combined_msa):
-                    msa = adjust_depth(msa, len(combined_msa))
-
-                combined_msa["sequence"] = combined_msa["sequence"].str.cat(
-                    msa["sequence"], sep=""
-                )
-            else:
-                msa = unify_length(msa, int(combined_msa["sequence"].str.len()[0]))
-                combined_msa = pd.concat([combined_msa, msa], axis=0)
-                combined_msa = combined_msa.reset_index(drop=True)
+    name = build_combined_msa_name(msa_data, name)
+    msas = [
+        DataFrame.from_dict(msa_data[selected_msa]) for selected_msa in src_dropdowns
+    ]
+    horizontal_ranges = list(zip(h_starts, h_ends))
+    vertical_ranges = list(zip(v_starts, v_ends))
+    combined_msa = combine_msa_operations(
+        msas,
+        directions,
+        horizontal_ranges=horizontal_ranges,
+        vertical_ranges=vertical_ranges,
+    )
 
     msa_data[name] = combined_msa.to_dict("list")
     return msa_data, name, dash.no_update

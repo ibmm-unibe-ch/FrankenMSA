@@ -166,19 +166,8 @@ def update_edit_content(
         return sort_by_layout()
     elif triggered_id == "edit-sequences":
         return edit_sequences_layout()
-    elif main_msa is None:
-        return no_msa_yet()
     else:
         return html.Div("Please select an option from the sidebar to edit the MSA.")
-
-
-def no_msa_yet():
-    return dbc.Alert(
-        "No MSA data is available to edit. Please upload or generate MSA data to proceed.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
 
 
 @callback(
@@ -189,10 +178,7 @@ def no_msa_yet():
 )
 def activate_filter_layout(n_clicks, msa_data):
     if (n_clicks or 0) > 0:
-        if msa_data is not None:
-            return filter_layout()
-        else:
-            return no_msa_yet()
+        return filter_layout()
     else:
         raise dash.exceptions.PreventUpdate
 
@@ -688,25 +674,12 @@ def run_regex_filter(n_clicks, pattern, method, inverse_flags, main_msa, msa_dat
 
     try:
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import filter_by_regex
 
         msa = msa_data[main_msa]
         msa_df = DataFrame.from_dict(msa)
-
-        if "sequence" not in msa_df.columns:
-            return dash.no_update, "No 'sequence' column found to filter on.", True
-
-        seqs = msa_df["sequence"].astype(str)
-
-        if method == "match":
-            mask = seqs.str.match(pattern, na=False)
-        else:
-            mask = seqs.str.contains(pattern, regex=True, na=False)
-
         inverse = "inverse" in (inverse_flags or [])
-        if inverse:
-            mask = ~mask
-
-        filtered_msa = msa_df[mask]
+        filtered_msa = filter_by_regex(msa_df, pattern, method=method, inverse=inverse)
         msa_data[main_msa] = filtered_msa.to_dict("list")
 
         mode_desc = "match" if method == "match" else "contains"
@@ -789,10 +762,11 @@ def run_free_query_filter(n_clicks, query_string, main_msa, msa_data):
             return dash.no_update, "No data to filter!", True
 
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import filter_by_query
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        filtered_msa = msa.query(query_string)
+        filtered_msa = filter_by_query(msa, query_string)
         msa_data[main_msa] = filtered_msa.to_dict("list")
         return msa_data, f"Filtered by '{query_string}' successfully.", True
     else:
@@ -1297,6 +1271,44 @@ def edit_sequences_layout():
                 [
                     dbc.Col(
                         [
+                            html.H5("Uppercase Sequences"),
+                            html.P(
+                                "Convert all sequence characters in the MSA to uppercase."
+                            ),
+                            html.Button(
+                                "Uppercase Sequences",
+                                id="edit-uppercase-sequences",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                    dbc.Col(
+                        [
+                            html.H5("Lowercase Sequences"),
+                            html.P(
+                                "Convert all sequence characters in the MSA to lowercase."
+                            ),
+                            html.Button(
+                                "Lowercase Sequences",
+                                id="edit-lowercase-sequences",
+                                n_clicks=0,
+                                className="button-component",
+                            ),
+                        ],
+                        width=6,
+                        className="shaded-bordered",
+                        style={"padding": "15px", "marginBottom": "15px"},
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
                             html.H5("Replace at Position"),
                             html.P(
                                 "Replace a substring in all sequences at a specified position with a new sequence."
@@ -1609,7 +1621,7 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
             return dash.no_update, "No data to sort!", True
 
         from pandas import DataFrame
-        import pandas as pd
+        from frankenmsa.utils.msatools import sort_by_column
 
         # print("Sorting MSA with the following parameters:")
         # print(f"sort_by: {sort_by}")
@@ -1618,10 +1630,7 @@ def sort_msa(n_clicks, sort_by, sort_order, main_msa, msa_data):
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        query = msa.iloc[[0]]
-        msa = msa.iloc[1:]
-        sorted_msa = msa.sort_values(by=sort_by, ascending=(sort_order == "asc"))
-        sorted_msa = pd.concat([query, sorted_msa], ignore_index=True)
+        sorted_msa = sort_by_column(msa, sort_by, ascending=(sort_order == "asc"))
         msa_data[main_msa] = sorted_msa.to_dict("list")
         return msa_data, "Sequences sorted successfully", True
     else:
@@ -1644,19 +1653,12 @@ def shuffle_msa(n_clicks, main_msa, msa_data):
             # print("No MSA data available to shuffle.")
             return dash.no_update, "No data to shuffle!", True
 
-        from pandas import DataFrame, concat
-
-        # print("Shuffling MSA with the following parameters:")
-        # print(f"msa_data: {msa_data}")
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import shuffle_rows
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-        query = msa.iloc[[0]]
-        print(query)
-        msa = msa.iloc[1:]  # Exclude the first row (query)
-        shuffled_msa = msa.sample(frac=1).reset_index(drop=True)
-        shuffled_msa = concat([query, shuffled_msa], ignore_index=True)
-        print(shuffled_msa)
+        shuffled_msa = shuffle_rows(msa)
         msa_data[main_msa] = shuffled_msa.to_dict("list")
         return msa_data, "MSA shuffled successfully.", True
     else:
@@ -1759,7 +1761,6 @@ def slice_crop_layout():
         },
     )
     return top
-
 
 
 def slice_msa_layout():
@@ -2214,7 +2215,7 @@ def separate_query(n_clicks, main_msa, msa_data):
         qdict = query.to_dict()
         qdict = {i: [v] for i, v in qdict.items()}
         msa_data[query_name] = qdict
-        print(msa_data[query_name]) # delete?
+        print(msa_data[query_name])  # delete?
         msa_data[main_msa] = msa.to_dict("list")
 
         return msa_data, "Query separated as a new MSA named: " + query_name, True
@@ -2552,12 +2553,11 @@ def insertions_to_gaps(n_clicks, main_msa, msa_data):
             return dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import replace_insertions_with_gaps
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-
-        # replace all lowercase characters in the sequence column with '-'
-        msa["sequence"] = msa["sequence"].str.replace(r"[a-z]", "-", regex=True)
+        msa = replace_insertions_with_gaps(msa)
         msa_data[main_msa] = msa.to_dict("list")
         return (
             msa_data,
@@ -2583,14 +2583,65 @@ def unknown_to_gaps(n_clicks, main_msa, msa_data):
             return dash.no_update, dash.no_update, False
 
         from pandas import DataFrame
+        from frankenmsa.utils.msatools import replace_unknown_with_gaps
 
         msa = msa_data[main_msa]
         msa = DataFrame.from_dict(msa)
-
-        # Replace unknown residues in the sequence column with gaps.
-        msa["sequence"] = msa["sequence"].str.replace("X", "-", regex=False)
+        msa = replace_unknown_with_gaps(msa)
         msa_data[main_msa] = msa.to_dict("list")
 
         return msa_data, "Replaced all 'X' residues with gaps in the sequences.", True
     else:
         return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("edit-uppercase-sequences", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def uppercase_msa(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, dash.no_update, False
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import uppercase_sequences
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+        msa = uppercase_sequences(msa)
+        msa_data[main_msa] = msa.to_dict("list")
+        return msa_data, "Converted all sequences to uppercase.", True
+
+    return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("edit-lowercase-sequences", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def lowercase_msa(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, dash.no_update, False
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import lowercase_sequences
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+        msa = lowercase_sequences(msa)
+        msa_data[main_msa] = msa.to_dict("list")
+        return msa_data, "Converted all sequences to lowercase.", True
+
+    return dash.no_update, dash.no_update, False

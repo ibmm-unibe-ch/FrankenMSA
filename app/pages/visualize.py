@@ -14,15 +14,6 @@ dash.register_page(
 )
 
 
-def no_msa_yet():
-    return dbc.Alert(
-        "No MSA data is available to visualize. Please upload or generate MSA data to proceed.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
-
-
 def layout():
 
     visualise_aignment_checkbox = dbc.Checkbox(
@@ -105,7 +96,7 @@ def update_visual_gaps(visualise_gaps, main, data):
 
     if visualise_gaps == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         gaps = show_gaps(msa)
@@ -123,7 +114,7 @@ def update_visual_gaps(visualise_gaps, main, data):
 def update_visual_conservation(visualise_conservation, main, data):
     if visualise_conservation == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         conservation = show_conservation(msa)
@@ -141,7 +132,7 @@ def update_visual_conservation(visualise_conservation, main, data):
 def update_visual_identity(visualise_identity, main, data):
     if visualise_identity == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         identity = show_query_identity(msa)
@@ -159,7 +150,7 @@ def update_visual_identity(visualise_identity, main, data):
 def update_visual_alignment(visualise_alignment, main, data):
     if visualise_alignment == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         alignment = show_alignment(msa)
@@ -167,40 +158,21 @@ def update_visual_alignment(visualise_alignment, main, data):
     else:
         return html.Div()
 
+
 def show_alignment(msa):
-    from frankenmsa.utils import unify_length, encode_a3m
+    from frankenmsa.visual import visualize_msa
 
-    df = msa.copy()
-    if len(df) > 150:
-        print(
-            f"Warning: The MSA has more than {150} sequences which will cause the plot to crash! Downsampling uniformly to 150 sequences."
-        )
-        df = df.iloc[:: len(df) // 150]
-
-    a3m_string = encode_a3m(unify_length(df, "first"))
-    chart = AlignmentChart(
-        id="alignment-chart",
-        data=a3m_string,
-        showlabel=True,
-        showid=True,
-        showconservation=False,
-        showconsensus=False,
-        showgap=False,
-        width="100%",
-    )
+    chart = visualize_msa(msa, backend="plotly")
+    chart.showconservation = False
+    chart.showgap = False
+    chart.width = "100%"
     return chart
 
 
 def show_gaps(msa):
-    from frankenmsa.utils import unify_length
+    from frankenmsa.visual import gap_counts
 
-    _df = unify_length(msa, "max")
-
-    count_gaps = np.zeros(len(_df["sequence"].values[0]))
-    for seq in _df["sequence"]:
-        count_gaps += np.array([1 if aa == "-" else 0 for aa in seq])
-    # count_gaps /= count_gaps.sum()
-    count_gaps = pd.Series(count_gaps, name="gap_count")
+    count_gaps = gap_counts(msa)
     gaps_figure = px.line(
         count_gaps,
         x=count_gaps.index,
@@ -219,19 +191,9 @@ def show_gaps(msa):
 
 
 def show_conservation(msa):
-    from frankenmsa.utils import unify_length
+    from frankenmsa.visual import conservation_scores
 
-    _df = unify_length(msa, "max")
-
-    count_conservation = np.zeros(len(_df["sequence"].values[0]))
-    for i in range(len(_df["sequence"].values[0])):
-        aas_at_i = _df["sequence"].str.get(i)
-        aas_at_i_counts = aas_at_i.value_counts()
-        most_common_aa = aas_at_i_counts.idxmax()
-        conservation = aas_at_i_counts[most_common_aa] / len(aas_at_i)
-        count_conservation[i] = conservation
-
-    count_conservation = pd.Series(count_conservation, name="conservation")
+    count_conservation = conservation_scores(msa)
     conservation_figure = px.line(
         count_conservation,
         x=count_conservation.index,
@@ -250,23 +212,9 @@ def show_conservation(msa):
 
 
 def show_query_identity(msa):
-    from frankenmsa.utils import unify_length
+    from frankenmsa.visual import query_identity_scores
 
-    _df = unify_length(msa, "max")
-
-    count_identity = np.zeros(len(_df["sequence"].values[0]))
-    query, _df = _df.iloc[0], _df.iloc[1:]
-    query = query["sequence"]
-    for i in range(len(_df["sequence"].values[0])):
-        aas_at_i = _df["sequence"].str.get(i)
-        aas_at_i_counts = aas_at_i.value_counts()
-        aa_in_query_at_i = query[i]
-        if not aa_in_query_at_i in aas_at_i_counts:
-            count_identity[i] = 0
-        else:
-            count_identity[i] = aas_at_i_counts[aa_in_query_at_i] / len(aas_at_i)
-
-    count_identity = pd.Series(count_identity, name="identity")
+    count_identity = query_identity_scores(msa)
     identity_figure = px.line(
         count_identity,
         x=count_identity.index,

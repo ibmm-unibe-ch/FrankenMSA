@@ -11,13 +11,25 @@ __all__ = [
     "crop_to_depth",
     "drop_duplicates",
     "filter_gaps",
+    "filter_by_regex",
+    "filter_by_query",
     "sort_gaps",
     "sort_identity",
+    "sort_by_column",
     "filter_identity",
     "slice_sequences",
     "adjust_depth",
     "extend_to_depth",
     "crop_to_depth",
+    "replace_characters",
+    "replace_insertions_with_gaps",
+    "replace_unknown_with_gaps",
+    "uppercase_sequences",
+    "lowercase_sequences",
+    "slice_rows",
+    "build_combined_msa_name",
+    "combine_msa_operations",
+    "shuffle_rows",
     "shuffle_msa",
 ]
 
@@ -87,6 +99,17 @@ def slice_sequences(
     return df
 
 
+def slice_rows(
+    df: pd.DataFrame,
+    start: int = 0,
+    end: Optional[int] = None,
+) -> pd.DataFrame:
+    """Slice rows in a DataFrame by index range."""
+    start = 0 if start is None else int(start)
+    end = len(df) if end is None else int(end)
+    return df.iloc[start:end].reset_index(drop=True)
+
+
 def adjust_depth(
     df: pd.DataFrame,
     depth: int,
@@ -106,6 +129,11 @@ def adjust_depth(
     -------
     pd.DataFrame
         DataFrame with adjusted sequences.
+
+    See Also
+    --------
+    :func:`crop_to_depth` : Drops sequences to reach a specified depth.
+    :func:`extend_to_depth` : Extends sequences by repeating entries.
     """
     if "sequence" not in df.columns:
         raise ValueError("DataFrame must contain a 'sequence' column.")
@@ -235,6 +263,172 @@ def filter_gaps(df: pd.DataFrame, allowed_gaps_faction: float) -> pd.DataFrame:
     return filtered_df
 
 
+def filter_by_regex(
+    df: pd.DataFrame,
+    pattern: str,
+    method: str = "contains",
+    inverse: bool = False,
+) -> pd.DataFrame:
+    """Filter rows by applying a regex against the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    if not pattern:
+        raise ValueError("pattern must not be empty")
+    if method not in {"contains", "match"}:
+        raise ValueError("method must be 'contains' or 'match'.")
+
+    seqs = df[sequence_col].astype(str)
+    if method == "match":
+        mask = seqs.str.match(pattern, na=False)
+    else:
+        mask = seqs.str.contains(pattern, regex=True, na=False)
+
+    if inverse:
+        mask = ~mask
+
+    return df[mask].reset_index(drop=True)
+
+
+def filter_by_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
+    """Filter rows using the pandas DataFrame.query interface."""
+    if not query_string or not str(query_string).strip():
+        raise ValueError("query_string must not be empty")
+    return df.query(query_string).reset_index(drop=True)
+
+
+def replace_characters(
+    df: pd.DataFrame,
+    pattern: str,
+    replacement: str,
+    regex: bool = False,
+) -> pd.DataFrame:
+    """Replace characters or regex matches in the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    if pattern is None or pattern == "":
+        raise ValueError("pattern must not be empty")
+
+    result = df.copy()
+    result[sequence_col] = (
+        result[sequence_col].astype(str).str.replace(pattern, replacement, regex=regex)
+    )
+    return result
+
+
+def replace_insertions_with_gaps(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace lowercase insertion characters with gaps."""
+    return replace_characters(df, r"[a-z]", "-", regex=True)
+
+
+def replace_unknown_with_gaps(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace unknown X residues with gaps."""
+    return replace_characters(df, "X", "-", regex=False)
+
+
+def uppercase_sequences(df: pd.DataFrame) -> pd.DataFrame:
+    """Uppercase the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    result = df.copy()
+    result[sequence_col] = result[sequence_col].astype(str).str.upper()
+    return result
+
+
+def lowercase_sequences(df: pd.DataFrame) -> pd.DataFrame:
+    """Lowercase the sequence column."""
+    sequence_col = "sequence"
+    if sequence_col not in df.columns:
+        raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
+    result = df.copy()
+    result[sequence_col] = result[sequence_col].astype(str).str.lower()
+    return result
+
+
+def build_combined_msa_name(
+    msa_data: Optional[dict],
+    requested_name: Optional[str] = None,
+    prefix: str = "combined",
+) -> str:
+    """Return the requested combined-MSA name or generate the next numbered one."""
+    if requested_name and str(requested_name).strip():
+        return str(requested_name).strip()
+
+    msa_data = msa_data or {}
+    count_combined = sum(1 for key in msa_data.keys() if str(key).startswith(prefix))
+    return f"{prefix}_{count_combined + 1}"
+
+
+def combine_msa_operations(
+    msas: list[pd.DataFrame],
+    directions: list[str],
+    horizontal_ranges: Optional[list[tuple[int, int]]] = None,
+    vertical_ranges: Optional[list[tuple[int, int]]] = None,
+) -> pd.DataFrame:
+    """
+    Combine multiple MSAs horizontally or vertically after applying per-input slices.
+
+    See Also
+    --------
+    :func:`slice_sequences` : Slice sequences horizontally.
+    :func:`slice_rows` : Slice sequences vertically.
+    :func:`adjust_depth` : Adjusts the depth of an MSA.
+    :func:`unify_length` : Unifies sequence lengths for horizontal concat.
+    """
+    if not msas:
+        raise ValueError("No MSAs provided for combination.")
+    if len(msas) != len(directions):
+        raise ValueError("The number of MSAs and directions must match.")
+
+    if horizontal_ranges is None:
+        horizontal_ranges = [(0, None)] * len(msas)
+    if vertical_ranges is None:
+        vertical_ranges = [(0, None)] * len(msas)
+
+    if len(horizontal_ranges) != len(msas) or len(vertical_ranges) != len(msas):
+        raise ValueError("Each MSA must have a horizontal and vertical slice range.")
+
+    combined_msa: Optional[pd.DataFrame] = None
+
+    for msa, direction, h_range, v_range in zip(
+        msas, directions, horizontal_ranges, vertical_ranges
+    ):
+        if direction not in {"horizontal", "vertical"}:
+            raise ValueError("direction must be 'horizontal' or 'vertical'.")
+
+        h_start, h_end = h_range
+        v_start, v_end = v_range
+
+        current = slice_sequences(msa.copy(), h_start, h_end)
+        current = slice_rows(current, v_start, v_end)
+
+        if combined_msa is None:
+            combined_msa = current.reset_index(drop=True)
+            continue
+
+        if direction == "horizontal":
+            if len(current) != len(combined_msa):
+                current = adjust_depth(current, len(combined_msa))
+
+            combined_msa = combined_msa.copy()
+            combined_msa["sequence"] = combined_msa["sequence"].str.cat(
+                current["sequence"],
+                sep="",
+            )
+            continue
+
+        reference_length = int(combined_msa["sequence"].str.len().iloc[0])
+        current = unify_length(current.copy(), reference_length)
+        combined_msa = pd.concat([combined_msa, current], axis=0, ignore_index=True)
+
+    if combined_msa is None:
+        raise ValueError("No MSAs provided for combination.")
+
+    return combined_msa.reset_index(drop=True)
+
+
 def sort_gaps(
     df: pd.DataFrame,
     ascending: bool = True,
@@ -308,6 +502,25 @@ def sort_identity(
     return sorted_df.reset_index(drop=True)
 
 
+def sort_by_column(
+    df: pd.DataFrame,
+    column: str,
+    ascending: bool = True,
+    preserve_query: bool = True,
+) -> pd.DataFrame:
+    """Sort a DataFrame by a column while optionally keeping the first row fixed."""
+    if column not in df.columns:
+        raise ValueError(f"DataFrame must contain column '{column}'.")
+
+    if preserve_query and len(df) > 0:
+        query = df.iloc[[0]]
+        remainder = df.iloc[1:]
+        sorted_df = remainder.sort_values(by=column, ascending=ascending)
+        return pd.concat([query, sorted_df], ignore_index=True).reset_index(drop=True)
+
+    return df.sort_values(by=column, ascending=ascending).reset_index(drop=True)
+
+
 def filter_identity(
     df: pd.DataFrame,
     identity_threshold: float,
@@ -359,6 +572,20 @@ def filter_identity(
     return filtered_df
 
 
+def shuffle_rows(
+    df: pd.DataFrame,
+    random_state: Optional[int] = None,
+    preserve_query: bool = True,
+) -> pd.DataFrame:
+    """Shuffle rows while optionally keeping the first row fixed."""
+    if preserve_query and len(df) > 0:
+        query = df.iloc[[0]]
+        remainder = df.iloc[1:].sample(frac=1, random_state=random_state)
+        return pd.concat([query, remainder], ignore_index=True).reset_index(drop=True)
+
+    return df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+
+
 def shuffle_msa(
     df: pd.DataFrame,
     start: Optional[int] = None,
@@ -396,8 +623,8 @@ def shuffle_msa(
     Notes
     -----
     - The first row is treated as the query sequence and is not modified.
-    - This function does NOT pad or crop sequences. If lengths differ, a ValueError is raised.
-      You may call `unify_length` beforehand if needed.
+        - This function does NOT pad or crop sequences. If lengths differ, a ValueError is raised.
+            You may call :func:`unify_length` beforehand if needed.
     """
     if "sequence" not in df.columns:
         raise ValueError("DataFrame must contain a 'sequence' column.")

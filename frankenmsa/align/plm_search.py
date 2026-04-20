@@ -7,6 +7,7 @@ the `MSAFactory` interface defined in `base.py`.
 References:
     https://dmiip.sjtu.edu.cn/PLMSearch
 """
+
 from pathlib import Path
 import time
 from typing import List, Optional
@@ -15,6 +16,7 @@ import requests
 import pandas as pd
 
 from . import base
+from ..runtime import log_message
 from ..utils.uniprot import fetch_uniprot_metadata
 
 # PLM-Search API endpoints and configuration
@@ -28,8 +30,8 @@ MULTIPART_BOUNDARY = "------geckoformboundary4aeca06a4428bd98875a0a9648782b8"
 
 # HTTP headers for API requests
 REQUEST_HEADERS = {
-#    "Referer": "https://github.com/ibmm-unibe-ch/FrankenMSA/",
-#    "Content-Type": f"multipart/form-data; boundary={MULTIPART_BOUNDARY}",
+    #    "Referer": "https://github.com/ibmm-unibe-ch/FrankenMSA/",
+    #    "Content-Type": f"multipart/form-data; boundary={MULTIPART_BOUNDARY}",
     "Host": "dmiip.sjtu.edu.cn",
     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:148.0) Gecko/20100101 Firefox/148.0",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -54,21 +56,20 @@ MAX_RETRIES = 10
 CHUNK_SIZE = 8192
 BATCH_SIZE_UNIPROT = 100
 
-def log_message(message:str):
-    with open("/content/app/log.txt", "a") as log_file:
-        log_file.write(f"{message}\n")
 
-def download_with_resume(session: requests.Session, url: str, max_retries: int = MAX_RETRIES) -> bytes:
+def download_with_resume(
+    session: requests.Session, url: str, max_retries: int = MAX_RETRIES
+) -> bytes:
     """
     Download file content with automatic resume on connection errors.
-    
+
     PLM-Search may close connections prematurely. This function implements
     a simple resume-capable downloader that retries and resumes from the
     last successfully downloaded byte.
-    
+
     References:
         https://stackoverflow.com/questions/77873658/python-reading-url-chunkedencodingerror
-    
+
     Parameters
     ----------
     session : requests.Session
@@ -77,12 +78,12 @@ def download_with_resume(session: requests.Session, url: str, max_retries: int =
         URL to download from.
     max_retries : int, optional
         Maximum number of retry attempts (default: 10).
-    
+
     Returns
     -------
     bytes
         Complete file content.
-    
+
     Raises
     ------
     ValueError
@@ -91,12 +92,12 @@ def download_with_resume(session: requests.Session, url: str, max_retries: int =
     """
     data = b""
     expected_length = None
-    
+
     for attempt in range(max_retries):
         # Check if download is complete
         if len(data) == expected_length:
             break
-        
+
         # Prepare headers for resuming or starting fresh
         if len(data):
             headers = {"Range": f"bytes={len(data)}-"}
@@ -104,25 +105,25 @@ def download_with_resume(session: requests.Session, url: str, max_retries: int =
         else:
             headers = {}
             expected_status = 200
-        
+
         # Perform request
         try:
             resp = session.get(url, stream=True, headers=headers)
             resp.raise_for_status()
-            
+
             if resp.status_code != expected_status:
                 raise ValueError(
                     f"Unexpected HTTP status: {resp.status_code} "
                     f"(expected {expected_status})"
                 )
-            
+
             # Extract expected total length on first request
             if expected_length is None:
                 content_length = resp.headers.get("Content-Length")
                 if not content_length:
                     raise ValueError("Content-Length header missing in response")
                 expected_length = int(content_length)
-            
+
             # Download chunk by chunk
             try:
                 for chunk in resp.iter_content(chunk_size=CHUNK_SIZE):
@@ -130,30 +131,30 @@ def download_with_resume(session: requests.Session, url: str, max_retries: int =
             except requests.exceptions.ChunkedEncodingError as e:
                 # Continue to retry loop
                 pass
-        
+
         except requests.exceptions.RequestException as e:
             time.sleep(1)  # Brief delay before retry
-    
+
     # Final validation
     if len(data) != expected_length:
         raise ValueError(
             f"Download incomplete: expected {expected_length} bytes, "
             f"got {len(data)} bytes after {max_retries} attempts"
         )
-    
+
     return data
 
 
 class PLMSearch(base.MSAFactory):
     """
     PLM-Search client for finding similar protein sequences.
-    
+
     This class provides an interface to the PLM-Search remote service
     (https://dmiip.sjtu.edu.cn/PLMSearch), which uses protein language models
     to find similar sequences in various protein databases.
-    
+
     The `align` method follows the `MSAFactory` interface defined in `base.py`.
-    
+
     Attributes
     ----------
     interval_seconds : int
@@ -163,7 +164,7 @@ class PLMSearch(base.MSAFactory):
     def __init__(self, interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS):
         """
         Initialize PLM-Search client.
-        
+
         Parameters
         ----------
         interval_seconds : int, optional
@@ -182,11 +183,11 @@ class PLMSearch(base.MSAFactory):
     ) -> Optional[pd.DataFrame]:
         """
         Submit sequences to PLM-Search and retrieve similar sequences.
-        
+
         Submits amino-acid sequences to the remote PLM-Search server,
         polls for completion, downloads results, and filters by similarity.
         UniProt metadata is fetched for matching sequences.
-        
+
         Parameters
         ----------
         sequences : list of str
@@ -204,7 +205,7 @@ class PLMSearch(base.MSAFactory):
             Maximum number of matching sequences to return per query
             (default: 200). The limit is applied per input sequence,
             not globally across all queries.
-        
+
         Returns
         -------
         pd.DataFrame or None
@@ -212,7 +213,7 @@ class PLMSearch(base.MSAFactory):
             UniProt metadata, or None if submission fails.
             One row per matching sequence. Returns empty DataFrame if no
             matches exceed similarity_cutoff.
-        
+
         Raises
         ------
         ValueError
@@ -223,36 +224,44 @@ class PLMSearch(base.MSAFactory):
             raise ValueError(
                 f"similarity_cutoff must be in [0.0, 1.0], got {similarity_cutoff}"
             )
-        
+
         if descriptions is None:
             descriptions = [f"seq{i + 1}" for i in range(len(sequences))]
-        
+
         if len(descriptions) != len(sequences):
             raise ValueError(
                 f"Number of descriptions ({len(descriptions)}) must match "
                 f"number of sequences ({len(sequences)})"
             )
-        
+
         # 1. Submit query to API
-        log_message(f"in file Submitting {len(sequences)} sequences to PLM-Search API with database '{database}' and similarity cutoff {similarity_cutoff}.")
+        log_message(
+            f"in file Submitting {len(sequences)} sequences to PLM-Search API with database '{database}' and similarity cutoff {similarity_cutoff}."
+        )
         query_id = self._send_post_request(descriptions, sequences, database)
         if not query_id:
             return None
-                
+
         # 2. Download results file
-        log_message(f"PLM-Search submission successful, received query ID: {query_id}. Polling for results...")
+        log_message(
+            f"PLM-Search submission successful, received query ID: {query_id}. Polling for results..."
+        )
         output_file = self._download_similarities(query_id)
         if not output_file:
             return None
-        
+
         # 3. Parse results and fetch metadata
-        log_message(f"Results downloaded to {output_file}. Parsing results and fetching UniProt metadata...")
+        log_message(
+            f"Results downloaded to {output_file}. Parsing results and fetching UniProt metadata..."
+        )
         try:
             df = self._parse_and_enrich_results(
                 output_file, similarity_cutoff, max_sequences
             )
             self.msa = df
-            log_message(f"PLM-Search alignment completed. Retrieved {len(df)} similar sequences after filtering by similarity cutoff.")
+            log_message(
+                f"PLM-Search alignment completed. Retrieved {len(df)} similar sequences after filtering by similarity cutoff."
+            )
             return df
         except Exception as e:
             return None
@@ -262,7 +271,7 @@ class PLMSearch(base.MSAFactory):
     ) -> str:
         """
         Build multipart form data payload for API submission.
-        
+
         Parameters
         ----------
         descriptions : list of str
@@ -271,7 +280,7 @@ class PLMSearch(base.MSAFactory):
             Sequence data.
         database : str
             Target database name.
-        
+
         Returns
         -------
         str
@@ -283,7 +292,7 @@ class PLMSearch(base.MSAFactory):
             fasta_lines.append(f">{desc}")
             fasta_lines.append(seq)
         fasta_content = "\r\n".join(fasta_lines)
-        
+
         # Build complete payload
         parts = [
             f"--{MULTIPART_BOUNDARY}",
@@ -306,7 +315,7 @@ class PLMSearch(base.MSAFactory):
             f"--{MULTIPART_BOUNDARY}--",
             "",
         ]
-        
+
         return "\r\n".join(parts)
 
     def _send_post_request(
@@ -314,7 +323,7 @@ class PLMSearch(base.MSAFactory):
     ) -> Optional[str]:
         """
         Submit sequences to PLM-Search API.
-        
+
         Parameters
         ----------
         descriptions : list of str
@@ -323,7 +332,7 @@ class PLMSearch(base.MSAFactory):
             Sequence data.
         database : str
             Target database name.
-        
+
         Returns
         -------
         str or None
@@ -331,28 +340,24 @@ class PLMSearch(base.MSAFactory):
         """
         try:
             payload = self._build_multipart_payload(descriptions, sequences, database)
-            
+
             response = requests.post(
-                PLM_SEARCH_SUBMIT_URL,
-                headers=REQUEST_HEADERS,
-                data=payload
+                PLM_SEARCH_SUBMIT_URL, headers=REQUEST_HEADERS, data=payload
             )
             response.raise_for_status()
-            
+
             # Extract query ID from response
             # Response contains: ...https://dmiip.sjtu.edu.cn/PLMSearch/refresh/{QUERY_ID}"...
             try:
-                query_id = (
-                    response.text
-                    .split(f"{PLM_SEARCH_BASE_URL}/refresh/", 1)[1]
-                    .split('"')[0]
-                )
+                query_id = response.text.split(f"{PLM_SEARCH_BASE_URL}/refresh/", 1)[
+                    1
+                ].split('"')[0]
                 if not query_id:
                     raise ValueError("Empty query ID extracted")
                 return query_id
             except (IndexError, ValueError) as e:
                 return None
-        
+
         except requests.exceptions.RequestException as e:
 
             print(f"An error occurred: {e}")
@@ -360,15 +365,15 @@ class PLMSearch(base.MSAFactory):
     def _download_similarities(self, query_id: str) -> Optional[Path]:
         """
         Poll for completion and download similarity results.
-        
+
         Periodically checks the query status via the refresh endpoint
         until completion, then downloads the similarity.txt file.
-        
+
         Parameters
         ----------
         query_id : str
             Query identifier from API submission.
-        
+
         Returns
         -------
         Path or None
@@ -376,7 +381,7 @@ class PLMSearch(base.MSAFactory):
         """
         refresh_url = PLM_SEARCH_REFRESH_URL_TEMPLATE.format(query_id=query_id)
         download_url = PLM_SEARCH_DOWNLOAD_URL_TEMPLATE.format(query_id=query_id)
-        output_file = Path(f"{query_id}_similarity.txt")        
+        output_file = Path(f"{query_id}_similarity.txt")
         # Poll until done
         max_wait_time = 3600  # 1 hour timeout
         elapsed = 0
@@ -384,20 +389,20 @@ class PLMSearch(base.MSAFactory):
             try:
                 response = requests.get(refresh_url, timeout=10)
                 response.raise_for_status()
-                
+
                 if "Done" in response.text:
                     break
-                
+
                 time.sleep(self.interval_seconds)
                 elapsed += self.interval_seconds
-            
+
             except requests.exceptions.RequestException as e:
                 time.sleep(self.interval_seconds)
                 elapsed += self.interval_seconds
-        
+
         if elapsed >= max_wait_time:
             return None
-        
+
         # Download file with resume capability
         try:
             with requests.Session() as session:
@@ -405,34 +410,30 @@ class PLMSearch(base.MSAFactory):
                 with open(output_file, "wb") as f:
                     f.write(data)
                 return output_file
-        
+
         except Exception as e:
             return None
 
     def _parse_and_enrich_results(
-        self, filepath: Path, similarity_cutoff: float, max_sequences: int 
+        self, filepath: Path, similarity_cutoff: float, max_sequences: int
     ) -> pd.DataFrame:
         """
         Parse similarity file and enrich with UniProt metadata.
-        
+
         Parameters
         ----------
         filepath : Path
             Path to similarity.txt file from API.
         similarity_cutoff : float
             Minimum similarity to include.
-        
+
         Returns
         -------
         pd.DataFrame
             Enriched results with UniProt metadata.
         """
         # Parse similarity file
-        df = pd.read_csv(
-            filepath,
-            sep="\t",
-            names=["query", "response", "similarity"]
-        )
+        df = pd.read_csv(filepath, sep="\t", names=["query", "response", "similarity"])
 
         # Keep only rows that meet similarity cutoff
         valid_df = df[df["similarity"] >= similarity_cutoff].copy()
@@ -461,4 +462,3 @@ class PLMSearch(base.MSAFactory):
 
         result = pd.concat(dfs, ignore_index=True)
         return result
-        

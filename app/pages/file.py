@@ -2,6 +2,14 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
+from frankenmsa.utils.fileio import (
+    build_multimer_csv,
+    chain_label,
+    combine_unpaired_a3m,
+    is_multimer_a3m_text,
+    split_dataframe_by_chain,
+    split_multimer_a3m_file,
+)
 
 dash.register_page(
     __name__,
@@ -21,189 +29,6 @@ def layout():
 
 
 # ================= Helper Functions =================
-
-
-def _chain_label(index):
-    """
-    Generate chain labels: A-Z, then AA, AB, AC, ..., AZ, BA, BB, ...
-    """
-    if index < 26:
-        return chr(65 + index)  # A-Z
-    else:
-        # For index >= 26: AA, AB, AC, ..., AZ, BA, BB, ...
-        first = chr(65 + (index // 26) - 1)
-        second = chr(65 + (index % 26))
-        return first + second
-
-
-def _parse_a3m_simple(path: str):
-    """
-    Minimal A3M reader that also handles ColabFold multimer A3M.
-    Returns a list of (header, sequence) tuples.
-    It skips a leading '#' header line and concatenates wrapped sequence lines.
-    """
-    records = []
-    header = None
-    seq_buf = []
-    with open(path, "r", encoding="utf-8") as fh:
-        for raw in fh:
-            line = raw.rstrip("\n")
-            if not line:
-                continue
-            if line.startswith("#"):
-                # multimer header line like "#12,10\t1,1"
-                # ignore, real sequences start at the first '>'
-                continue
-            if line.startswith(">"):
-                if header is not None:
-                    records.append((header, "".join(seq_buf)))
-                header = line.strip()
-                seq_buf = []
-            else:
-                seq_buf.append(line)
-    if header is not None:
-        records.append((header, "".join(seq_buf)))
-    return records
-
-
-def _build_multimer_csv(msa_data, selected_msas):
-    """
-    Build a CSV multimer by combining multiple MSAs with a 'chain' column.
-
-    Args:
-        msa_data: Dictionary of MSA data
-        selected_msas: List of MSA names (can include duplicates)
-
-    Returns:
-        pandas DataFrame with added 'chain' column
-    """
-    import pandas as pd
-
-    combined_dfs = []
-    for idx, msa_name in enumerate(selected_msas):
-        df = pd.DataFrame(msa_data[msa_name]).copy()
-        df["chain"] = _chain_label(idx)
-        combined_dfs.append(df)
-
-    return pd.concat(combined_dfs, ignore_index=True)
-
-
-def _is_multimer_a3m(text: str) -> bool:
-    """
-    Check if A3M text starts with multimer header line.
-    Format: #<lengths>\t<cardinalities>
-    Example: #142,150\t1,1
-    """
-    import re
-
-    lines = text.strip().split("\n")
-    if not lines:
-        return False
-    first_line = lines[0].strip()
-    # Match pattern like: #123,456\t1,1 or #142\t1
-    return bool(re.match(r"^#\d+[,\d]*\t\d+[,\d]*$", first_line))
-
-
-def _split_multimer_a3m(tmp_path: str, base_name: str):
-    """
-    Split a multimer A3M file into separate chain MSAs.
-
-    Args:
-        tmp_path: Path to the temporary A3M file
-        base_name: Base name for the output MSAs
-
-    Returns:
-        Dictionary of {chain_name: DataFrame} for each chain
-    """
-    import pandas as pd
-    import re
-
-    # Parse the multimer A3M
-    records = _parse_a3m_simple(tmp_path)
-
-    if not records:
-        raise ValueError("Empty A3M file")
-
-    # Read first line to get chain lengths
-    with open(tmp_path, "r") as f:
-        first_line = f.readline().strip()
-
-    if not first_line.startswith("#"):
-        raise ValueError("Not a valid multimer A3M")
-
-    # Parse header: #142,150\t1,1 -> lengths=[142, 150]
-    parts = first_line[1:].split("\t")
-    if len(parts) < 1:
-        raise ValueError("Invalid multimer header format")
-
-    lengths = [int(x) for x in parts[0].split(",")]
-    num_chains = len(lengths)
-
-    # Skip anchor sequences (headers like >101, >102, etc.)
-    # They are typically at the start, one per chain
-    filtered_records = []
-    for header, seq in records:
-        # Skip anchor sequences (e.g., >101, >102)
-        if re.match(r"^>\d+$", header.strip()):
-            continue
-        filtered_records.append((header, seq))
-
-    # Now split sequences by chain
-    # Each sequence in multimer format has gaps padding for other chains
-    # Chain 0: residues [0:lengths[0]], rest are gaps
-    # Chain 1: gaps [0:lengths[0]], residues [lengths[0]:lengths[0]+lengths[1]], etc.
-
-    chain_msas = {}
-    cumulative_lengths = [0]
-    for l in lengths:
-        cumulative_lengths.append(cumulative_lengths[-1] + l)
-
-    for chain_idx in range(num_chains):
-        start = cumulative_lengths[chain_idx]
-        end = cumulative_lengths[chain_idx + 1]
-        chain_label = _chain_label(chain_idx)
-
-        chain_records = []
-        for header, seq in filtered_records:
-            # Extract the portion for this chain and remove gaps
-            chain_seq = seq[start:end].replace("-", "")
-            if chain_seq:  # Only include non-empty sequences
-                chain_records.append({"header": header, "sequence": chain_seq})
-
-        if chain_records:
-            chain_name = f"{base_name}{chain_label}"
-            chain_msas[chain_name] = pd.DataFrame(chain_records)
-
-    return chain_msas
-
-
-def _split_multimer_csv(df, base_name: str):
-    """
-    Split a CSV with 'chain' column into separate chain MSAs.
-
-    Args:
-        df: pandas DataFrame with 'chain' column
-        base_name: Base name for the output MSAs
-
-    Returns:
-        Dictionary of {chain_name: DataFrame} for each chain
-    """
-
-    if "chain" not in df.columns:
-        raise ValueError("CSV does not have a 'chain' column")
-
-    chain_msas = {}
-    unique_chains = sorted(df["chain"].unique())
-
-    for chain_value in unique_chains:
-        chain_df = df[df["chain"] == chain_value].copy()
-        # Remove the chain column for individual MSAs
-        chain_df = chain_df.drop(columns=["chain"])
-
-        chain_name = f"{base_name}{chain_value}"
-        chain_msas[chain_name] = chain_df
-
-    return chain_msas
 
 
 def file_upload_layout():
@@ -275,7 +100,7 @@ def upload_file(contents, filename, msa_data):
 
         if suffix in {".fasta", ".a3m", ".fa"}:
             # Check if it's a multimer A3M
-            if _is_multimer_a3m(decoded_text):
+            if is_multimer_a3m_text(decoded_text):
                 print(f"[UPLOAD] Detected multimer A3M", file=sys.stderr)
                 is_multimer = True
 
@@ -284,7 +109,7 @@ def upload_file(contents, filename, msa_data):
                     f.write(decoded_text)
 
                 try:
-                    chain_msas = _split_multimer_a3m(tmp_path, name)
+                    chain_msas = split_multimer_a3m_file(tmp_path, name)
                 except Exception as e:
                     print(
                         f"[UPLOAD] Failed to split multimer A3M: {e}", file=sys.stderr
@@ -323,7 +148,7 @@ def upload_file(contents, filename, msa_data):
                 is_multimer = True
 
                 try:
-                    chain_msas = _split_multimer_csv(df, name)
+                    chain_msas = split_dataframe_by_chain(df, name)
                 except Exception as e:
                     print(
                         f"[UPLOAD] Failed to split multimer CSV: {e}", file=sys.stderr
@@ -408,6 +233,7 @@ def upload_file(contents, filename, msa_data):
             displayed=True,
         )
         return err, dash.no_update, dash.no_update
+
 
 def file_download_layout():
 
@@ -586,12 +412,12 @@ def manage_chain_list(add_clicks, remove_clicks, selected_msa, current_chains):
     else:
         chain_items = []
         for i, msa_name in enumerate(current_chains):
-            chain_label = _chain_label(i)
+            chain_label_value = chain_label(i)
             chain_items.append(
                 html.Div(
                     [
                         html.Span(
-                            f"Chain {chain_label}: {msa_name}",
+                            f"Chain {chain_label_value}: {msa_name}",
                             style={"marginRight": "10px"},
                         ),
                         html.Button(
@@ -738,8 +564,8 @@ def _download_multimer(selected_msas, msa_data, format_ext, filename):
         # e.g., ["msa1", "msa1", "msa2"] -> "msa1_A_msa1_B_msa2_C"
         parts = []
         for i, msa_name in enumerate(selected_msas):
-            chain_label = _chain_label(i)
-            parts.append(f"{msa_name}{chain_label}")
+            chain_label_value = chain_label(i)
+            parts.append(f"{msa_name}{chain_label_value}")
         base = "_".join(parts)
     else:
         base = filename.strip()
@@ -749,13 +575,13 @@ def _download_multimer(selected_msas, msa_data, format_ext, filename):
 
     if format_ext == ".csv":
         # CSV multimer: combine with chain column
-        combined_df = _build_multimer_csv(msa_data, selected_msas)
+        combined_df = build_multimer_csv(msa_data, selected_msas)
 
         tmp_dir = tempfile.gettempdir()
         out_path = os.path.join(tmp_dir, base + ".csv")
         combined_df.to_csv(out_path, index=False)
 
-        chain_list = [_chain_label(i) for i in range(len(selected_msas))]
+        chain_list = [chain_label(i) for i in range(len(selected_msas))]
         toast = dbc.Toast(
             f"Downloading multimer CSV with {len(selected_msas)} chains: {', '.join(chain_list)}",
             header="Success",
@@ -768,7 +594,6 @@ def _download_multimer(selected_msas, msa_data, format_ext, filename):
     elif format_ext == ".a3m":
         # A3M multimer: use combine_unpaired_a3m
         from frankenmsa.utils import write_a3m
-        from frankenmsa.utils.multimer_a3m import combine_unpaired_a3m
 
         # Create temp directory for intermediate files
         tmpdir = Path(tempfile.gettempdir()) / "frankenmsa"
@@ -795,7 +620,7 @@ def _download_multimer(selected_msas, msa_data, format_ext, filename):
         # Combine into multimer A3M
         combine_unpaired_a3m(in_paths, str(out_path))
 
-        chain_list = [_chain_label(i) for i in range(len(selected_msas))]
+        chain_list = [chain_label(i) for i in range(len(selected_msas))]
         toast = dbc.Toast(
             f"Downloading multimer A3M with {len(selected_msas)} chains: {', '.join(chain_list)}",
             header="Success",

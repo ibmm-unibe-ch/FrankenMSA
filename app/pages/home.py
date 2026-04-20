@@ -2,14 +2,12 @@ import dash
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
+from helpers.constants import ON_COLAB
+
 dash.register_page(
     __name__,
     path="/",
 )
-
-import os
-
-ON_COLAB = os.environ.get("ON_COLAB", False) == "1"
 
 try:
     import torch
