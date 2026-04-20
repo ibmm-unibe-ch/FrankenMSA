@@ -40,7 +40,9 @@ def test_attach_ghostfold_result_initializes_store():
 
 
 def test_run_ghostfold_augmentation_uses_backend_and_attaches(monkeypatch):
-    result_df = pd.DataFrame({"header": ["query", "hit1"], "sequence": ["ACDE", "AFDE"]})
+    result_df = pd.DataFrame(
+        {"header": ["query", "hit1"], "sequence": ["ACDE", "AFDE"]}
+    )
 
     monkeypatch.setattr(
         "frankenmsa.augment.workflows.GhostFold.augment",

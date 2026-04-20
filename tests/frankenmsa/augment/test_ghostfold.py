@@ -88,9 +88,7 @@ def test_augment_runs_ghostfold_and_reads_output(monkeypatch):
 
         output_dir = Path(cwd) / "ghostfold_output" / "msa" / "GhostFold_input"
         output_dir.mkdir(parents=True)
-        (output_dir / "pstMSA.a3m").write_text(
-            ">GhostFold_input\nACDE\n>hit1\nAcDE\n"
-        )
+        (output_dir / "pstMSA.a3m").write_text(">GhostFold_input\nACDE\n>hit1\nAcDE\n")
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     monkeypatch.setattr("frankenmsa.augment.ghostfold.subprocess.run", fake_run)

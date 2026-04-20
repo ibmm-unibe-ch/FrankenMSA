@@ -91,11 +91,7 @@ def test_build_multimer_csv_adds_chain_labels_in_order():
 def test_top_level_read_a3m_detects_multimer_format(tmp_path):
     a3m_path = tmp_path / "complex.a3m"
     a3m_path.write_text(
-        "#4,3\t1,1\n"
-        ">query\n"
-        "AAAA---\n"
-        ">query\n"
-        "----BBB\n",
+        "#4,3\t1,1\n" ">query\n" "AAAA---\n" ">query\n" "----BBB\n",
         encoding="utf-8",
     )
 

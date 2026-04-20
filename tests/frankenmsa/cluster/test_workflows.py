@@ -26,7 +26,9 @@ def test_numeric_column_options_only_returns_numeric_columns():
 def test_cluster_dropdown_options_include_all_choice():
     df = pd.DataFrame({"cluster_id": [0, 1, 1]})
 
-    assert cluster_dropdown_options(df, cluster_column="cluster_id", label_prefix="Cluster") == [
+    assert cluster_dropdown_options(
+        df, cluster_column="cluster_id", label_prefix="Cluster"
+    ) == [
         {"label": "All", "value": "all"},
         {"label": "Cluster 0", "value": 0},
         {"label": "Cluster 1", "value": 1},
