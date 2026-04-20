@@ -26,7 +26,7 @@ This document is the canonical inventory of functional capabilities currently pr
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | file-io | Read and write A3M/FASTA-style MSA files | `frankenmsa/utils/fileio.py` | `read_a3m`, `write_a3m`, `encode_a3m`, `decode_a3m` | `library-backed` | `keep` | `frankenmsa.utils.fileio` | Core file API already exists and should anchor app import/export work. |
 | file-io | Multimer A3M parsing and assembly | `frankenmsa/utils/fileio.py` | `parse_a3m`, `combine_unpaired_a3m`, `read_a3m_with_chains`, `split_multimer_a3m_file` | `library-backed` | `adopt` | `frankenmsa.utils.fileio` | Multimer helpers now live with the rest of the file I/O surface. |
-| file-io | Upload format detection for A3M, FASTA, CSV | `app/pages/file.py` | upload callback | `app-only` | `extract` | `frankenmsa.utils.fileio` | Reusable parser/dispatcher logic should not live in Dash callbacks. |
+| file-io | Upload format detection for A3M, FASTA, CSV | `app/pages/file.py` | upload callback | `ui-only` | `keep` | n/a | User decision: upload auto-detection stays in the app; the library does not need to own this dispatch logic. |
 | file-io | Multimer A3M splitting into per-chain MSAs | `frankenmsa/utils/fileio.py`, `app/pages/file.py` | `split_multimer_a3m_file`, file upload callback | `library-backed` | `adopt` | `frankenmsa.utils.fileio` | Extracted into the library; the app now consumes the shared helper. |
 | file-io | CSV chain-column splitting and multimer CSV assembly | `frankenmsa/utils/fileio.py`, `app/pages/file.py` | `split_dataframe_by_chain`, `build_multimer_csv`, file callbacks | `library-backed` | `adopt` | `frankenmsa.utils.fileio` | Extracted into the library; app-side duplication removed. |
 | file-io | Download/export orchestration | `app/pages/file.py`, `app/app.py` | download callback, `/colab/download` route | `ui-only` | `keep` | n/a | Route wiring and browser delivery stay app-side. |
@@ -60,8 +60,8 @@ This document is the canonical inventory of functional capabilities currently pr
 | inverse-fold | Colab-specific ProteinMPNN runner orchestration | `frankenmsa/inverse_fold/protein_mpnn_workflow.py`, notebooks | workflow function | `library-backed` | `adopt` | `frankenmsa.inverse_fold` plus thin notebook adapter | Colab setup remains an explicit installer call, but the run workflow is now shared. |
 | install | Optional heavyweight dependency installers | `scripts/installers/` | installer scripts | `library-backed` | `keep` | `scripts/installers/` | Reusable pattern for external tool provisioning outside the base package install. |
 | inverse-fold | PDB upload, download by code, advanced chain options UI | `app/pages/inversefold.py` | page callbacks | `ui-only` | `keep` | n/a | Dash input flow should remain app-side. |
-| visualization | MSA alignment chart data generation | `frankenmsa/visual/alignment_chart.py`, `app/pages/visualize.py` | `visualise_msa`, visualization callbacks | `library-backed` | `refactor` | `frankenmsa.visual.alignment_chart` | Clarify whether the library returns figure data or renders directly. |
-| visualization | Gap, conservation, and identity summaries | `app/pages/visualize.py`, `frankenmsa/utils` helpers | visualization callbacks | `duplicated` | `extract` | `frankenmsa.visual` or `frankenmsa.utils.msatools` | Data computations are reusable; charts are UI-only. |
+| visualization | MSA alignment chart data generation | `frankenmsa/visual/alignment_chart.py`, `app/pages/visualize.py` | `visualise_msa`, `visualize_msa`, visualization callbacks | `library-backed` | `adopt` | `frankenmsa.visual.alignment_chart` | The app now consumes the shared library alignment renderer instead of rebuilding chart input locally. |
+| visualization | Gap, conservation, and identity summaries | `frankenmsa/visual/summaries.py`, `app/pages/visualize.py` | `gap_counts`, `conservation_scores`, `query_identity_scores`, visualization callbacks | `library-backed` | `adopt` | `frankenmsa.visual` | Summary computations now live in the library; the app only renders the resulting series as charts. |
 | runtime | Runtime detection, upload directories, branch-aware Colab links | `frankenmsa/runtime.py`, `app/helpers/constants.py` | `detect_runtime`, `normalize_runtime_environment`, `get_upload_dir`, constants module | `library-backed` | `keep` | `frankenmsa.runtime` | Shared runtime detection, upload-dir selection, launch-env construction, and log-path logic now live in `frankenmsa.runtime`; app constants consume the shared helper. |
 | runtime | Dash page registration, routing, navbar, stores, injected MSA flow | `app/app.py` | app bootstrap | `ui-only` | `keep` | n/a | App integration only. |
 | notebooks | Local notebook launch and render mode selection | `FrankenMSA_app_local.ipynb` | notebook cells | `ui-only` | `keep` | n/a | Notebook remains a launcher surface, but now uses the shared runtime helpers and app launch environment builder. |
@@ -96,7 +96,7 @@ These are low-risk, high-value targets because they are pure functions and easy 
 | GhostFold | Completed: resolve installed CLI or configured root explicitly and keep temporary work directories isolated. |
 | MMseqs2 and PLM-Search | Standardize result handling and public API wrappers. |
 | Ward centroid merge | Completed: exposed through the cluster package and documented as a centroid merge over existing clusters. |
-| Visualization helpers | Separate reusable data computation from app-specific rendering. |
+| Visualization helpers | Completed: reusable summary computation now lives in `frankenmsa.visual`; app-specific chart rendering stays in Dash. |
 
 ## Environment and Dependency Notes
 
@@ -118,5 +118,4 @@ These are low-risk, high-value targets because they are pure functions and easy 
 
 ## Next Implementation Steps
 
-1. Extract upload format detection and parser dispatch from the file page into `frankenmsa.utils.fileio`.
-2. Separate reusable visualization summary computations from `app/pages/visualize.py` and keep only chart rendering in the app.
+1. No additional library extraction is queued from the current app/library parity review; upload format detection remains intentionally app-side.

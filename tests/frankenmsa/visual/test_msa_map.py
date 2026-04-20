@@ -22,3 +22,11 @@ def test_can_visualize_msa():
     fig = visualize_msa(msa)
     assert fig is not None
     assert isinstance(fig, plt.Figure)
+
+
+def test_visual_package_exports_visualise_aliases():
+    from frankenmsa.visual import visualise_msa
+    from frankenmsa.visual import visualize_msa
+
+    assert visualise_msa is not None
+    assert visualize_msa is not None

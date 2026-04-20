@@ -46,6 +46,11 @@ def visualise_msa(df: pd.DataFrame, backend: str = "matplotlib"):
         raise ValueError("Backend must be 'matplotlib' or 'plotly'.")
 
 
+def visualize_msa(df: pd.DataFrame, backend: str = "matplotlib"):
+    """American-English alias for visualise_msa."""
+    return visualise_msa(df, backend=backend)
+
+
 def _maptlotlib_visualise_msa(df: pd.DataFrame) -> plt.figure:
     """
     Visualise the MSA of a sequence in a map.
