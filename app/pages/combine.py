@@ -84,15 +84,6 @@ def layout():
     )
 
 
-def nothing_to_combine():
-    return dbc.Alert(
-        "No MSAs have been added to combine. Please add MSAs to combine.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
-
-
 def combine_msa_block(msa_data, index):
 
     target = dcc.Dropdown(
@@ -385,12 +376,14 @@ def combine_msas(
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
     if not src_dropdowns:
-        return (dash.no_update, dash.no_update, [nothing_to_combine()])
+        return dash.no_update, dash.no_update, dash.no_update
 
     from frankenmsa.utils import build_combined_msa_name, combine_msa_operations
 
     name = build_combined_msa_name(msa_data, name)
-    msas = [DataFrame.from_dict(msa_data[selected_msa]) for selected_msa in src_dropdowns]
+    msas = [
+        DataFrame.from_dict(msa_data[selected_msa]) for selected_msa in src_dropdowns
+    ]
     horizontal_ranges = list(zip(h_starts, h_ends))
     vertical_ranges = list(zip(v_starts, v_ends))
     combined_msa = combine_msa_operations(

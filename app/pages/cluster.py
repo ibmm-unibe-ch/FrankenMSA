@@ -16,6 +16,7 @@ dash.register_page(
     __name__,
 )
 
+
 def layout():
     return html.Div(
         [
@@ -335,15 +336,6 @@ def ward_controls_layout():
     return html.Div([html.Hr(), header, explain, top_controls, bottom_button])
 
 
-def no_msa_yet():
-    return dbc.Alert(
-        "No MSA data is available to cluster. Please upload or generate MSA data to proceed.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
-
-
 @callback(
     Output("cluster-controls-container", "children"),
     Input("cluster-controls-container", "children"),
@@ -647,11 +639,11 @@ def run_afcluster(
     Output("cluster-visual-container", "children"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
-    #State("visualise-encoding", "value"),
+    # State("visualise-encoding", "value"),
 )
 def visualise_clusters(msa_data, main_msa, encoding=None):
     if not msa_data or not main_msa:
-        return no_msa_yet()
+        return html.Div()
     df = pd.DataFrame.from_dict(msa_data[main_msa])
     if "cluster_id" not in df.columns:
         return dbc.Alert("No clusters found. Please run clustering first.")
@@ -680,6 +672,7 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
 
     return html.Div(graphs)
 
+
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("run-ward-centroid-merge-button", "n_clicks"),
@@ -688,8 +681,14 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
     State("main-msa", "data"),
     prevent_initial_call=True,
 )
-def run_ward_centroid_merge_callback(n_clicks, n_clusters, msa_data, main_msa, encoding=None):
-    if (not (n_clicks or 0) > 0) or (not msa_data or not main_msa) or (n_clusters is None or n_clusters < 1):
+def run_ward_centroid_merge_callback(
+    n_clicks, n_clusters, msa_data, main_msa, encoding=None
+):
+    if (
+        (not (n_clicks or 0) > 0)
+        or (not msa_data or not main_msa)
+        or (n_clusters is None or n_clusters < 1)
+    ):
         return dash.no_update
     df = pd.DataFrame.from_dict(msa_data[main_msa])
 
@@ -698,6 +697,7 @@ def run_ward_centroid_merge_callback(n_clicks, n_clusters, msa_data, main_msa, e
         return dash.no_update
     msa_data[main_msa] = linked.to_dict("list")
     return msa_data
+
 
 @callback(
     Output("ward-centroid-clusters-to-save-dropdown", "options"),
@@ -708,7 +708,9 @@ def update_ward_centroid_clusters_to_save_options(msa_data, main_msa):
     if not msa_data or not main_msa:
         return dash.no_update
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    options = cluster_dropdown_options(df, cluster_column="ward_id", label_prefix="Ward")
+    options = cluster_dropdown_options(
+        df, cluster_column="ward_id", label_prefix="Ward"
+    )
     return options or dash.no_update
 
 
@@ -721,11 +723,19 @@ def update_kmeans_clusters_to_save_options(msa_data, main_msa):
     if not msa_data or not main_msa:
         return dash.no_update
     df = pd.DataFrame.from_dict(msa_data[main_msa])
-    options = cluster_dropdown_options(df, cluster_column="cluster_id", label_prefix="Cluster")
+    options = cluster_dropdown_options(
+        df, cluster_column="cluster_id", label_prefix="Cluster"
+    )
     return options or dash.no_update
 
 
-def pca_plot(msa, graph_id="pca-plot", title="PCA of Clusters", color_col="cluster_id", encoding=None):
+def pca_plot(
+    msa,
+    graph_id="pca-plot",
+    title="PCA of Clusters",
+    color_col="cluster_id",
+    encoding=None,
+):
     import plotly.express as px
 
     rest, query = cluster_pca_projection(msa, encoding)
@@ -994,14 +1004,18 @@ def run_kmeans(
 
         msa = msa_data[main_msa]
         msa = pd.DataFrame.from_dict(msa)
-        log_message(f"Running KMeans with n_clusters={n_clusters}, columns_to_include={columns_to_include}, encoding={encoding} on MSA {main_msa} with {len(msa)} sequences.")
+        log_message(
+            f"Running KMeans with n_clusters={n_clusters}, columns_to_include={columns_to_include}, encoding={encoding} on MSA {main_msa} with {len(msa)} sequences."
+        )
         msa = clusterer.cluster(
             msa,
             n_clusters=n_clusters,
             columns=(columns_to_include or None),
             encoding=encoding,
         )
-        log_message(f"KMeans clustering completed. Cluster assignments added to MSA {main_msa}.")
+        log_message(
+            f"KMeans clustering completed. Cluster assignments added to MSA {main_msa}."
+        )
         msa_data[main_msa] = msa.to_dict("list")
         return (
             msa_data,
@@ -1068,7 +1082,9 @@ def update_clusters_to_save_options(msa_data, main_msa):
     msa = msa_data[main_msa]
     msa = pd.DataFrame.from_dict(msa)
 
-    options = cluster_dropdown_options(msa, cluster_column="cluster_id", label_prefix="Cluster")
+    options = cluster_dropdown_options(
+        msa, cluster_column="cluster_id", label_prefix="Cluster"
+    )
     return options or dash.no_update
 
 

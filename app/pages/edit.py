@@ -166,19 +166,8 @@ def update_edit_content(
         return sort_by_layout()
     elif triggered_id == "edit-sequences":
         return edit_sequences_layout()
-    elif main_msa is None:
-        return no_msa_yet()
     else:
         return html.Div("Please select an option from the sidebar to edit the MSA.")
-
-
-def no_msa_yet():
-    return dbc.Alert(
-        "No MSA data is available to edit. Please upload or generate MSA data to proceed.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
 
 
 @callback(
@@ -189,10 +178,7 @@ def no_msa_yet():
 )
 def activate_filter_layout(n_clicks, msa_data):
     if (n_clicks or 0) > 0:
-        if msa_data is not None:
-            return filter_layout()
-        else:
-            return no_msa_yet()
+        return filter_layout()
     else:
         raise dash.exceptions.PreventUpdate
 
@@ -1777,7 +1763,6 @@ def slice_crop_layout():
     return top
 
 
-
 def slice_msa_layout():
     range_slider_label = html.P(
         "Slice sequences to a specific range of indices within the alignment.",
@@ -2230,7 +2215,7 @@ def separate_query(n_clicks, main_msa, msa_data):
         qdict = query.to_dict()
         qdict = {i: [v] for i, v in qdict.items()}
         msa_data[query_name] = qdict
-        print(msa_data[query_name]) # delete?
+        print(msa_data[query_name])  # delete?
         msa_data[main_msa] = msa.to_dict("list")
 
         return msa_data, "Query separated as a new MSA named: " + query_name, True

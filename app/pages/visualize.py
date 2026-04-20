@@ -14,15 +14,6 @@ dash.register_page(
 )
 
 
-def no_msa_yet():
-    return dbc.Alert(
-        "No MSA data is available to visualize. Please upload or generate MSA data to proceed.",
-        color="warning",
-        className="shaded-bordered",
-        is_open=True,
-    )
-
-
 def layout():
 
     visualise_aignment_checkbox = dbc.Checkbox(
@@ -105,7 +96,7 @@ def update_visual_gaps(visualise_gaps, main, data):
 
     if visualise_gaps == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         gaps = show_gaps(msa)
@@ -123,7 +114,7 @@ def update_visual_gaps(visualise_gaps, main, data):
 def update_visual_conservation(visualise_conservation, main, data):
     if visualise_conservation == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         conservation = show_conservation(msa)
@@ -141,7 +132,7 @@ def update_visual_conservation(visualise_conservation, main, data):
 def update_visual_identity(visualise_identity, main, data):
     if visualise_identity == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         identity = show_query_identity(msa)
@@ -159,13 +150,14 @@ def update_visual_identity(visualise_identity, main, data):
 def update_visual_alignment(visualise_alignment, main, data):
     if visualise_alignment == True:
         if not data:
-            return no_msa_yet()
+            return html.Div()
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         alignment = show_alignment(msa)
         return alignment
     else:
         return html.Div()
+
 
 def show_alignment(msa):
     from frankenmsa.visual import visualize_msa
