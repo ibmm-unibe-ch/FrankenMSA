@@ -52,9 +52,13 @@ class LocalProteinMPNN(backend.BaseSequenceGenerator):
 
     Using an existing ProteinMPNN installation
     ------------------------------------------
-    - If you have a local copy of the ProteinMPNN repository already in your system you can set the path as an environment variable:
-    `export ProteinMPNN_DIR=/path/to/ProteinMPNN` to make it automatically detectable.
-    - Alternatively, you can set the path after the class is initialized using `protein_mpnn_instance.local_path = "/path/to/ProteinMPNN"`, or use the `from_directory` method to create the instance from a local directory.
+
+        If you already have a local copy of the ProteinMPNN repository, set
+        ``ProteinMPNN_DIR=/path/to/ProteinMPNN`` in the environment to make it
+        automatically detectable.
+
+        Alternatively, set ``protein_mpnn_instance.local_path`` after
+        initialization or create the backend with :meth:`from_directory`.
     """
 
     module = "protein_mpnn_utils"

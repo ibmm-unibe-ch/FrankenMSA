@@ -129,6 +129,11 @@ def adjust_depth(
     -------
     pd.DataFrame
         DataFrame with adjusted sequences.
+
+    See Also
+    --------
+    :func:`crop_to_depth` : Drops sequences to reach a specified depth.
+    :func:`extend_to_depth` : Extends sequences by repeating entries.
     """
     if "sequence" not in df.columns:
         raise ValueError("DataFrame must contain a 'sequence' column.")
@@ -362,7 +367,16 @@ def combine_msa_operations(
     horizontal_ranges: Optional[list[tuple[int, int]]] = None,
     vertical_ranges: Optional[list[tuple[int, int]]] = None,
 ) -> pd.DataFrame:
-    """Combine multiple MSAs horizontally or vertically after applying per-input slices."""
+    """
+    Combine multiple MSAs horizontally or vertically after applying per-input slices.
+
+    See Also
+    --------
+    :func:`slice_sequences` : Slice sequences horizontally.
+    :func:`slice_rows` : Slice sequences vertically.
+    :func:`adjust_depth` : Adjusts the depth of an MSA.
+    :func:`unify_length` : Unifies sequence lengths for horizontal concat.
+    """
     if not msas:
         raise ValueError("No MSAs provided for combination.")
     if len(msas) != len(directions):
@@ -609,8 +623,8 @@ def shuffle_msa(
     Notes
     -----
     - The first row is treated as the query sequence and is not modified.
-    - This function does NOT pad or crop sequences. If lengths differ, a ValueError is raised.
-      You may call `unify_length` beforehand if needed.
+        - This function does NOT pad or crop sequences. If lengths differ, a ValueError is raised.
+            You may call :func:`unify_length` beforehand if needed.
     """
     if "sequence" not in df.columns:
         raise ValueError("DataFrame must contain a 'sequence' column.")

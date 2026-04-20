@@ -88,3 +88,16 @@ source .venv/bin/activate
 python app/app.py
 ```
 
+## Documentation
+
+Sphinx documentation lives under `docs/` and includes API reference pages,
+placeholders for GUI documentation, and a tutorial section prepared for
+notebook-backed guides.
+
+Install the documentation dependencies and build the site with:
+
+```bash
+python -m pip install -e .[docs]
+sphinx-build -b html docs docs/_build/html
+```
+

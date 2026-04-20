@@ -53,7 +53,14 @@ def _parse_a3m_simple(path: str) -> List[Tuple[str, str]]:
 
 
 def split_multimer_a3m_file(path: str, base_name: str) -> Dict[str, pd.DataFrame]:
-    """Split a ColabFold-style multimer A3M into one DataFrame per chain."""
+    """
+    Split a ColabFold-style multimer A3M into one DataFrame per chain.
+
+    See Also
+    --------
+    :func:`chain_label` : Generates chain labels for output.
+    :func:`_parse_a3m_simple` : Parses A3M records.
+    """
     records = _parse_a3m_simple(path)
 
     if not records:
@@ -194,6 +201,10 @@ def read_a3m_with_chains(filename: str) -> pd.DataFrame:
     Read an A3M file and automatically detect if it's multimeric.
     If multimeric, returns a DataFrame with a "chain" column separating chains.
     If monomeric, returns None.
+
+    See Also
+    --------
+    :func:`read_a3m` : Fallback for monomeric A3M files.
     """
 
     with open(filename, "r") as f:
@@ -282,6 +293,10 @@ def read_a3m(filename: str) -> pd.DataFrame:
         A DataFrame with "header" and "sequence" columns. If multimeric, also includes
         a "chain" column (0-indexed) indicating which chain each sequence belongs to,
         and a "_multimer_header" column to preserve the multimer metadata for writing.
+
+    See Also
+    --------
+    :func:`read_a3m_with_chains` : Handles multimeric A3M files.
     """
 
     # Try to read as multimeric first
