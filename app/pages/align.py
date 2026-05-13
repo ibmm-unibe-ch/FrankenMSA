@@ -534,7 +534,7 @@ def run_mmseqs(n_clicks, input_data, pairing_mode, filter_mode, msa_data):
             from frankenmsa.utils.seqtools import multimer_chain_splitting
 
             split_msg, msa_data = multimer_chain_splitting(
-                msa_df, chain_lengths, new_main_key
+                msa_df, chain_lengths, new_main_key, msa_data
             )
         else:
             split_msg = ""
