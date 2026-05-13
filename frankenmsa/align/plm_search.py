@@ -224,7 +224,7 @@ class PLMSearch(base.MSAFactory):
             raise ValueError(
                 f"similarity_cutoff must be in [0.0, 1.0], got {similarity_cutoff}"
             )
-        log_message(f"Starting PLM-Search alignment with {sequences} input sequences, and descriptions {descriptions} against database '{database}'.")
+        log_message(f"Starting PLM-Search alignment with {len(sequences)} input sequences, and descriptions of {len(descriptions)} against database '{database}'.")
         if descriptions is None:
             descriptions = [f"seq{i + 1}" for i in range(len(sequences))]
 
@@ -339,11 +339,14 @@ class PLMSearch(base.MSAFactory):
             Query ID if successful, None otherwise.
         """
         try:
+            log_message(f"Submitting {sequences} sequences and {descriptions} to PLM-Search API with database '{database}'.")
             payload = self._build_multipart_payload(descriptions, sequences, database)
 
+            log_message(f"got payload {payload}")
             response = requests.post(
                 PLM_SEARCH_SUBMIT_URL, headers=REQUEST_HEADERS, data=payload
             )
+            log_message(f"Received response with status code {response.status_code} and content: {response.text}")
             response.raise_for_status()
 
             # Extract query ID from response

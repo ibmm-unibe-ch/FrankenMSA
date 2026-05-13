@@ -126,11 +126,11 @@ class GhostFold(base.AugmentationFactory):
             DataFrame containing the augmented sequences.
         """
         jobname = "ghostfold_job"
-        project_name = "ghostfold_output"
         log_message(f"Running GhostFold augmentation for input sequence: {sequence}")
 
         with tempfile.TemporaryDirectory(prefix="frankenmsa-ghostfold-") as tmp_dir:
             work_dir = Path(tmp_dir)
+            project_name = work_dir.name
             input_fasta = work_dir / f"{jobname}.fasta"
 
             write_a3m(
@@ -140,10 +140,11 @@ class GhostFold(base.AugmentationFactory):
             log_message(f"Written GhostFold input FASTA to {input_fasta}.")
 
             command = _build_ghostfold_command(input_fasta, project_name)
+            cwd_path = Path(command[0]).parent
             log_message(f"Running GhostFold command: {' '.join(command)} and cwd: {Path(command[0]).parent}")
             proc = subprocess.run(
                 command,
-                cwd=Path(command[0]).parent,
+                cwd=cwd_path,
                 capture_output=True,
                 text=True,
             )
@@ -164,7 +165,7 @@ class GhostFold(base.AugmentationFactory):
                     stderr=proc.stderr,
                 )
 
-            output_path = _find_ghostfold_output(work_dir / project_name)
+            output_path = _find_ghostfold_output(cwd_path / project_name)
             log_message(f"Reading GhostFold output from {output_path}.")
             output_df = read_a3m(str(output_path))
             log_message(
