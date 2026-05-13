@@ -8,6 +8,7 @@ import subprocess
 import uuid
 
 from ..utils.fileio import read_a3m, write_a3m
+from ..runtime import log_message
 
 HHFILTER_PATH = "hhfilter"
 
@@ -130,5 +131,6 @@ def _hhfilter(
     kws_line = " ".join(f"-{k} {v}" for k, v in kws.items())
     kws_line += " " + " ".join(i if i.startswith("-") else f"i{i}" for i in args)
     command = f"{HHFILTER_PATH} {kws_line} -i {input_file} -o {output_file}"
+    log_message(f"Running hhfilter with command: {command}")
     subprocess.run(command, shell=True, check=True)
     return output_file

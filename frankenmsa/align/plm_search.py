@@ -224,7 +224,7 @@ class PLMSearch(base.MSAFactory):
             raise ValueError(
                 f"similarity_cutoff must be in [0.0, 1.0], got {similarity_cutoff}"
             )
-
+        log_message(f"Starting PLM-Search alignment with {sequences} input sequences, and descriptions {descriptions} against database '{database}'.")
         if descriptions is None:
             descriptions = [f"seq{i + 1}" for i in range(len(sequences))]
 

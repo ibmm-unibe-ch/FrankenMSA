@@ -13,6 +13,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from ..runtime import log_message
 
 from .protein_mpnn_support import resolve_proteinmpnn_out_dir
 from .protein_mpnn_support import resolve_proteinmpnn_root
@@ -298,6 +299,7 @@ def run_proteinmpnn(
     runtime: str = "local",
 ) -> Dict:
     runtime_settings = _resolve_runtime_settings(runtime, proteinmpnn_root)
+    log_message(f"ProteinMPNN Runtime settings: {runtime_settings}")
     if clean_workspace and runtime_settings["cleanup_root"] is not None:
         clean_proteinmpnn_workspace(
             root=runtime_settings["cleanup_root"],
@@ -417,7 +419,7 @@ def _resolve_runtime_settings(
     if runtime == "colab":
         repo_root = Path(proteinmpnn_root or "/content/ProteinMPNN")
         return {
-            "provision": True,
+            "provision": repo_root.is_dir() and (repo_root / "protein_mpnn_run.py").is_file(),
             "install_python_deps": True,
             "repo_root": repo_root,
             "out_dir_name": "outputs_run",
