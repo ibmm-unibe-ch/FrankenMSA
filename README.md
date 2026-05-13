@@ -45,16 +45,22 @@ Heavy optional tools such as ProteinMPNN are provisioned separately from
 package. The library assumes those tools already exist and resolves them at
 runtime via environment variables or the repository-local checkout.
 
-To provision ProteinMPNN explicitly:
+To provision [ESM3](https://github.com/evolutionaryscale/esm) explicitly:
 
 ```bash
-python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
+python scripts/installers/install_esm.py
 ```
 
-To provision GhostFold explicitly:
+To provision [GhostFold](https://github.com/brineylab/ghostfold) explicitly:
 
 ```bash
 python scripts/installers/install_ghostfold.py
+```
+
+To provision [ProteinMPNN](https://github.com/dauparas/ProteinMPNN) explicitly:
+
+```bash
+python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
 ```
 
 The runtime resolver prefers these environment variables:
