@@ -10,16 +10,19 @@ Pattern:
 
 Current installers:
 
+- `install_esm.py`: installs the published `esm` package into the active Python environment.
+- `install_ghostfold.py`: installs a stable version of the `ghostfold` package into the active Python environment.
 - `install_proteinmpnn.py`: clones or refreshes a ProteinMPNN checkout, optionally installs lightweight Python helper dependencies, and ensures the default model weights are present.
-- `install_ghostfold.py`: installs the published `ghostfold` package into the active Python environment.
 
 Examples:
 
 ```bash
-python scripts/installers/install_proteinmpnn.py --root /content/ProteinMPNN --install-python-deps
-python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
+python scripts/installers/install_esm.py
+python scripts/installers/install_esm.py --upgrade
 python scripts/installers/install_ghostfold.py
 python scripts/installers/install_ghostfold.py --upgrade
+python scripts/installers/install_proteinmpnn.py --root /content/ProteinMPNN --install-python-deps
+python scripts/installers/install_proteinmpnn.py --root "$HOME/tools/ProteinMPNN"
 ```
 
 Runtime path resolution prefers these environment variables:
