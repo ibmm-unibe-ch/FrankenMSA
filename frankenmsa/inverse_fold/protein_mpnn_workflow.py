@@ -419,7 +419,7 @@ def _resolve_runtime_settings(
     if runtime == "colab":
         repo_root = Path(proteinmpnn_root or "/content/ProteinMPNN")
         return {
-            "provision": repo_root.is_dir() and (repo_root / "protein_mpnn_run.py").is_file(),
+            "provision": not (repo_root.is_dir() and (repo_root / "protein_mpnn_run.py").is_file()),
             "install_python_deps": True,
             "repo_root": repo_root,
             "out_dir_name": "outputs_run",
