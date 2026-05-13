@@ -140,10 +140,10 @@ class GhostFold(base.AugmentationFactory):
             log_message(f"Written GhostFold input FASTA to {input_fasta}.")
 
             command = _build_ghostfold_command(input_fasta, project_name)
-            log_message(f"Running GhostFold command: {' '.join(command)}")
+            log_message(f"Running GhostFold command: {' '.join(command)} and cwd: {Path(command[0]).parent}")
             proc = subprocess.run(
                 command,
-                cwd=work_dir,
+                cwd=Path(command[0]).parent,
                 capture_output=True,
                 text=True,
             )
