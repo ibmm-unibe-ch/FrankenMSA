@@ -180,7 +180,7 @@ def combine_unpaired_a3m(
     lines = [header_line]
 
     if add_anchor:
-        lines.append(">101")
+        lines.append(">"+"\t".join([str(101+it) for it in range(len(chains))]))
         anchor_seq = "".join(chains[i][0][1] for i in range(len(chains)))
         lines.append(anchor_seq)
 
