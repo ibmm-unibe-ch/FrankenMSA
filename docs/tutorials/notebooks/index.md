@@ -1,18 +1,25 @@
 # Notebook Tutorial Hub
 
-Notebook-backed tutorials will live here.
+These examples are split into two groups:
 
-## Planned structure
+- **MSA-first studies**: sequence/alignment analysis workflows
+- **AF-oriented studies**: workflows that prepare or perturb sequences for
+  downstream AlphaFold comparison
 
-- one page per tutorial notebook
-- lightweight narrative pages around longer notebooks when needed
-- shared conventions for inputs, expected runtime, and outputs
+## MSA-first examples
 
-## How to add a notebook later
+```{toctree}
+:maxdepth: 1
 
-1. Place the notebook under `docs/tutorials/notebooks/`.
-2. Add it to the local toctree on this page.
-3. Rebuild the site with `sphinx-build -b html docs docs/_build/html`.
+msa_point_mutation_tp53
+msa_region_scrambling_spike
+```
 
-The documentation is already configured not to execute notebooks during the
-build, which keeps tutorial rendering stable and predictable.
+## AF-oriented examples
+
+```{toctree}
+:maxdepth: 1
+
+af_gfp_insertion_chrm3
+af_fold_switch_crossmatch_rfah
+```
