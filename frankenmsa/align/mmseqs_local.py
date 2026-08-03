@@ -12,11 +12,10 @@ from frankenmsa.runtime import log_message
 
 class LocalMMSeqs2Colab:
     """
-    Lightweight ColabFold API client for multimer pairing MSA generation.
+    ColabFold API client for multimer pairing MSA generation.
 
-    Unlike the full MMSeqs2Colab class this is intentionally minimal: it speaks
-    directly to the ColabFold pair endpoint and returns a (df, header_line,
-    lengths) tuple consumed by the multimer alignment workflow in the app.
+    This client submits paired queries to the ColabFold pair endpoint and
+    returns the parsed alignment data together with multimer header metadata.
     """
 
     def __init__(self):
