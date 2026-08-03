@@ -1,15 +1,10 @@
 # GUI
 
-This section is reserved for documentation of the Dash-based FrankenMSA GUI.
+The Dash-based FrankenMSA GUI provides a browser workflow for users who prefer
+interactive controls over direct Python scripting.
 
-## Planned topics
+Use the GUI to:
 
-- application layout and navigation
-- upload and export flows
-- page-by-page workflow documentation
-- Colab and local launch modes
-
-## Status
-
-The section is intentionally a placeholder for now so the documentation
-structure is in place before the GUI pages are written.
+- upload, inspect, and manage MSA datasets,
+- run alignment, augmentation, clustering, and inverse-folding workflows,
+- visualize outputs and export generated files.

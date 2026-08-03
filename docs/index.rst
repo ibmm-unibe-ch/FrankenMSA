@@ -19,7 +19,6 @@ and user-facing sections for tutorials and the GUI.
    :caption: Reference
 
    api/index
-   feature-index
 
 .. toctree::
    :maxdepth: 2
