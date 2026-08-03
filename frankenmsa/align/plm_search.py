@@ -339,14 +339,11 @@ class PLMSearch(base.MSAFactory):
             Query ID if successful, None otherwise.
         """
         try:
-            log_message(f"Submitting {sequences} sequences and {descriptions} to PLM-Search API with database '{database}'.")
             payload = self._build_multipart_payload(descriptions, sequences, database)
 
-            log_message(f"got payload {payload}")
             response = requests.post(
                 PLM_SEARCH_SUBMIT_URL, headers=REQUEST_HEADERS, data=payload
             )
-            log_message(f"Received response with status code {response.status_code} and content: {response.text}")
             response.raise_for_status()
 
             # Extract query ID from response

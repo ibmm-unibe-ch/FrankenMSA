@@ -587,7 +587,7 @@ def run_plm_search(
         # 4. Execute PLM-Search
         runner = PLMSearch()
         log_message(
-            f"Running PLM-Search with {sequences} query sequences, database={database}, similarity_cutoff={similarity_cutoff}, max_sequences={max_sequences}"
+            f"Running PLM-Search with {len(sequences)} query sequences, database={database}, similarity_cutoff={similarity_cutoff}, max_sequences={max_sequences}"
         )
         df = runner.align(
             sequences, descriptions, database, similarity_cutoff, max_sequences

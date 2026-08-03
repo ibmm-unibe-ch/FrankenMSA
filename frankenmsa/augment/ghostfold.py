@@ -21,9 +21,6 @@ GHOSTFOLD_ROOT_ENV_VARS = (
     "FRANKENMSA_GHOSTFOLD_ROOT",
     "GHOSTFOLD_ROOT",
 )
-LEGACY_GHOSTFOLD_ROOT = Path("/content/ghostfold")
-
-
 def _iter_ghostfold_commands() -> list[list[str]]:
     commands: list[list[str]] = []
 
@@ -45,9 +42,11 @@ def _iter_ghostfold_commands() -> list[list[str]]:
     if resolved_cli:
         commands.append([resolved_cli])
 
-    legacy_script = LEGACY_GHOSTFOLD_ROOT / "ghostfold.sh"
-    if legacy_script.is_file():
-        commands.append([str(legacy_script)])
+    # Fallback: look for a ghostfold checkout relative to the current working
+    # directory (matches the default clone location used by install_ghostfold.py)
+    cwd_script = Path.cwd() / "ghostfold" / "ghostfold.sh"
+    if cwd_script.is_file():
+        commands.append([str(cwd_script)])
 
     deduped: list[list[str]] = []
     seen: set[tuple[str, ...]] = set()
