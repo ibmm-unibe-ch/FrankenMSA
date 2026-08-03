@@ -11,6 +11,9 @@ import string
 from ..runtime import log_message
 
 
+_ESM_CLIENT_CACHE: dict = {}
+
+
 __all__ = [
     "is_valid_peptide_sequence",
     "vet_sequence",
@@ -191,7 +194,10 @@ class sequence_encodings:
             raise ValueError("No sequences provided for embedding")
         # Initialize ESM3 model
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        client = ESMC.from_pretrained("esmc_300m").to(device)
+        cache_key = ("esmc_300m", device)
+        if cache_key not in _ESM_CLIENT_CACHE:
+            _ESM_CLIENT_CACHE[cache_key] = ESMC.from_pretrained("esmc_300m").to(device)
+        client = _ESM_CLIENT_CACHE[cache_key]
         log_message(
             f"In file on {device} Generating ESM embeddings for {len(sequences)} sequences with max_length={max_length}..."
         )

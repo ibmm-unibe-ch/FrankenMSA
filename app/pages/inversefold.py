@@ -6,6 +6,7 @@ import base64, re
 import os
 from pathlib import Path
 from helpers.constants import COLAB_LINK, ON_COLAB, UPLOAD_DIR
+from frankenmsa.utils.fileio import decode_a3m
 
 dash.register_page(
     __name__,
@@ -427,17 +428,7 @@ def _save_uploaded_pdb(contents, filename):  # can be deleted?
 
 # Helper function: parse A3M to dict
 def _parse_a3m_to_dict(text):
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
-    headers, sequences = [], []
-    current_header = None
-    for l in lines:
-        if l.startswith(">"):
-            current_header = l[1:]
-        elif current_header is not None:
-            headers.append(current_header)
-            sequences.append(l)
-            current_header = None
-    return {"header": headers, "sequence": sequences}
+    return decode_a3m(text).to_dict("list")
 
 
 @callback(

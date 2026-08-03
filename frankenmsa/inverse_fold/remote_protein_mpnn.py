@@ -4,6 +4,7 @@ Remote ProteinMPNN sequence generator backend
 
 from pathlib import Path
 import os
+import shutil
 import uuid
 import pandas as pd
 
@@ -94,5 +95,5 @@ class BiolibProteinMPNN(backend.BaseSequenceGenerator):
         df = pd.read_csv(outdir / outdir.name / "designed_sequences.csv")
         df.rename(columns={"design": "header"}, inplace=True)
         df.drop(columns=["temperature"], inplace=True)
-        os.system(f"rm -rf {outdir}")
+        shutil.rmtree(outdir, ignore_errors=True)
         return df, out

@@ -473,18 +473,25 @@ def decode_a3m(a3m_str: str) -> pd.DataFrame:
     lines = a3m_str.strip().split("\n")
     headers = []
     sequences = []
+    current_header = None
+    current_seq_parts: list[str] = []
 
     for line in lines:
         line = line.strip()
-        if not line:
+        if not line or line.startswith("#"):
             continue
-        if line.startswith("#"):
-            continue  # Skip multimer header in dataframe body
-
         if line.startswith(">"):
-            headers.append(line[1:])
+            if current_header is not None:
+                headers.append(current_header)
+                sequences.append("".join(current_seq_parts))
+            current_header = line[1:]
+            current_seq_parts = []
         else:
-            sequences.append(line)
+            current_seq_parts.append(line)
+
+    if current_header is not None:
+        headers.append(current_header)
+        sequences.append("".join(current_seq_parts))
 
     return pd.DataFrame({"header": headers, "sequence": sequences})
 

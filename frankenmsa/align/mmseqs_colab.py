@@ -235,6 +235,7 @@ class MMSeqs2Colab(base.MSAFactory):
         }
         url = f"{REMOTE_URL}/{self.submission_endpoint}"
 
+        out = None
         for _ in range(retries):
             try:
                 response = requests.post(
@@ -250,6 +251,11 @@ class MMSeqs2Colab(base.MSAFactory):
                     continue
                 else:
                     raise e
+
+        if out is None:
+            raise RuntimeError(
+                f"MMSeqs2 server unavailable after {retries} retries (HTTP 503)."
+            )
 
         self.job_id = out["id"]
         self.status = out["status"]

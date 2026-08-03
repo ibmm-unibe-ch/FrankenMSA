@@ -246,7 +246,7 @@ app.layout = html.Div(
 )
 
 
-# Callback to consume injected A3M data
+# Callback to consume injected A3M data (e.g. passed in from the Colab notebook)
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Output("main-msa", "data", allow_duplicate=True),
@@ -255,6 +255,23 @@ app.layout = html.Div(
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
+def consume_injected_a3m(inject_data, msa_data):
+    """Consume an A3M string injected into the session store and load it as an MSA."""
+    if not inject_data:
+        return dash.no_update, dash.no_update, dash.no_update
+    from frankenmsa.utils.fileio import decode_a3m
+
+    msa_data = {} if msa_data is None else msa_data
+    try:
+        df = decode_a3m(inject_data)
+        key = "injected"
+        msa_data[key] = df.to_dict("list")
+        return msa_data, key, None
+    except Exception as e:
+        log_message(f"Failed to consume injected A3M data: {e}")
+        return dash.no_update, dash.no_update, None
+
+
 def launch(**kwargs):
     """Main function to run the Dash app.
     Stable, production-like settings; no hot-reload; explicit host/port.

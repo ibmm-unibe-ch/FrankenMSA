@@ -13,7 +13,7 @@ class MSAFactory:
     def __init__(self):
         self.msa = None
 
-    def align(self, sequences: Union[pd.DataFrame, Iterable[str]], *args, **kwargs) -> pd.Series:
+    def align(self, sequences: Union[pd.DataFrame, Iterable[str]], *args, **kwargs) -> pd.DataFrame:
         """
         Align a list of sequences.
 
@@ -27,8 +27,8 @@ class MSAFactory:
             
         Returns
         -------
-        pd.Series
-            Series containing the aligned sequences.
+        pd.DataFrame
+            DataFrame containing the aligned sequences.
         """
         raise NotImplementedError()
 

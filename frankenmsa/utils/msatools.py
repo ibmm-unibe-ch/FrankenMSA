@@ -9,6 +9,7 @@ from collections import defaultdict
 __all__ = [
     "unify_length",
     "crop_to_depth",
+    "extend_to_depth",
     "drop_duplicates",
     "filter_gaps",
     "filter_by_regex",
@@ -18,19 +19,23 @@ __all__ = [
     "sort_by_column",
     "filter_identity",
     "slice_sequences",
+    "slice_rows",
     "adjust_depth",
-    "extend_to_depth",
-    "crop_to_depth",
     "replace_characters",
     "replace_insertions_with_gaps",
     "replace_unknown_with_gaps",
     "uppercase_sequences",
     "lowercase_sequences",
-    "slice_rows",
     "build_combined_msa_name",
     "combine_msa_operations",
     "shuffle_rows",
     "shuffle_msa",
+    "insert_at",
+    "remove_at",
+    "replace_at",
+    "fix_at",
+    "split_chains",
+    "merge_chains",
 ]
 
 
@@ -489,7 +494,7 @@ def sort_identity(
 
     query_sequence = df.iloc[[0]]
     _df = df.iloc[1:]
-    q = query_sequence[sequence_col]
+    q = df.iloc[0][sequence_col]
     identity_count = _df[sequence_col].apply(
         lambda x: sum(a == b for a, b in zip(q, x))
     )
@@ -552,7 +557,7 @@ def filter_identity(
         raise ValueError("identity_threshold must be between 0 and 1.")
 
     query_sequence = df.iloc[[0]]
-    q = query_sequence[sequence_col]
+    q = df.iloc[0][sequence_col]
     _df = df.iloc[1:]
     identity_count = _df[sequence_col].apply(
         lambda x: sum(a == b for a, b in zip(q, x))
@@ -891,18 +896,29 @@ def merge_chains(dfs: list[pd.DataFrame]) -> pd.DataFrame:
         The merged multimeric MSA DataFrame with a "chain" column.
     """
 
-    chain_identifiers = defaultdict(int)
+    chain_lengths: list[int] = []
+    chain_seqs: list[str] = []
     merged_df = pd.DataFrame()
     for chain_id, chain_df in enumerate(dfs):
         chain_df = chain_df.copy()
         chain_df["chain"] = chain_id
         query_seq = chain_df["sequence"].iloc[0].upper().strip()
-        chain_identifiers[query_seq] += 1
+        chain_seqs.append(query_seq)
+        chain_lengths.append(len(query_seq))
         merged_df = pd.concat([merged_df, chain_df], ignore_index=True)
 
-    # create multimer header
-    lengths = [len(q) for q in chain_identifiers.keys()]
-    card = [str(chain_identifiers[q]) for q in chain_identifiers.keys()]
+    # Build multimer header: collapse consecutive identical chains into
+    # length,cardinality pairs while preserving order.
+    seen: dict[str, int] = {}
+    unique_seqs: list[str] = []
+    for seq in chain_seqs:
+        if seq not in seen:
+            seen[seq] = 0
+            unique_seqs.append(seq)
+        seen[seq] += 1
+
+    lengths = [len(s) for s in unique_seqs]
+    card = [str(seen[s]) for s in unique_seqs]
     multimer_header = f"#" + ",".join(str(L) for L in lengths) + "\t" + ",".join(card)
     merged_df["_multimer_header"] = multimer_header
 
