@@ -12,7 +12,7 @@ class AugmentationFactory:
     def __init__(self):
         self.msa = None
 
-    def augment(self, sequence:str, *args, **kwargs) -> pd.Series:
+    def augment(self, sequence:str, *args, **kwargs) -> pd.DataFrame:
         """Augmentation of sequences
         
         Parameters

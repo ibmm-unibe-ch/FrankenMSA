@@ -64,7 +64,8 @@ def resolve_proteinmpnn_weights(
     for candidate in _weight_dir_candidates(override_dir):
         if candidate.is_dir():
             return candidate
-        raise RuntimeError(f"Weights directory not found: {candidate}")
+
+    raise RuntimeError(f"Weights directory not found: {candidate}")
 
     subdir = proteinmpnn_weight_subdir(
         use_soluble_model=use_soluble_model,

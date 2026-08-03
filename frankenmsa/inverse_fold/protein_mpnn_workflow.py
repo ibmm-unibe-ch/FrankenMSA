@@ -202,9 +202,13 @@ def split_fasta_by_chain_separator(
 
 
 def clean_proteinmpnn_workspace(
-    root: str | Path = "/content/ProteinMPNN",
-    content_root: str | Path = "/content",
+    root: str | Path = None,
+    content_root: str | Path = None,
 ) -> None:
+    if root is None:
+        root = os.environ.get("FRANKENMSA_PROTEINMPNN_ROOT", "/content/ProteinMPNN")
+    if content_root is None:
+        content_root = os.environ.get("FRANKENMSA_CONTENT_ROOT", str(Path(root).parent))
     root = Path(root)
     content_root = Path(content_root)
     try:
@@ -253,9 +257,11 @@ def download_pdb_by_code(
 
 
 def provision_proteinmpnn(
-    root: str = "/content/ProteinMPNN",
+    root: str = None,
     install_python_deps: bool = True,
 ) -> Dict[str, str]:
+    if root is None:
+        root = os.environ.get("FRANKENMSA_PROTEINMPNN_ROOT", "/content/ProteinMPNN")
     if not _INSTALLER_SCRIPT.is_file():
         raise RuntimeError(
             f"ProteinMPNN installer script not found: {_INSTALLER_SCRIPT}"
@@ -417,7 +423,7 @@ def _resolve_runtime_settings(
 ) -> Dict[str, object]:
     runtime = (runtime or "local").strip().lower()
     if runtime == "colab":
-        repo_root = Path(proteinmpnn_root or "/content/ProteinMPNN")
+        repo_root = Path(proteinmpnn_root or os.environ.get("FRANKENMSA_PROTEINMPNN_ROOT", "/content/ProteinMPNN"))
         return {
             "provision": not (repo_root.is_dir() and (repo_root / "protein_mpnn_run.py").is_file()),
             "install_python_deps": True,

@@ -8,6 +8,7 @@ from ..utils.fileio import write_a3m, encode_a3m
 from ..utils.msatools import unify_length
 
 import matplotlib.pyplot as plt
+import tempfile
 from uuid import uuid4
 from pathlib import Path
 
@@ -74,14 +75,15 @@ def _maptlotlib_visualise_msa(df: pd.DataFrame) -> plt.figure:
             f"Warning: The MSA has more than {max_rows_for_visualisation} sequences which will cause the plot to crash! Downsampling uniformly to 150 sequences."
         )
         df = df.iloc[:: len(df) // max_rows_for_visualisation]
-    write_a3m(unify_length(df, "first"), tmpfile)
 
-    # Create an MsaViz object
-    msa_viz = MsaViz(str(tmpfile))
-
-    # Create the figure
-    fig = msa_viz.plotfig()
-    tmpfile.unlink()
+    with tempfile.NamedTemporaryFile(suffix=".a3m", delete=False) as tmp:
+        tmpfile = Path(tmp.name)
+    try:
+        write_a3m(unify_length(df, "first"), tmpfile)
+        msa_viz = MsaViz(str(tmpfile))
+        fig = msa_viz.plotfig()
+    finally:
+        tmpfile.unlink(missing_ok=True)
 
     return fig
 

@@ -4,6 +4,7 @@ Various functions related to remote connections
 
 import os
 import tarfile
+import tempfile
 import requests
 import time
 
@@ -38,17 +39,19 @@ def download_targz(
     os.makedirs(path, exist_ok=True)
     response = requests.get(url, **get_kws)
     response.raise_for_status()
-    with open("temp.tar.gz", "wb") as f:
-        f.write(response.content)
 
     final = {i: None for i in files_of_interest}
-    with tarfile.open("temp.tar.gz", "r:gz") as tar:
-        for member in tar.getmembers():
-            if member.name in files_of_interest:
-                tar.extract(member, path=path)
-                final[member.name] = os.path.join(path, member.name)
-
-    os.remove("temp.tar.gz")
+    with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp:
+        tmp.write(response.content)
+        tmp_path = tmp.name
+    try:
+        with tarfile.open(tmp_path, "r:gz") as tar:
+            for member in tar.getmembers():
+                if member.name in files_of_interest:
+                    tar.extract(member, path=path)
+                    final[member.name] = os.path.join(path, member.name)
+    finally:
+        os.remove(tmp_path)
     return final
 
 

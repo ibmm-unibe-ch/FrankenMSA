@@ -1,4 +1,6 @@
 import dash
+import tempfile
+from pathlib import Path
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
@@ -104,9 +106,11 @@ def upload_file(contents, filename, msa_data):
                 print(f"[UPLOAD] Detected multimer A3M", file=sys.stderr)
                 is_multimer = True
 
-                tmp_path = "temp_file.a3m"
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    f.write(decoded_text)
+                with tempfile.NamedTemporaryFile(
+                    suffix=".a3m", mode="w", encoding="utf-8", delete=False
+                ) as tmp:
+                    tmp_path = tmp.name
+                    tmp.write(decoded_text)
 
                 try:
                     chain_msas = split_multimer_a3m_file(tmp_path, name)
@@ -120,14 +124,21 @@ def upload_file(contents, filename, msa_data):
                     from frankenmsa.utils import read_a3m
 
                     msa = read_a3m(tmp_path)
+                finally:
+                    Path(tmp_path).unlink(missing_ok=True)
             else:
                 # Regular monomer A3M/FASTA
                 from frankenmsa.utils import read_a3m
 
-                tmp_path = "temp_file.a3m"
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    f.write(decoded_text)
-                msa = read_a3m(tmp_path)
+                with tempfile.NamedTemporaryFile(
+                    suffix=".a3m", mode="w", encoding="utf-8", delete=False
+                ) as tmp:
+                    tmp_path = tmp.name
+                    tmp.write(decoded_text)
+                try:
+                    msa = read_a3m(tmp_path)
+                finally:
+                    Path(tmp_path).unlink(missing_ok=True)
 
         elif suffix == ".csv":
             df = pd.read_csv(StringIO(decoded_text), header=0)

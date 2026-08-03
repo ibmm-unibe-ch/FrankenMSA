@@ -523,12 +523,13 @@ def _prepare_model_input(
     omit_array[-1] = 1.0
 
     pdb_dict_list = protein_mpnn_utils.parse_PDB(pdbfile, input_chain_list=load_chains)
-    dataset = protein_mpnn_utils.StructureDatasetPDB(
-        pdb_dict_list, truncate=None, max_length=MAX_LENGTH
-    )
 
     if not pdb_dict_list:
         raise ValueError(f"Could not parse chains {load_chains} from {pdbfile}")
+
+    dataset = protein_mpnn_utils.StructureDatasetPDB(
+        pdb_dict_list, truncate=None, max_length=MAX_LENGTH
+    )
 
     chain_dict = {pdb_dict_list[0]["name"]: (design_chains, fixed_chains)}
 

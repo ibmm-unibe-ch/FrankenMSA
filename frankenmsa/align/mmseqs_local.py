@@ -4,11 +4,21 @@ import pandas as pd
 import tarfile
 from io import BytesIO
 
+from frankenmsa.runtime import log_message
+
 # =============================================================================
 #  Local Backend Logic
 # =============================================================================
 
 class LocalMMSeqs2Colab:
+    """
+    Lightweight ColabFold API client for multimer pairing MSA generation.
+
+    Unlike the full MMSeqs2Colab class this is intentionally minimal: it speaks
+    directly to the ColabFold pair endpoint and returns a (df, header_line,
+    lengths) tuple consumed by the multimer alignment workflow in the app.
+    """
+
     def __init__(self):
         self.base_url = "https://api.colabfold.com"
 
@@ -34,7 +44,7 @@ class LocalMMSeqs2Colab:
         else:
             api_mode = "pairgreedy"
 
-        print(f"[DEBUG] Submitting to API. Mode: {api_mode}")
+        log_message(f"Submitting multimer pair request to ColabFold API (mode={api_mode}).")
 
         post_url = f"{self.base_url}/ticket/pair"
         data = {"q": query, "mode": api_mode}
@@ -42,7 +52,7 @@ class LocalMMSeqs2Colab:
         resp = requests.post(post_url, data=data)
         resp.raise_for_status()
         job_id = resp.json()['id']
-        print(f"[DEBUG] Job ID: {job_id}")
+        log_message(f"ColabFold job submitted (id={job_id}).")
 
         status = "PENDING"
         while status in ["PENDING", "RUNNING"]:
@@ -50,13 +60,13 @@ class LocalMMSeqs2Colab:
             status_resp = requests.get(f"{self.base_url}/ticket/{job_id}")
             status_resp.raise_for_status()
             status = status_resp.json()['status']
-            print(f"[DEBUG] Status: {status}")
+            log_message(f"ColabFold job status: {status}")
         
         if status == "ERROR":
-            raise Exception("ColabFold API returned ERROR status.")
+            raise RuntimeError("ColabFold API returned ERROR status.")
 
         download_url = f"{self.base_url}/result/download/{job_id}"
-        print(f"[DEBUG] Downloading from: {download_url}")
+        log_message(f"Downloading ColabFold results from {download_url}.")
         
         res = requests.get(download_url)
         res.raise_for_status()
@@ -103,6 +113,6 @@ class LocalMMSeqs2Colab:
                     break
             
             if not found:
-                 raise Exception("API finished but pair.a3m was not found in the result.")
+                raise RuntimeError("ColabFold API finished but pair.a3m was not found in the result.")
 
         return final_df, header_line, lengths

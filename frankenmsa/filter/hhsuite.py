@@ -84,23 +84,25 @@ def hhfilter(
     input_file = Path(fname + ".a3m")
     output_file = Path(fname + ".filtered.a3m")
     write_a3m(df, input_file)
-    output_file = _hhfilter(
-        input_file,
-        diff,
-        max_pairwise_identity,
-        min_query_coverage,
-        min_query_identity,
-        min_query_score,
-        target_diversity,
-        *args,
-        **kwargs,
-    )
-    _raw_filtered_df = read_a3m(output_file)
-    filtered_df = df[df.sequence.isin(_raw_filtered_df.sequence)]
-    filtered_df = filtered_df.reset_index(drop=True)
-    input_file.unlink(missing_ok=True)
-    output_file.unlink(missing_ok=True)
-    return filtered_df
+    try:
+        output_file = _hhfilter(
+            input_file,
+            diff,
+            max_pairwise_identity,
+            min_query_coverage,
+            min_query_identity,
+            min_query_score,
+            target_diversity,
+            *args,
+            **kwargs,
+        )
+        _raw_filtered_df = read_a3m(output_file)
+        filtered_df = df[df.sequence.isin(_raw_filtered_df.sequence)]
+        filtered_df = filtered_df.reset_index(drop=True)
+        return filtered_df
+    finally:
+        input_file.unlink(missing_ok=True)
+        output_file.unlink(missing_ok=True)
 
 
 def _hhfilter(
@@ -129,7 +131,7 @@ def _hhfilter(
     }
     kws.update(kwargs)
     kws_line = " ".join(f"-{k} {v}" for k, v in kws.items())
-    kws_line += " " + " ".join(i if i.startswith("-") else f"i{i}" for i in args)
+    kws_line += " " + " ".join(i if i.startswith("-") else f"-{i}" for i in args)
     command = f"{HHFILTER_PATH} {kws_line} -i {input_file} -o {output_file}"
     log_message(f"Running hhfilter with command: {command}")
     subprocess.run(command, shell=True, check=True)
