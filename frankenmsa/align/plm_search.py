@@ -41,7 +41,6 @@ REQUEST_HEADERS = {
     "Origin": "https://dmiip.sjtu.edu.cn",
     "Connection": "keep-alive",
     "Referer": "https://dmiip.sjtu.edu.cn/PLMSearch",
-    "Cookie": "keepalive='wF7GXsT4xJQDrEZqA56uS8PgfdW5Ut/XTqWSY4P6wLQ=",
     "Upgrade-Insecure-Requests": "1",
     "Sec-Fetch-Dest": "document",
     "Sec-Fetch-Mode": "navigate",
@@ -180,6 +179,7 @@ class PLMSearch(base.MSAFactory):
         database: str = "uniref50",
         similarity_cutoff: float = 0.9,
         max_sequences: int = 200,
+        **kwargs,
     ) -> Optional[pd.DataFrame]:
         """
         Submit sequences to PLM-Search and retrieve similar sequences.
@@ -205,6 +205,9 @@ class PLMSearch(base.MSAFactory):
             Maximum number of matching sequences to return per query
             (default: 200). The limit is applied per input sequence,
             not globally across all queries.
+        **kwargs
+            Optional runtime overrides. Supported key:
+            - request_headers (dict): extra/override headers for the submit call.
 
         Returns
         -------
@@ -238,7 +241,12 @@ class PLMSearch(base.MSAFactory):
         log_message(
             f"in file Submitting {len(sequences)} sequences to PLM-Search API with database '{database}' and similarity cutoff {similarity_cutoff}."
         )
-        query_id = self._send_post_request(descriptions, sequences, database)
+        query_id = self._send_post_request(
+            descriptions,
+            sequences,
+            database,
+            request_headers=kwargs.get("request_headers"),
+        )
         if not query_id:
             return None
 
@@ -319,7 +327,11 @@ class PLMSearch(base.MSAFactory):
         return "\r\n".join(parts)
 
     def _send_post_request(
-        self, descriptions: List[str], sequences: List[str], database: str
+        self,
+        descriptions: List[str],
+        sequences: List[str],
+        database: str,
+        request_headers: Optional[dict] = None,
     ) -> Optional[str]:
         """
         Submit sequences to PLM-Search API.
@@ -340,9 +352,14 @@ class PLMSearch(base.MSAFactory):
         """
         try:
             payload = self._build_multipart_payload(descriptions, sequences, database)
+            headers = (
+                REQUEST_HEADERS
+                if request_headers is None
+                else {**REQUEST_HEADERS, **request_headers}
+            )
 
             response = requests.post(
-                PLM_SEARCH_SUBMIT_URL, headers=REQUEST_HEADERS, data=payload
+                PLM_SEARCH_SUBMIT_URL, headers=headers, data=payload
             )
             response.raise_for_status()
 
