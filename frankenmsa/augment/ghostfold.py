@@ -21,9 +21,6 @@ GHOSTFOLD_ROOT_ENV_VARS = (
     "FRANKENMSA_GHOSTFOLD_ROOT",
     "GHOSTFOLD_ROOT",
 )
-LEGACY_GHOSTFOLD_ROOT = Path("/content/ghostfold")
-
-
 def _iter_ghostfold_commands() -> list[list[str]]:
     commands: list[list[str]] = []
 
@@ -45,9 +42,11 @@ def _iter_ghostfold_commands() -> list[list[str]]:
     if resolved_cli:
         commands.append([resolved_cli])
 
-    legacy_script = LEGACY_GHOSTFOLD_ROOT / "ghostfold.sh"
-    if legacy_script.is_file():
-        commands.append([str(legacy_script)])
+    # Fallback: look for a ghostfold checkout relative to the current working
+    # directory (matches the default clone location used by install_ghostfold.py)
+    cwd_script = Path.cwd() / "ghostfold" / "ghostfold.sh"
+    if cwd_script.is_file():
+        commands.append([str(cwd_script)])
 
     deduped: list[list[str]] = []
     seen: set[tuple[str, ...]] = set()
@@ -126,11 +125,11 @@ class GhostFold(base.AugmentationFactory):
             DataFrame containing the augmented sequences.
         """
         jobname = "ghostfold_job"
-        project_name = "ghostfold_output"
         log_message(f"Running GhostFold augmentation for input sequence: {sequence}")
 
         with tempfile.TemporaryDirectory(prefix="frankenmsa-ghostfold-") as tmp_dir:
             work_dir = Path(tmp_dir)
+            project_name = work_dir.name
             input_fasta = work_dir / f"{jobname}.fasta"
 
             write_a3m(
@@ -140,10 +139,11 @@ class GhostFold(base.AugmentationFactory):
             log_message(f"Written GhostFold input FASTA to {input_fasta}.")
 
             command = _build_ghostfold_command(input_fasta, project_name)
-            log_message(f"Running GhostFold command: {' '.join(command)}")
+            cwd_path = Path(command[0]).parent
+            log_message(f"Running GhostFold command: {' '.join(command)} and cwd: {Path(command[0]).parent}")
             proc = subprocess.run(
                 command,
-                cwd=work_dir,
+                cwd=cwd_path,
                 capture_output=True,
                 text=True,
             )
@@ -164,7 +164,7 @@ class GhostFold(base.AugmentationFactory):
                     stderr=proc.stderr,
                 )
 
-            output_path = _find_ghostfold_output(work_dir / project_name)
+            output_path = _find_ghostfold_output(cwd_path / project_name)
             log_message(f"Reading GhostFold output from {output_path}.")
             output_df = read_a3m(str(output_path))
             log_message(

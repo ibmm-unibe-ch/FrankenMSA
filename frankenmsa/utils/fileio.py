@@ -113,7 +113,7 @@ def parse_a3m(path: str) -> List[Tuple[str, str]]:
     seq_chunks = []
     with open(path, "r") as fh:
         for line in fh:
-            line = line.rstrip("\n")
+            line = line.rstrip("\n").strip().replace("\00","")
             if not line:
                 continue
             if line.startswith(">"):
@@ -180,7 +180,7 @@ def combine_unpaired_a3m(
     lines = [header_line]
 
     if add_anchor:
-        lines.append(">101")
+        lines.append(">"+"\t".join([str(101+it) for it in range(len(chains))]))
         anchor_seq = "".join(chains[i][0][1] for i in range(len(chains)))
         lines.append(anchor_seq)
 
@@ -314,7 +314,7 @@ def read_a3m(filename: str) -> pd.DataFrame:
     # Open the A3M file and read it line by line
     with open(filename, "r") as f:
         for line in f:
-            line = line.strip()
+            line = line.strip().replace("\00","")
             if not line:
                 continue
 
@@ -361,8 +361,8 @@ def iter_a3m(filename: str) -> Generator[Tuple[str, str], None, None]:
         header = None
         sequence = ""
         for line in f:
-            # Strip whitespace from the line
-            line = line.strip()
+            # Strip whitespace from the line, remove null characters, and skip empty lines
+            line = line.strip().replace("\00","")
             if not line:
                 continue
 
@@ -509,7 +509,7 @@ def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
     current_seq = []
 
     for line in input_text.strip().split("\n"):
-        line = line.strip()
+        line = line.strip().replace("\00","")
         if not line:
             continue
         if line.startswith(">"):
