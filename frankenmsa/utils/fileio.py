@@ -113,7 +113,7 @@ def parse_a3m(path: str) -> List[Tuple[str, str]]:
     seq_chunks = []
     with open(path, "r") as fh:
         for line in fh:
-            line = line.rstrip("\n").strip().replace("\00","")
+            line = line.rstrip("\n").strip().replace("\00", "")
             if not line:
                 continue
             if line.startswith(">"):
@@ -180,7 +180,7 @@ def combine_unpaired_a3m(
     lines = [header_line]
 
     if add_anchor:
-        lines.append(">"+"\t".join([str(101+it) for it in range(len(chains))]))
+        lines.append(">" + "\t".join([str(101 + it) for it in range(len(chains))]))
         anchor_seq = "".join(chains[i][0][1] for i in range(len(chains)))
         lines.append(anchor_seq)
 
@@ -314,7 +314,7 @@ def read_a3m(filename: str) -> pd.DataFrame:
     # Open the A3M file and read it line by line
     with open(filename, "r") as f:
         for line in f:
-            line = line.strip().replace("\00","")
+            line = line.strip().replace("\00", "")
             if not line:
                 continue
 
@@ -362,7 +362,7 @@ def iter_a3m(filename: str) -> Generator[Tuple[str, str], None, None]:
         sequence = ""
         for line in f:
             # Strip whitespace from the line, remove null characters, and skip empty lines
-            line = line.strip().replace("\00","")
+            line = line.strip().replace("\00", "")
             if not line:
                 continue
 
@@ -516,7 +516,7 @@ def read_fasta(input_text: str) -> tuple[list[str], list[str]]:
     current_seq = []
 
     for line in input_text.strip().split("\n"):
-        line = line.strip().replace("\00","")
+        line = line.strip().replace("\00", "")
         if not line:
             continue
         if line.startswith(">"):
@@ -574,10 +574,59 @@ def build_multimer_csv(msa_data: dict, selected_msas: List[str]) -> pd.DataFrame
     return pd.concat(combined_dfs, ignore_index=True)
 
 
+def write_fasta(sequences: list[str], filename: str, headers: list[str] = None) -> str:
+    """
+    Write sequences to a FASTA file.
+
+    Parameters
+    ----------
+    sequences : list[str]
+        List of sequences to write.
+    filename : str
+        Path to the output FASTA file.
+    headers : list[str], optional
+        List of headers for each sequence. If not provided, default headers will be used.
+    """
+    if headers is None:
+        headers = [f"seq{i+1}" for i in range(len(sequences))]
+
+    with open(filename, "w") as f:
+        for header, seq in zip(headers, sequences):
+            f.write(f">{header}\n{seq}\n")
+
+
+def encode_fasta(sequences: list[str], headers: list[str] = None) -> str:
+    """
+    Encode sequences and headers into a FASTA formatted string.
+
+    Parameters
+    ----------
+    sequences : list[str]
+        List of sequences to encode.
+    headers : list[str], optional
+        List of headers for each sequence. If not provided, default headers will be used.
+
+    Returns
+    -------
+    str
+        A string in FASTA format.
+    """
+    if headers is None:
+        headers = [f"seq{i+1}" for i in range(len(sequences))]
+
+    fasta_str = ""
+    for header, seq in zip(headers, sequences):
+        fasta_str += f">{header}\n{seq}\n"
+
+    return fasta_str
+
+
 __all__ = [
     "read_a3m",
     "iter_a3m",
     "write_a3m",
+    "write_fasta",
+    "encode_fasta",
     "encode_a3m",
     "decode_a3m",
     "read_fasta",

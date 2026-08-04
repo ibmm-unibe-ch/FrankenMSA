@@ -30,6 +30,7 @@ __all__ = [
     "combine_msa_operations",
     "shuffle_rows",
     "shuffle_msa",
+    "shuffle_columns",
     "insert_at",
     "remove_at",
     "replace_at",
@@ -691,6 +692,9 @@ def shuffle_msa(
     # Stitch back to strings
     out["sequence"] = ["".join(chars) for chars in seq_lists]
     return out.reset_index(drop=True)
+
+
+shuffle_columns = shuffle_msa  # alias
 
 
 def insert_at(

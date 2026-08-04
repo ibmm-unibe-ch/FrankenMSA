@@ -179,6 +179,34 @@ class MSA:
         fileio.write_a3m(self._df, str(path))
         return self
 
+    def write_csv(self, path: str | Path, **kwargs) -> Self:
+        """Write the current MSA to a CSV file and return ``self``."""
+        self._df.to_csv(path, index=False, **kwargs)
+        return self
+
+    def to_fasta_string(self) -> str:
+        """Encode the current MSA as FASTA text.
+
+        See :func:`frankenmsa.utils.fileio.encode_fasta`.
+        """
+        return fileio.encode_fasta(self._df)
+
+    def write_fasta(self, path: str | Path) -> Self:
+        """Write the current MSA to a FASTA file and return ``self``.
+
+        See :func:`frankenmsa.utils.fileio.write_fasta`.
+        """
+        possible_header_keys = ["header", "description", "name", "id"]
+        header_key = next(
+            (k for k in possible_header_keys if k in self._df.columns), None
+        )
+        if header_key is not None:
+            headers = self._df[header_key].tolist()
+        else:
+            headers = [f"seq_{i}" for i in range(len(self._df))]
+        fileio.write_fasta(self._df["sequence"], str(path), headers)
+        return self
+
     def to_a3m_string(self) -> str:
         """Encode the current MSA as A3M text.
 
@@ -374,7 +402,7 @@ class MSA:
             preserve_query=preserve_query,
         )
 
-    def shuffle_msa(
+    def shuffle_columns(
         self,
         start: Optional[int] = None,
         end: Optional[int] = None,
