@@ -134,6 +134,17 @@ def make_header():
         persistence_type="memory",
         style={"width": "20%"},
     )
+    main_msa_shape = html.Span(
+        "shape: -",
+        id="main-msa-shape",
+        style={
+            "color": "white",
+            "fontWeight": "bold",
+            "whiteSpace": "nowrap",
+            "marginLeft": "8px",
+            "marginRight": "12px",
+        },
+    )
 
     header = html.Div(
         [
@@ -147,6 +158,7 @@ def make_header():
             cluster_icon,
             visualize_icon,
             select_main_msa,
+            main_msa_shape,
             unibe_icon,
             select_main_msa_tooltip,
         ],
@@ -159,16 +171,31 @@ def make_header():
 @callback(
     Output("select-main-msa", "options"),
     Output("select-main-msa", "value"),
+    Output("main-msa-shape", "children"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
 )
 def update_select_main_msa_options(msa_data, main_msa_data):
-    if msa_data is None:
-        return [], dash.no_update
+    if not msa_data:
+        return [], dash.no_update, "shape: -"
 
     # Create options for the dropdown
     options = [{"label": col, "value": col} for col in list(msa_data.keys())]
-    return options, main_msa_data
+
+    selected_key = (
+        main_msa_data
+        if main_msa_data in msa_data
+        else next(iter(msa_data.keys()), None)
+    )
+    selected_msa = msa_data.get(selected_key, {}) if selected_key else {}
+    sequences = (
+        selected_msa.get("sequence", []) if isinstance(selected_msa, dict) else []
+    )
+    n_sequences = len(sequences)
+    first_sequence = sequences[0] if n_sequences and isinstance(sequences[0], str) else ""
+    n_residues = len(first_sequence)
+    shape_label = f"shape: {n_sequences} seq x {n_residues} res"
+    return options, main_msa_data, shape_label
 
 
 @callback(
