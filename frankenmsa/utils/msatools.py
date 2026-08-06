@@ -37,6 +37,8 @@ __all__ = [
     "fix_at",
     "split_chains",
     "merge_chains",
+    "head",
+    "tail",
 ]
 
 
@@ -784,8 +786,8 @@ def remove_at(
 
 def replace_at(
     df: pd.DataFrame,
-    replacement: str,
     index: int,
+    replacement: str,
     include_query: bool = False,
 ) -> pd.DataFrame:
     """
@@ -810,6 +812,8 @@ def replace_at(
     if "sequence" not in df.columns:
         raise ValueError("DataFrame must contain a 'sequence' column.")
     length = len(replacement)
+    if not include_query and len(df) == 1:
+        include_query = True
     if not include_query:
         query_row = df.iloc[[0]]
         df = df.iloc[1:].reset_index(drop=True)
@@ -927,3 +931,41 @@ def merge_chains(dfs: list[pd.DataFrame]) -> pd.DataFrame:
     merged_df["_multimer_header"] = multimer_header
 
     return merged_df.reset_index(drop=True)
+
+
+def head(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
+    """
+    Return the first n rows of the DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame.
+    n : int, optional
+        The number of rows to return. Default is 5.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the first n rows.
+    """
+    return df.head(n).reset_index(drop=True)
+
+
+def tail(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
+    """
+    Return the last n rows of the DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame.
+    n : int, optional
+        The number of rows to return. Default is 5.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the last n rows.
+    """
+    return df.tail(n).reset_index(drop=True)

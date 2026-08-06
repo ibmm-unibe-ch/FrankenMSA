@@ -59,6 +59,24 @@ class MSA:
         return cls(fileio.decode_a3m(a3m_string))
 
     @classmethod
+    def from_sequences(
+        cls, sequences: Iterable[str], headers: Optional[Iterable[str]] = None
+    ) -> Self:
+        """Create an MSA from a list of sequences and optional headers.
+
+        Parameters
+        ----------
+        sequences : Iterable[str]
+            List of sequence strings.
+        headers : Optional[Iterable[str]], default None
+            List of header strings. If None, default headers will be generated.
+        """
+        if headers is None:
+            headers = [f"seq_{i}" for i in range(len(sequences))]
+        df = pd.DataFrame({"header": headers, "sequence": sequences})
+        return cls(df)
+
+    @classmethod
     def combine(
         cls,
         msas: Iterable[MSA | pd.DataFrame],
@@ -156,6 +174,18 @@ class MSA:
         if self._df.empty:
             return MSA(self._df.iloc[0:0].reset_index(drop=True))
         return MSA(self._df.iloc[[0]].reset_index(drop=True))
+
+    @property
+    def Q(self) -> str:
+        """Return the query sequence string."""
+        if self._df.empty:
+            return ""
+        return self._df.iloc[0]["sequence"]
+
+    @property
+    def query_(self) -> str:
+        """Return the query sequence string (alias for ``Q``)."""
+        return self.Q
 
     def copy(self) -> Self:
         """Return a deep-copied MSA wrapper."""
@@ -279,6 +309,10 @@ class MSA:
         """Apply an in-place style DataFrame transform and return `self`."""
         self._df = func(self._df, *args, **kwargs)
         return self
+
+    def head(self, n: int = 5) -> Self:
+        """Return the first `n` rows of the MSA."""
+        return self._apply_dataframe_method(msatools.head, n)
 
     def unify_length(self, sequence_length: int | str = "first") -> Self:
         """Update ``self`` via :func:`frankenmsa.utils.msatools.unify_length`."""
@@ -444,15 +478,15 @@ class MSA:
 
     def replace_at(
         self,
-        replacement: str,
         index: int,
+        replacement: str,
         include_query: bool = False,
     ) -> Self:
         """Update ``self`` via :func:`frankenmsa.utils.msatools.replace_at`."""
         return self._apply_dataframe_method(
             msatools.replace_at,
-            replacement,
             index,
+            replacement,
             include_query=include_query,
         )
 
