@@ -639,7 +639,6 @@ def run_afcluster(
     Output("cluster-visual-container", "children"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
-    # State("visualise-encoding", "value"),
 )
 def visualise_clusters(msa_data, main_msa, encoding=None):
     if not msa_data or not main_msa:
@@ -738,9 +737,16 @@ def pca_plot(
 ):
     import plotly.express as px
 
-    rest, query = cluster_pca_projection(msa, encoding)
-    if rest is None:
-        return dcc.Graph(id=graph_id)
+    try:
+        rest, query = cluster_pca_projection(msa, encoding)
+    except Exception as e:
+        return dbc.Alert(f"PCA failed: {e}", color="warning")
+
+    if rest is None or len(rest) < 2:
+        return dbc.Alert(
+            "Not enough sequences to compute PCA (need at least 2 non-query rows).",
+            color="warning",
+        )
 
     fig = px.scatter(
         rest,

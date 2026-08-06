@@ -20,6 +20,8 @@ def compute_PCA(msa: pd.DataFrame, encoding=None):
 
     encoding_func = get_encoding_func(encoding)
     rest_onehot = encoding_func(rest["sequence"].values, max_length=seq_len)
+    import numpy as np
+    rest_onehot = np.array(rest_onehot).reshape(len(rest), -1)
 
     pca = PCA(n_components=2, random_state=42)
     embedding = pca.fit_transform(rest_onehot)
@@ -28,6 +30,7 @@ def compute_PCA(msa: pd.DataFrame, encoding=None):
     # project query point with the same PCA
     if len(query):
         q_onehot = encoding_func(query["sequence"].values, max_length=seq_len)
+        q_onehot = np.array(q_onehot).reshape(len(query), -1)
         q_embed = pca.transform(q_onehot)
         query = query.assign(**{"PC 1": q_embed[:, 0], "PC 2": q_embed[:, 1]})
     return rest, query
