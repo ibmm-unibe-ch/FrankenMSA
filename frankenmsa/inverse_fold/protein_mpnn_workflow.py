@@ -73,18 +73,41 @@ def write_chain_jsonl(
 def merge_outputs_to_fasta(out_dir: str | Path, stem: str) -> Tuple[str, int]:
     out_dir = Path(out_dir)
     fasta_path = out_dir / f"{stem}_proteinmpnn.fasta"
+    temp_path = out_dir / f".{stem}_proteinmpnn.fasta.tmp"
+    target_resolved = fasta_path.resolve()
+    temp_resolved = temp_path.resolve()
     count = 0
-    with fasta_path.open("w", encoding="utf-8") as fout:
-        for filename in sorted(
-            glob.glob(os.path.join(out_dir, "**", "*.fa*"), recursive=True)
+
+    matching_files = []
+    all_files = []
+    for filename in sorted(
+        glob.glob(os.path.join(out_dir, "**", "*.fa*"), recursive=True)
+    ):
+        source_path = Path(filename)
+        if not source_path.is_file():
+            continue
+        if source_path.resolve() in {target_resolved, temp_resolved}:
+            continue
+        all_files.append(source_path)
+        if (
+            source_path.stem == stem
+            or source_path.name.startswith(f"{stem}.")
+            or source_path.name.startswith(f"{stem}_")
         ):
-            with open(filename, encoding="utf-8", errors="ignore") as fin:
+            matching_files.append(source_path)
+
+    candidate_files = matching_files or all_files
+
+    with temp_path.open("w", encoding="utf-8") as fout:
+        for source_path in candidate_files:
+            with source_path.open(encoding="utf-8", errors="ignore") as fin:
                 for line in fin:
                     if line.startswith(">"):
                         count += 1
                         fout.write(f">sample_{count}\n")
                     else:
                         fout.write(line.strip() + "\n")
+    temp_path.replace(fasta_path)
     return str(fasta_path), count
 
 
@@ -113,10 +136,22 @@ def zip_outputs(
     dest_dir = Path(destination).expanduser() if destination else out_dir
     dest_dir.mkdir(parents=True, exist_ok=True)
     zip_path = dest_dir / f"{base}_proteinmpnn_outputs.zip"
+
+    relevant_files = []
+    for filename in sorted(glob.glob(os.path.join(out_dir, "**", "*"), recursive=True)):
+        source_path = Path(filename)
+        if not source_path.is_file():
+            continue
+        name = source_path.name
+        if name.endswith((".fasta", ".a3m", ".fa", ".zip", ".jsonl", ".pdb")):
+            relevant_files.append(source_path)
+
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for filename in glob.glob(os.path.join(out_dir, "**", "*"), recursive=True):
-            if os.path.isfile(filename):
-                archive.write(filename, arcname=os.path.relpath(filename, out_dir))
+        for source_path in relevant_files:
+            archive.write(
+                source_path,
+                arcname=os.path.relpath(source_path, out_dir),
+            )
     return str(zip_path)
 
 
