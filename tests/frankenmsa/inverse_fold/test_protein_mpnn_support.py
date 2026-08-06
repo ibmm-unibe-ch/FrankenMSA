@@ -37,3 +37,11 @@ def test_resolve_proteinmpnn_weights_uses_weight_subdirectory(tmp_path):
     weight_dir.mkdir()
     resolved = resolve_proteinmpnn_weights(checkout, use_soluble_model=True)
     assert resolved == weight_dir
+
+
+def test_resolve_proteinmpnn_weights_falls_back_to_repo_checkout(tmp_path):
+    checkout = _make_checkout(tmp_path / "ProteinMPNN")
+    weight_dir = checkout / "vanilla_model_weights"
+    weight_dir.mkdir()
+    resolved = resolve_proteinmpnn_weights(checkout)
+    assert resolved == weight_dir
