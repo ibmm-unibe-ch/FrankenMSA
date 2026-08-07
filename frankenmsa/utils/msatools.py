@@ -817,7 +817,7 @@ def replace_at(
     if not include_query:
         query_row = df.iloc[[0]]
         df = df.iloc[1:].reset_index(drop=True)
-        df = replace_at(df, replacement, index, include_query=True)
+        df = replace_at(df, index=index, replacement=replacement, include_query=True)
         df = pd.concat([query_row, df], ignore_index=True)
         return df.reset_index(drop=True)
 
