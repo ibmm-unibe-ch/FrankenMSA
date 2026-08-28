@@ -595,7 +595,7 @@ def _build_proteinmpnn_command(
         "--sampling_temp",
         str(float(sampling_temp)),
         "--batch_size",
-        "1",
+        "8", #maybe tune batch size based on GPU memory and input length, but 8 is a reasonable default
     ]
     if use_soluble_model:
         cmd.append("--use_soluble_model")

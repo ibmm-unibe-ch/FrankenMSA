@@ -1,4 +1,4 @@
-"""Sphinx configuration for the FrankenMSA documentation."""
+"""Sphinx configuration for the frankenMSA documentation."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 
-project = "FrankenMSA"
+project = "frankenMSA"
 author = "Noah Kleinschmidt, Jannik Gut, Thommas Lemmin"
 copyright = "2026, Noah Kleinschmidt, Jannik Gut, Thommas Lemmin"
 release = "0.1.3"
@@ -60,5 +60,5 @@ myst_enable_extensions = ["colon_fence"]
 nbsphinx_execute = "never"
 
 html_theme = "sphinx_rtd_theme"
-html_title = "FrankenMSA documentation"
+html_title = "frankenMSA documentation"
 html_static_path = []

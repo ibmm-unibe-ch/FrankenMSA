@@ -255,9 +255,9 @@ def gapsfilter_layout():
         [
             dcc.Loading(
                 id="gapsfilter-loading",
-                type="circle",
+                type="dot",
                 children=html.Div(id="gapsfilter-status-text"),
-                color="white",
+                color="#333",
             )
         ],
         style={
@@ -465,6 +465,8 @@ You can find more information about the parameters in the [HHFilter documentatio
                 id="hhfilter-loading",
             )
         ],
+        type="dot",
+        color="#333",
         style={
             "margin-top": "20px",
             "textAlign": "center",
@@ -569,7 +571,6 @@ You can find more information about the parameters in the [HHFilter documentatio
     return layout
 
 
-# --- Begin replacement for regex_filter_layout, run_regex_filter, and free_query_filter_layout ---
 def regex_filter_layout():
     upper = html.Div(
         [
@@ -623,9 +624,9 @@ def regex_filter_layout():
         [
             dcc.Loading(
                 id="regex-filter-loading",
-                type="circle",
+                type="dot",
                 children=html.Div(id="regex-filter-status-text"),
-                color="white",
+                color="#333",
             ),
             html.Button(
                 "Filter by Regex",
@@ -716,9 +717,9 @@ def free_query_filter_layout():
         [
             dcc.Loading(
                 id="free-query-filter-loading",
-                type="circle",
+                type="dot",
                 children=html.Div(id="free-query-filter-status-text"),
-                color="white",
+                color="#333",
             ),
             html.Button(
                 "Filter MSA",
@@ -741,9 +742,6 @@ def free_query_filter_layout():
         style={"padding": "20px"},
         className="shaded-bordered",
     )
-
-
-# --- End replacement ---
 
 
 @callback(
@@ -820,8 +818,7 @@ def run_hhfilter(
                 min_query_score=min_query_score,
                 target_diversity=target_diversity,
             )
-            msa_data[main_msa] = msa.to_dict("list")
-            # print("Filtered MSA:")
+            msa_data[main_msa] = filtered_msa.to_dict("list") #@Noah check if this is correct, it should be the same as the input MSA but filtered
             return msa_data, "HHFilter applied successfully.", True
         except:
             return (
@@ -1005,7 +1002,7 @@ def shuffle_columns_layout():
         labelStyle={"marginRight": "16px"},
         inline=True,
     )
-    # Collapsible seed input section
+    # Collapsable seed input section
     seed_toggle = html.Button(
         "Advanced (optional) ▼",
         id="toggle-seed-btn",
@@ -1820,6 +1817,8 @@ def slice_msa_layout():
                 id="slice-status-text",
             )
         ],
+        type="dot",
+        color="#333",
         style={
             "margin-top": "20px",
             "textAlign": "center",

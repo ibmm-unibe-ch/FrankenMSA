@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Simple installer for FrankenMSA
+# Simple installer for frankenMSA
 # Creates a virtual environment and installs the package in editable mode.
 
 VENV_DIR=".venv"
@@ -20,7 +20,7 @@ source "$VENV_DIR/bin/activate"
 echo "Upgrading pip, setuptools, wheel..."
 python -m pip install --upgrade pip setuptools wheel
 
-echo "Installing FrankenMSA (editable)..."
+echo "Installing frankenMSA (editable)..."
 # Try installing extras if available; fall back to plain editable install
 if python -m pip install -e .[all]; then
   echo "Installed with extras."
@@ -29,7 +29,7 @@ else
   python -m pip install -e .
 fi
 
-echo "Installation complete. To start using FrankenMSA run:"
+echo "Installation complete. To start using frankenMSA run:"
 echo "  source $VENV_DIR/bin/activate"
 echo "To run the app locally: python app/app.py"
 echo "Optional heavyweight tools are installed separately from scripts/installers/."

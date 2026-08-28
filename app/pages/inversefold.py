@@ -63,7 +63,7 @@ def proteinmpnn_layout():
         },
     )
 
-    # --- Structure input (moved out of Advanced) ---
+    # --- Structure input ---
     structure = html.Div(
         [
             html.Div(
@@ -180,7 +180,6 @@ def proteinmpnn_layout():
                                     "textAlign": "center",
                                 },
                             ),
-                            # [DELETED] Removed the "Currently only homomers..." Small text here.
                         ],
                         md=12,
                         style={
@@ -334,7 +333,8 @@ def proteinmpnn_layout():
                     # Visible status area (shows progress/errors/results)
                     dcc.Loading(
                         id="proteinmpnn-loading",
-                        type="circle",
+                        type="dot",
+                        color="#333",
                         children=html.Div(
                             id="proteinmpnn-status",
                             style={
@@ -376,18 +376,6 @@ def toggle_advanced(n):
         return True, "Chain options ▲"
     return False, "Chain options ▼"
 
-
-from dash.dependencies import (
-    Input as _Input,
-    Output as _Output,
-    State as _State,
-)  # ensure alias not required, but keep for clarity
-
-
-# --- Removed old clientside_callback that opens Google Colab in a new tab ---
-
-
-# --- Colab integration: directly run ProteinMPNN inside Colab environment ---
 from dash import no_update
 import os
 from frankenmsa.inverse_fold import run_proteinmpnn
@@ -519,6 +507,11 @@ def run_proteinmpnn_in_colab(
             # Combined A3M text/name from ProteinMPNN result
             combined_text = res.get("a3m_text")
             combined_name = res.get("a3m_name", "proteinmpnn_combined")
+            if combined_name:
+                try:
+                    combined_name = Path(combined_name).stem
+                except Exception:
+                    pass
 
             if combined_text:
                 parsed_combined = _parse_a3m_to_dict(combined_text)
@@ -555,6 +548,3 @@ def run_proteinmpnn_in_colab(
         inject_payload,
         html.Div(status_children),
     )
-
-
-# --- end Colab integration ---

@@ -1,22 +1,22 @@
 ![](app/assets/frankenmsa_header.png)
 
-Protein structure models like AlphaFold rely on Multiple Sequence Alignments (MSAs) for their prediction. Research has shown that the prediction of these models can be affected by manipulating the input MSAs, resulting in different conformations for the same target. To this end, we developed FrankenMSA, a small package designed to facilitate the workflow of manipulating MSAs. 
+Protein structure models like AlphaFold rely on Multiple Sequence Alignments (MSAs) for their prediction. Research has shown that the prediction of these models can be affected by manipulating the input MSAs, resulting in different conformations for the same target. To this end, we developed frankenMSA, a small package designed to facilitate the workflow of manipulating MSAs.
 
-FrankenMSA offers a simple functional API to perform operations like:
+frankenMSA offers a simple functional API to perform operations like:
 
 - Filtering
 - Slicing
 - Cropping
 - Clustering
 
-Built to rely only on a Pandas Dataframe with a "sequence" column the package is designed for minimal requirements and maximal user freedom and compatibility with other scientific software. 
+Built to rely only on a Pandas Dataframe with a "sequence" column the package is designed for minimal requirements and maximal user freedom and compatibility with other scientific software.
 
 The current implementation inventory and migration tracker live in [docs/feature-index.md](docs/feature-index.md).
 
 ## Not a coder? - No problem!
 <a href="https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/dev/FrankenMSA_app_colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
-We developed a **graphical user interface** using Dash to provide a clean and streamlined experience also to researchers who never wrote a line of code in their life. While the app naturally limits the functionality to some degree we worked hard to incorporate as much flexibility into it as possible. Are you missing something? Let us know! 
+We developed a **graphical user interface** using Dash to provide a clean and streamlined experience also to researchers who never wrote a line of code in their life. While the app naturally limits the functionality to some degree we worked hard to incorporate as much flexibility into it as possible. Are you missing something? Let us know!
 
 To launch the app just hit the "Open in Colab button above". A CPU runtime will suffice but depending on the size and number of MSAs you plan to use it may be worthwhile running the app on a a machine with more memory. (It works fine on an M-Series MacBook ✌️)
 
@@ -27,7 +27,7 @@ To launch the app just hit the "Open in Colab button above". A CPU runtime will 
 ## Installation
 
 We've provided a small helper script to set up a Python virtual environment and
-install FrankenMSA in editable mode. From the repository root run:
+install frankenMSA in editable mode. From the repository root run:
 
 ```bash
 ./install.sh

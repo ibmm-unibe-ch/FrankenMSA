@@ -3,6 +3,7 @@ Use the Colab-integration of MMseqs2 to perform MSA.
 """
 
 import os
+import subprocess
 from loguru import logger
 import requests
 import time
@@ -87,7 +88,8 @@ class MMSeqs2Colab(base.MSAFactory):
         final = self._extract_a3m()
         self.msa = final
         if cleanup:
-            os.system(f"rm -rf {self._download_location}")
+            if self._download_location:
+                subprocess.run(["rm", "-rf", str(self._download_location)], check=True)
         return final
 
     @property

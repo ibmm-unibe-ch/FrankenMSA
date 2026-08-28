@@ -35,7 +35,8 @@ def layout():
                                     id="cluster-visual-container",
                                     className="shaded-bordered",
                                 ),
-                                color="white",
+                                type="dot",
+                                color="#333",
                             ),
                             dbc.Row(
                                 dcc.Loading(
