@@ -433,7 +433,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         tooltip={"placement": "bottom", "always_visible": True},
     )
     target_diversity_input_label = html.P(
-        "Target diversity (1-10000):",
+        "Target diversity (1-10000, 0 = disabled):",
         style={
             "textAlign": "center",
             "font-size": "16px",
@@ -444,8 +444,8 @@ You can find more information about the parameters in the [HHFilter documentatio
     target_diversity_input = dcc.Input(
         id="hhfilter-target-diversity",
         type="number",
-        value=1,
-        min=1,
+        value=0,
+        min=0,
         max=10000,
         step=1,
         className="input-component",
@@ -1237,15 +1237,18 @@ def sequence_action_card(title, description, button_id, button_text):
         },
     )
 
-
 def position_edit_card(title, description, body, button_id, button_text):
+    # Ensure body is always a flat list of children
+    if not isinstance(body, list):
+        body = [body]
+    
     return dbc.Col(
         [
             html.Div(
                 [
                     html.H5(title, style={"marginBottom": "12px"}),
                     html.P(description, style={"marginBottom": "18px"}),
-                    body,
+                    *body,  # Flatten the list - THIS IS THE KEY FIX
                     html.Div(
                         html.Button(
                             button_text,
@@ -1274,7 +1277,6 @@ def position_edit_card(title, description, body, button_id, button_text):
             "display": "flex",
         },
     )
-
 
 def edit_sequences_layout():
     quick_actions = [
