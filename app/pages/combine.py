@@ -122,7 +122,7 @@ def combine_msa_block(msa_data, index):
         value=0,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "50px", "display": "none"},
     )
     horizontal_index_end = dcc.Input(
         id={"type": "combine-msa-horizontal-index-end", "index": index},
@@ -130,7 +130,7 @@ def combine_msa_block(msa_data, index):
         value=100,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "50px", "display": "none"},
     )
     vertical_index_tooltip = html.P(
         "Optionally select a specific range of row indices to add a slice of the MSA vertically.",
@@ -151,7 +151,7 @@ def combine_msa_block(msa_data, index):
         value=0,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "50px", "display": "none"},
     )
     vertical_index_end = dcc.Input(
         id={"type": "combine-msa-vertical-index-end", "index": index},
@@ -159,7 +159,7 @@ def combine_msa_block(msa_data, index):
         value=100,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "50px", "display": "none"},
     )
 
     block = html.Div(
