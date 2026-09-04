@@ -1207,7 +1207,10 @@ def sequence_action_card(title, description, button_id, button_text):
             html.Div(
                 [
                     html.H5(title, style={"marginBottom": "12px"}),
-                    html.P(description, style={"marginBottom": "18px", "minHeight": "52px"}),
+                    html.P(
+                        description,
+                        style={"marginBottom": "18px", "minHeight": "52px"},
+                    ),
                     html.Button(
                         button_text,
                         id=button_id,
@@ -1235,228 +1238,199 @@ def sequence_action_card(title, description, button_id, button_text):
     )
 
 
+def position_edit_card(title, description, body, button_id, button_text):
+    return dbc.Col(
+        [
+            html.Div(
+                [
+                    html.H5(title, style={"marginBottom": "12px"}),
+                    html.P(description, style={"marginBottom": "18px"}),
+                    body,
+                    html.Div(
+                        html.Button(
+                            button_text,
+                            id=button_id,
+                            n_clicks=0,
+                            className="button-component",
+                            style={"width": "100%", "margin": "0"},
+                        ),
+                        style={"marginTop": "12px"},
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "justifyContent": "space-between",
+                    "height": "100%",
+                },
+            )
+        ],
+        width=4,
+        className="shaded-bordered",
+        style={
+            "padding": "18px",
+            "marginBottom": "15px",
+            "minHeight": "260px",
+            "display": "flex",
+        },
+    )
+
+
 def edit_sequences_layout():
+    quick_actions = [
+        sequence_action_card(
+            "Separate Query Sequence",
+            "Remove the first sequence from the MSA and store it as a separate '_query' MSA.",
+            "edit-separate-query",
+            "Separate Query",
+        ),
+        sequence_action_card(
+            "Insertions to Gaps",
+            "Replace lowercase insertion characters with '-' so they behave like gaps.",
+            "edit-insertions-to-gaps",
+            "Convert Insertions to Gaps",
+        ),
+        sequence_action_card(
+            "Remove Insertions",
+            "Discard lowercase insertion characters entirely from the alignment.",
+            "edit-remove-insertions",
+            "Remove Insertions",
+        ),
+        sequence_action_card(
+            "Unknown to Gaps",
+            "Replace all unknown residues ('X') with gaps ('-') in the MSA.",
+            "edit-unknown-to-gaps",
+            "Convert Unknown to Gaps",
+        ),
+        sequence_action_card(
+            "Uppercase Sequences",
+            "Convert all sequence characters in the MSA to uppercase.",
+            "edit-uppercase-sequences",
+            "Uppercase Sequences",
+        ),
+        sequence_action_card(
+            "Lowercase Sequences",
+            "Convert all sequence characters in the MSA to lowercase.",
+            "edit-lowercase-sequences",
+            "Lowercase Sequences",
+        ),
+    ]
+
+    positional_edits = [
+        position_edit_card(
+            "Replace at Position",
+            "Replace a substring in all sequences at a specified position with a new sequence.",
+            [
+                dcc.Input(
+                    id="replace-at-sequence",
+                    type="text",
+                    placeholder="sequence to insert e.g. ACGT",
+                    className="input-component",
+                    style={"width": "100%", "marginBottom": "10px"},
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col([html.Label("Position Index (start):")], width=5),
+                        dbc.Col(
+                            [
+                                dcc.Input(
+                                    id="replace-at-index",
+                                    type="number",
+                                    placeholder="0",
+                                    min=0,
+                                    className="input-component",
+                                    style={"width": "100%"},
+                                )
+                            ],
+                            width=7,
+                        ),
+                    ],
+                    style={"marginBottom": "10px"},
+                ),
+                dcc.Checklist(
+                    id="replace-at-include-query",
+                    options=[
+                        {
+                            "label": "Also replace in query sequence",
+                            "value": "include",
+                        }
+                    ],
+                    value=[],
+                    inline=True,
+                ),
+            ],
+            "replace-at-button",
+            "Replace",
+        ),
+        position_edit_card(
+            "Insert at Position",
+            "Insert a sequence at a specified position in all sequences, shifting existing residues.",
+            [
+                dcc.Input(
+                    id="insert-at-sequence",
+                    type="text",
+                    placeholder="sequence to insert e.g. ACGT",
+                    className="input-component",
+                    style={"width": "100%", "marginBottom": "10px"},
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col([html.Label("Position Index (insert at):")], width=5),
+                        dbc.Col(
+                            [
+                                dcc.Input(
+                                    id="insert-at-index",
+                                    type="number",
+                                    placeholder="0",
+                                    min=0,
+                                    className="input-component",
+                                    style={"width": "100%"},
+                                )
+                            ],
+                            width=7,
+                        ),
+                    ],
+                    style={"marginBottom": "10px"},
+                ),
+                dcc.Checklist(
+                    id="insert-at-include-query",
+                    options=[
+                        {
+                            "label": "Also insert in query sequence",
+                            "value": "include",
+                        }
+                    ],
+                    value=["include"],
+                    inline=True,
+                ),
+            ],
+            "insert-at-button",
+            "Insert",
+        ),
+        position_edit_card(
+            "Fix Positions to Query",
+            "Propagate residues from the query sequence to all other sequences at specified positions.",
+            [
+                dcc.Input(
+                    id="fix-at-indices",
+                    type="text",
+                    placeholder="Positions to fix e.g., 0, 5, 10-15",
+                    className="input-component",
+                    style={"width": "100%"},
+                )
+            ],
+            "fix-at-button",
+            "Fix Positions",
+        ),
+    ]
+
     return html.Div(
         [
             html.H1("Edit Sequences", style={"marginBottom": "20px"}),
-            dbc.Row(
-                [
-                    sequence_action_card(
-                        "Separate Query Sequence",
-                        "Remove the first sequence from the MSA and store it as a separate '_query' MSA.",
-                        "edit-separate-query",
-                        "Separate Query",
-                    ),
-                    sequence_action_card(
-                        "Insertions to Gaps",
-                        "Replace lowercase insertion characters with '-' so they behave like gaps.",
-                        "edit-insertions-to-gaps",
-                        "Convert Insertions to Gaps",
-                    ),
-                    sequence_action_card(
-                        "Remove Insertions",
-                        "Discard lowercase insertion characters entirely from the alignment.",
-                        "edit-remove-insertions",
-                        "Remove Insertions",
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    sequence_action_card(
-                        "Unknown to Gaps",
-                        "Replace all unknown residues ('X') with gaps ('-') in the MSA.",
-                        "edit-unknown-to-gaps",
-                        "Convert Unknown to Gaps",
-                    ),
-                    sequence_action_card(
-                        "Uppercase Sequences",
-                        "Convert all sequence characters in the MSA to uppercase.",
-                        "edit-uppercase-sequences",
-                        "Uppercase Sequences",
-                    ),
-                    sequence_action_card(
-                        "Lowercase Sequences",
-                        "Convert all sequence characters in the MSA to lowercase.",
-                        "edit-lowercase-sequences",
-                        "Lowercase Sequences",
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Replace at Position"),
-                            html.P(
-                                "Replace a substring in all sequences at a specified position with a new sequence."
-                            ),
-                            dcc.Input(
-                                id="replace-at-sequence",
-                                type="text",
-                                placeholder="sequence to insert e.g. ACGT",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "10px"},
-                            ),
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        [
-                                            html.Label("Position Index (start):"),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Input(
-                                                id="replace-at-index",
-                                                type="number",
-                                                placeholder="0",
-                                                min=0,
-                                                className="input-component",
-                                                style={"width": "100%"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Checklist(
-                                                id="replace-at-include-query",
-                                                options=[
-                                                    {
-                                                        "label": "Also replace in query sequence",
-                                                        "value": "include",
-                                                    }
-                                                ],
-                                                value=[],
-                                                style={"marginTop": "5px"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                ],
-                                style={"marginBottom": "15px"},
-                            ),
-                            html.Div(
-                                html.Button(
-                                    "Replace",
-                                    id="replace-at-button",
-                                    n_clicks=0,
-                                    className="button-component",
-                                ),
-                                style={"textAlign": "right"},
-                            ),
-                        ],
-                        width=12,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Insert at Position"),
-                            html.P(
-                                "Insert a sequence at a specified position in all sequences, shifting existing residues."
-                            ),
-                            dcc.Input(
-                                id="insert-at-sequence",
-                                type="text",
-                                placeholder="sequence to insert e.g. ACGT",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "10px"},
-                            ),
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        [
-                                            html.Label("Position Index (insert at):"),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Input(
-                                                id="insert-at-index",
-                                                type="number",
-                                                placeholder="0",
-                                                min=0,
-                                                className="input-component",
-                                                style={"width": "100%"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Checklist(
-                                                id="insert-at-include-query",
-                                                options=[
-                                                    {
-                                                        "label": "Also insert in query sequence",
-                                                        "value": "include",
-                                                    }
-                                                ],
-                                                value=["include"],
-                                                style={"marginTop": "5px"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                ],
-                                style={"marginBottom": "15px"},
-                            ),
-                            html.Div(
-                                html.Button(
-                                    "Insert",
-                                    id="insert-at-button",
-                                    n_clicks=0,
-                                    className="button-component",
-                                ),
-                                style={"textAlign": "right"},
-                            ),
-                        ],
-                        width=12,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Fix Positions to Query"),
-                            html.P(
-                                "Propagate residues from the query sequence to all other sequences at specified positions. These can be specified as a comma-separated list of indices or ranges; e.g., '0, 5, 10-15' would fix positions 0, 5, and all positions from 10 to 15 inclusive."
-                            ),
-                            dcc.Input(
-                                id="fix-at-indices",
-                                type="text",
-                                placeholder="Positions to fix e.g., 0, 5, 10-15",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "15px"},
-                            ),
-                            html.Div(
-                                html.Button(
-                                    "Fix Positions",
-                                    id="fix-at-button",
-                                    n_clicks=0,
-                                    className="button-component",
-                                ),
-                                style={"textAlign": "right"},
-                            ),
-                        ],
-                        width=12,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
-            ),
+            dbc.Row(quick_actions),
+            dbc.Row(positional_edits),
         ],
+        style={"width": "100%"},
     )
 
 

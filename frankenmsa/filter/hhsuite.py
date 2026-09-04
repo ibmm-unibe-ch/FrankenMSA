@@ -127,8 +127,9 @@ def _hhfilter(
         "cov": min_query_coverage,
         "qid": min_query_identity,
         "qsc": min_query_score,
-        "neff": target_diversity,
     }
+    if target_diversity > 0:
+        kws["neff"] = target_diversity
     kws.update(kwargs)
     kws_line = " ".join(f"-{k} {v}" for k, v in kws.items())
     kws_line += " " + " ".join(i if i.startswith("-") else f"-{i}" for i in args)

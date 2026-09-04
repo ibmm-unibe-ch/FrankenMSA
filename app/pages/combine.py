@@ -180,9 +180,17 @@ def combine_msa_block(msa_data, index):
                             dbc.Row(
                                 [
                                     vertical_index_tooltip,
-                                    dbc.Col(vertical_index_start, width="auto"),
                                     dbc.Col(vertical_index_slider),
-                                    dbc.Col(vertical_index_end, width="auto"),
+                                    dbc.Col(
+                                        vertical_index_start,
+                                        width="auto",
+                                        style={"display": "none"},
+                                    ),
+                                    dbc.Col(
+                                        vertical_index_end,
+                                        width="auto",
+                                        style={"display": "none"},
+                                    ),
                                 ],
                                 align="stretch",
                             ),
