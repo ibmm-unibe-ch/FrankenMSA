@@ -297,7 +297,7 @@ You can find more information about the parameters in the [HHFilter documentatio
     )
 
     diff_input_label = html.P(
-        "Sequence diversity factor (0-10000):",
+        "Amount of most diverse sequences to keep (0-10000):",
         style={
             "textAlign": "center",
             "font-size": "16px",
@@ -1201,104 +1201,85 @@ def parse_indices_input(input_str: str) -> list[int]:
     return sorted(list(indices))
 
 
+def sequence_action_card(title, description, button_id, button_text):
+    return dbc.Col(
+        [
+            html.Div(
+                [
+                    html.H5(title, style={"marginBottom": "12px"}),
+                    html.P(description, style={"marginBottom": "18px", "minHeight": "52px"}),
+                    html.Button(
+                        button_text,
+                        id=button_id,
+                        n_clicks=0,
+                        className="button-component",
+                        style={"width": "100%", "margin": "0"},
+                    ),
+                ],
+                style={
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "justifyContent": "space-between",
+                    "height": "100%",
+                },
+            )
+        ],
+        width=4,
+        className="shaded-bordered",
+        style={
+            "padding": "18px",
+            "marginBottom": "15px",
+            "minHeight": "220px",
+            "display": "flex",
+        },
+    )
+
+
 def edit_sequences_layout():
     return html.Div(
         [
-            html.H1("Edit Sequences"),
+            html.H1("Edit Sequences", style={"marginBottom": "20px"}),
             dbc.Row(
                 [
-                    dbc.Col(
-                        [
-                            html.H5("Separate Query Sequence"),
-                            html.P(
-                                "Remove the first sequence from the MSA and store it in a separate singleton MSA named '_query'."
-                            ),
-                            html.Button(
-                                "Separate Query",
-                                id="edit-separate-query",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    sequence_action_card(
+                        "Separate Query Sequence",
+                        "Remove the first sequence from the MSA and store it as a separate '_query' MSA.",
+                        "edit-separate-query",
+                        "Separate Query",
                     ),
-                    dbc.Col(
-                        [
-                            html.H5("Insertions to Gaps"),
-                            html.P(
-                                "Replace all insertions (lowercase characters) with gaps ('-') in the MSA."
-                            ),
-                            html.Button(
-                                "Convert Insertions to Gaps",
-                                id="edit-insertions-to-gaps",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    sequence_action_card(
+                        "Insertions to Gaps",
+                        "Replace lowercase insertion characters with '-' so they behave like gaps.",
+                        "edit-insertions-to-gaps",
+                        "Convert Insertions to Gaps",
+                    ),
+                    sequence_action_card(
+                        "Remove Insertions",
+                        "Discard lowercase insertion characters entirely from the alignment.",
+                        "edit-remove-insertions",
+                        "Remove Insertions",
                     ),
                 ]
             ),
             dbc.Row(
                 [
-                    dbc.Col(
-                        [
-                            html.H5("Unknown to Gaps"),
-                            html.P(
-                                "Replace all unknown residues ('X') with gaps ('-') in the MSA."
-                            ),
-                            html.Button(
-                                "Convert Unknown to Gaps",
-                                id="edit-unknown-to-gaps",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    sequence_action_card(
+                        "Unknown to Gaps",
+                        "Replace all unknown residues ('X') with gaps ('-') in the MSA.",
+                        "edit-unknown-to-gaps",
+                        "Convert Unknown to Gaps",
                     ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Uppercase Sequences"),
-                            html.P(
-                                "Convert all sequence characters in the MSA to uppercase."
-                            ),
-                            html.Button(
-                                "Uppercase Sequences",
-                                id="edit-uppercase-sequences",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    sequence_action_card(
+                        "Uppercase Sequences",
+                        "Convert all sequence characters in the MSA to uppercase.",
+                        "edit-uppercase-sequences",
+                        "Uppercase Sequences",
                     ),
-                    dbc.Col(
-                        [
-                            html.H5("Lowercase Sequences"),
-                            html.P(
-                                "Convert all sequence characters in the MSA to lowercase."
-                            ),
-                            html.Button(
-                                "Lowercase Sequences",
-                                id="edit-lowercase-sequences",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    sequence_action_card(
+                        "Lowercase Sequences",
+                        "Convert all sequence characters in the MSA to lowercase.",
+                        "edit-lowercase-sequences",
+                        "Lowercase Sequences",
                     ),
                 ]
             ),
@@ -2565,6 +2546,31 @@ def insertions_to_gaps(n_clicks, main_msa, msa_data):
         )
     else:
         return dash.no_update, dash.no_update, False
+
+
+@callback(
+    Output("msa-data", "data", allow_duplicate=True),
+    Output("notification", "children", allow_duplicate=True),
+    Output("notification", "is_open", allow_duplicate=True),
+    Input("edit-remove-insertions", "n_clicks"),
+    State("main-msa", "data"),
+    State("msa-data", "data"),
+    prevent_initial_call=True,
+)
+def remove_insertions_from_msa(n_clicks, main_msa, msa_data):
+    if (n_clicks or 0) > 0:
+        if not msa_data or not main_msa:
+            return dash.no_update, dash.no_update, False
+
+        from pandas import DataFrame
+        from frankenmsa.utils.msatools import remove_insertions
+
+        msa = msa_data[main_msa]
+        msa = DataFrame.from_dict(msa)
+        msa = remove_insertions(msa)
+        msa_data[main_msa] = msa.to_dict("list")
+        return msa_data, "Removed all lowercase insertion characters from the sequences.", True
+    return dash.no_update, dash.no_update, False
 
 
 @callback(

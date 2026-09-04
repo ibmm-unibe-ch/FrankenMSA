@@ -5,6 +5,7 @@ from frankenmsa.utils.msatools import (
     filter_by_query,
     filter_by_regex,
     lowercase_sequences,
+    remove_insertions,
     replace_characters,
     replace_insertions_with_gaps,
     replace_unknown_with_gaps,
@@ -60,6 +61,14 @@ def test_replace_unknown_with_gaps_replaces_x():
     result = replace_unknown_with_gaps(df)
 
     assert result["sequence"].tolist() == ["MAAAK", "MccCK", "TTTT-"]
+
+
+def test_remove_insertions_removes_lowercase_only():
+    df = make_test_df()
+
+    result = remove_insertions(df)
+
+    assert result["sequence"].tolist() == ["MAAAK", "MCK", "TTTTX"]
 
 
 def test_replace_characters_supports_literal_and_regex_modes():

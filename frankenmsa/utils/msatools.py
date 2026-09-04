@@ -23,7 +23,9 @@ __all__ = [
     "adjust_depth",
     "replace_characters",
     "replace_insertions_with_gaps",
+    "remove_insertions",
     "replace_unknown_with_gaps",
+    "remove_unknowns",
     "uppercase_sequences",
     "lowercase_sequences",
     "build_combined_msa_name",
@@ -315,8 +317,10 @@ def replace_characters(
     sequence_col = "sequence"
     if sequence_col not in df.columns:
         raise ValueError(f"DataFrame must contain a '{sequence_col}' column.")
-    if pattern is None or pattern == "":
-        raise ValueError("pattern must not be empty")
+    #if pattern is None or pattern == "":
+    #    return result
+    #    raise ValueError("pattern must not be empty")
+    
 
     result = df.copy()
     result[sequence_col] = (
@@ -334,6 +338,13 @@ def replace_unknown_with_gaps(df: pd.DataFrame) -> pd.DataFrame:
     """Replace unknown X residues with gaps."""
     return replace_characters(df, "X", "-", regex=False)
 
+def remove_insertions(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove lowercase insertion characters from sequences."""
+    return replace_characters(df, r"[a-z]", "", regex=True)
+
+def remove_unknowns(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove unknown X residues from sequences."""
+    return replace_characters(df, "X", "", regex=False)
 
 def uppercase_sequences(df: pd.DataFrame) -> pd.DataFrame:
     """Uppercase the sequence column."""

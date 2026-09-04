@@ -51,7 +51,7 @@ def hhfilter(
     df : pd.DataFrame
         DataFrame containing the MSA to filter. This must at least contain the column "sequence".
     diff : int
-        Sequence diversity factor. Minimum sequences to retain in the MSA (option -diff).
+        Amount of most diverse sequences. Minimum sequences to retain in the MSA (option -diff).
     max_pairwise_identity : int, optional
         Maximum pairwise identity, by default 100 (option -id).
     min_query_coverage : int, optional
