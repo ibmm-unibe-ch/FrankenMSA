@@ -180,7 +180,9 @@ def combine_msa_block(msa_data, index):
                             dbc.Row(
                                 [
                                     vertical_index_tooltip,
+                                    dbc.Col(vertical_index_start, width="auto"),
                                     dbc.Col(vertical_index_slider),
+                                    dbc.Col(vertical_index_end, width="auto"),
                                 ],
                                 align="stretch",
                             ),
@@ -291,7 +293,9 @@ def update_horizontal_sliders(selected_msa, msa_data):
     Input({"type": "combine-msa-horizontal-index-end", "index": MATCH}, "value"),
     prevent_initial_call=True,
 )
-def update_horizontal_index_range(min_value, max_value):
+def sync_horizontal_index_range_from_inputs(min_value, max_value):
+    if min_value is None or max_value is None:
+        return dash.no_update
     return (min_value, max_value)
 
 
@@ -305,7 +309,9 @@ def update_horizontal_index_range(min_value, max_value):
     Input({"type": "combine-msa-vertical-index-end", "index": MATCH}, "value"),
     prevent_initial_call=True,
 )
-def update_vertical_index_range(min_value, max_value):
+def sync_vertical_index_range_from_inputs(min_value, max_value):
+    if min_value is None or max_value is None:
+        return dash.no_update
     return (min_value, max_value)
 
 
@@ -323,8 +329,10 @@ def update_vertical_index_range(min_value, max_value):
     Input({"type": "combine-msa-vertical-index", "index": MATCH}, "value"),
     prevent_initial_call=True,
 )
-def update_vertical_index_range(range_value):
-    return range_value
+def sync_vertical_inputs_from_slider(range_value):
+    if not range_value or len(range_value) != 2:
+        return dash.no_update, dash.no_update
+    return range_value[0], range_value[1]
 
 
 @callback(
@@ -341,8 +349,10 @@ def update_vertical_index_range(range_value):
     Input({"type": "combine-msa-horizontal-index", "index": MATCH}, "value"),
     prevent_initial_call=True,
 )
-def update_horizontal_index_range(range_value):
-    return range_value
+def sync_horizontal_inputs_from_slider(range_value):
+    if not range_value or len(range_value) != 2:
+        return dash.no_update, dash.no_update
+    return range_value[0], range_value[1]
 
 
 @callback(
