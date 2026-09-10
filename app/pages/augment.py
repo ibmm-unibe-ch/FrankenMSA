@@ -29,11 +29,11 @@ def augmentation_layout():
                     ),
                     html.Span(" or sampling from a "),
                     html.A(
-                        "Softmax",
+                        "Softmax distribution",
                         href="https://en.wikipedia.org/wiki/Softmax_function",
                         target="_blank",
                     ),
-                    html.Span(" distribution based on a "),
+                    html.Span(" based on a "),
                     html.A(
                         "BLOSUM",
                         href="https://en.wikipedia.org/wiki/BLOSUM",
@@ -54,7 +54,7 @@ def augmentation_layout():
                                     {"label": "GhostFold", "value": "ghostfold"},
                                     {"label": "Softmax", "value": "softmax"},
                                 ],
-                                value="ghostfold",
+                                value="softmax",
                                 clearable=False,
                                 style={"textAlign": "left"},
                             ),
@@ -69,7 +69,7 @@ def augmentation_layout():
                 [
                     dbc.Col(
                         [
-                            dbc.Label("Softmax temperature", className="mb-1"),
+                            dbc.Label("Softmax temperature, lower = more diverse", className="mb-1"),
                             dcc.Input(
                                 id="softmax-temperature",
                                 type="number",
