@@ -1,6 +1,8 @@
 import json
+import zipfile
 from pathlib import Path
 
+from frankenmsa.inverse_fold.protein_mpnn_workflow import _build_proteinmpnn_command
 from frankenmsa.inverse_fold.protein_mpnn_workflow import merge_outputs_to_fasta
 from frankenmsa.inverse_fold.protein_mpnn_workflow import split_chain_list
 from frankenmsa.inverse_fold.protein_mpnn_workflow import split_fasta_by_chain_separator
@@ -10,6 +12,48 @@ from frankenmsa.inverse_fold.protein_mpnn_workflow import zip_outputs
 
 def test_split_chain_list_normalizes_csv_values():
     assert split_chain_list("a, b;C,invalid,AA") == ["A", "B", "C"]
+
+
+def test_build_proteinmpnn_command_uses_batch_size_default_and_override(tmp_path):
+    cmd_default = _build_proteinmpnn_command(
+        repo_root=tmp_path,
+        out_dir=tmp_path / "out",
+        model_name="v_48_020",
+        weights_root=tmp_path / "weights",
+        num_seqs=16,
+        sampling_temp=0.8,
+        use_soluble_model=False,
+        ca_only=False,
+        staged_pdb=tmp_path / "input.pdb",
+        use_jsonl_mode=False,
+        jsonl_parsed=None,
+        jsonl_assigned=None,
+        homomer=True,
+        designed_list=[],
+        fixed_list=[],
+    )
+    assert "--batch_size" in cmd_default
+    assert cmd_default[cmd_default.index("--batch_size") + 1] == "8"
+
+    cmd_custom = _build_proteinmpnn_command(
+        repo_root=tmp_path,
+        out_dir=tmp_path / "out",
+        model_name="v_48_020",
+        weights_root=tmp_path / "weights",
+        num_seqs=16,
+        sampling_temp=0.8,
+        use_soluble_model=False,
+        ca_only=False,
+        staged_pdb=tmp_path / "input.pdb",
+        use_jsonl_mode=False,
+        jsonl_parsed=None,
+        jsonl_assigned=None,
+        homomer=True,
+        designed_list=[],
+        fixed_list=[],
+        batch_size=12,
+    )
+    assert cmd_custom[cmd_custom.index("--batch_size") + 1] == "12"
 
 
 def test_write_chain_jsonl_writes_expected_payload(tmp_path):

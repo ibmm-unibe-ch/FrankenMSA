@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 
 from frankenmsa.augment.ghostfold import GhostFold
+from frankenmsa.augment.softmax import Softmax
 
 
 def normalize_ghostfold_input(input_data: str) -> str:
@@ -71,9 +72,32 @@ def run_ghostfold_augmentation(
     return msa_data, main_key, created_keys, msa_df
 
 
+def run_softmax_augmentation(
+    input_data: str,
+    msa_data: Optional[Dict[str, dict]],
+    prefix: str = "softmax_aug",
+    temperature: float = 1.0,
+    depth: int = 128,
+    matrix: str | int = 62,
+) -> Tuple[Dict[str, dict], str, List[str], pd.DataFrame]:
+    """Normalize a monomer sequence, run softmax augmentation, and attach the output."""
+    sequence = normalize_ghostfold_input(input_data)
+    msa_df = Softmax().augment(
+        sequence=sequence,
+        temperature=temperature,
+        depth=depth,
+        matrix=matrix,
+    )
+    result_key = build_ghostfold_result_key(msa_data, prefix=prefix)
+    msa_data = {} if not isinstance(msa_data, dict) else dict(msa_data)
+    msa_data[result_key] = msa_df.to_dict("list")
+    return msa_data, result_key, [result_key], msa_df
+
+
 __all__ = [
     "normalize_ghostfold_input",
     "build_ghostfold_result_key",
     "attach_ghostfold_result",
     "run_ghostfold_augmentation",
+    "run_softmax_augmentation",
 ]

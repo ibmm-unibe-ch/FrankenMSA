@@ -53,6 +53,21 @@ def proteinmpnn_layout():
                 ],
                 md=6,
             ),
+            dbc.Col(
+                [
+                    html.P("ProteinMPNN batch size"),
+                    dcc.Input(
+                        id="proteinmpnn-batch-size",
+                        type="number",
+                        value=8,
+                        min=1,
+                        max=256,
+                        step=1,
+                        style={"width": "100%"},
+                    ),
+                ],
+                md=6,
+            ),
         ],
         className="g-2",
         style={
@@ -427,6 +442,7 @@ def _parse_a3m_to_dict(text):
     Input("open-proteinmpnn-colab", "n_clicks"),
     State("proteinmpnn-sampling-temperature", "value"),
     State("proteinmpnn-sequence-count", "value"),
+    State("proteinmpnn-batch-size", "value"),
     State("proteinmpnn-design-chains", "value"),
     State("proteinmpnn-fixed-chains", "value"),
     State("proteinmpnn-homomer", "value"),
@@ -436,7 +452,16 @@ def _parse_a3m_to_dict(text):
     prevent_initial_call=True,
 )
 def run_proteinmpnn_in_colab(
-    n, temp, num, design, fixed, homomer_val, pdb, pdb_upload_path, msa_data_state
+    n,
+    temp,
+    num,
+    batch_size,
+    design,
+    fixed,
+    homomer_val,
+    pdb,
+    pdb_upload_path,
+    msa_data_state,
 ):
     if not n:
         return no_update, no_update, no_update, no_update
@@ -472,6 +497,7 @@ def run_proteinmpnn_in_colab(
             allow_upload=False,
             auto_download=False,
             runtime="colab" if ON_COLAB else "local",
+            batch_size=int(batch_size or 8),
         )
     except Exception as e:
         return no_update, no_update, no_update, html.Div(f"❌ Run failed: {e}")

@@ -338,6 +338,7 @@ def run_proteinmpnn(
     proteinmpnn_root: Optional[str] = None,
     weights_dir: Optional[str] = None,
     runtime: str = "local",
+    batch_size: int = 8,
 ) -> Dict:
     runtime_settings = _resolve_runtime_settings(runtime, proteinmpnn_root)
     log_message(f"ProteinMPNN Runtime settings: {runtime_settings}")
@@ -399,6 +400,7 @@ def run_proteinmpnn(
         homomer=homomer,
         designed_list=designed_list,
         fixed_list=fixed_list,
+        batch_size=batch_size,
     )
 
     result = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True)
@@ -580,6 +582,7 @@ def _build_proteinmpnn_command(
     homomer: bool,
     designed_list: List[str],
     fixed_list: List[str],
+    batch_size: int = 8,
 ) -> List[str]:
     cmd = [
         sys.executable,
@@ -595,7 +598,7 @@ def _build_proteinmpnn_command(
         "--sampling_temp",
         str(float(sampling_temp)),
         "--batch_size",
-        "8", #maybe tune batch size based on GPU memory and input length, but 8 is a reasonable default
+        str(int(batch_size)),
     ]
     if use_soluble_model:
         cmd.append("--use_soluble_model")
