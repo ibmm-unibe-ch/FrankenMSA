@@ -27,7 +27,19 @@ def augmentation_layout():
                         href="https://www.biorxiv.org/content/10.1101/2025.10.13.682177v1",
                         target="_blank",
                     ),
-                    html.Span(" or a BLOSUM softmax sampler."),
+                    html.Span(" or sampling from a "),
+                    html.A(
+                        "Softmax",
+                        href="https://en.wikipedia.org/wiki/Softmax_function",
+                        target="_blank",
+                    ),
+                    html.Span(" distribution based on a "),
+                    html.A(
+                        "BLOSUM",
+                        href="https://en.wikipedia.org/wiki/BLOSUM",
+                        target="_blank",
+                    ),
+                    html.Span(" matrix with O and U replaced."),
                 ],
                 style={"marginBottom": "20px", "fontSize": "1.1rem"},
             ),
@@ -72,7 +84,22 @@ def augmentation_layout():
                     ),
                     dbc.Col(
                         [
-                            dbc.Label("BLOSUM matrix", className="mb-1"),
+                            dbc.Label("Softmax depth", className="mb-1"),
+                            dcc.Input(
+                                id="softmax-depth",
+                                type="number",
+                                value=128,
+                                min=1,
+                                max=1000,
+                                step=1,
+                                style={"width": "100%"},
+                            ),
+                        ],
+                        md=3,
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Label("Softmax BLOSUM matrix", className="mb-1"),
                             dcc.Dropdown(
                                 id="softmax-matrix",
                                 options=[
@@ -149,11 +176,20 @@ def augmentation_layout():
     State("ghostfold-input", "value"),
     State("augmentation-method", "value"),
     State("softmax-temperature", "value"),
+    State("softmax-depth", "value"),
     State("softmax-matrix", "value"),
     State("msa-data", "data"),
     prevent_initial_call=True,
 )
-def run_augmentation(n_clicks, input_data, method, softmax_temperature, softmax_matrix, msa_data):
+def run_augmentation(
+    n_clicks,
+    input_data,
+    method,
+    softmax_temperature,
+    softmax_depth,
+    softmax_matrix,
+    msa_data,
+):
     """Execute the selected augmentation backend and store the created MSA."""
     log_message(
         f"Augmentation run button clicked {n_clicks} times with backend={method}. Received input: {input_data}"
@@ -168,6 +204,7 @@ def run_augmentation(n_clicks, input_data, method, softmax_temperature, softmax_
                 msa_data,
                 prefix="softmax_aug",
                 temperature=float(softmax_temperature or 1.0),
+                depth=int(softmax_depth or 128),
                 matrix=softmax_matrix or "BLOSUM62",
             )
             label = "Softmax"

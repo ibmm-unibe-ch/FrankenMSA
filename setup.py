@@ -32,6 +32,7 @@ setup(
         "requests",
         "scikit-learn",
         "scipy",
+        "blosum",
         "afcluster>=0.1.2",
         "pybiolib",
         "dash",
