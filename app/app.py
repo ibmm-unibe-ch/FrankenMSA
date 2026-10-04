@@ -64,7 +64,7 @@ def icon_link(icon, href, tooltip_text):
         [
             dcc.Link(
                 html.Img(
-                    src=f"assets/{icon}.png",
+                    src=app.get_asset_url(f"{icon}.png"),
                     className="header-icon",
                 ),
                 href=href,
