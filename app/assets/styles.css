@@ -526,3 +526,29 @@ label + input {
     color: white;
     background-color: var(--fm-accent);
 }
+
+/* Text label under each header icon */
+.header-link {
+    flex-direction: column;
+    gap: 2px;
+    height: 68px;
+    min-width: 72px;
+    text-decoration: none !important;
+}
+
+.header-link .header-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.header-label {
+    color: #e6efeb;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.header-link.active .header-label {
+    color: white;
+}
