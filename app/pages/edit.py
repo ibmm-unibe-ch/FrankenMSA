@@ -12,10 +12,6 @@ dash.register_page(
 
 def make_siderbar():
 
-    dup_tooltip = dbc.Tooltip(
-        "Duplicate the current MSA and store it in a new MSA with the name '..._N' where N is the next available number.",
-        target="edit-copy",
-    )
     delete_tooltip = dbc.Tooltip(
         "Delete the currently selected MSA. This will remove it from the list of MSAs and delete all associated data.",
         target="edit-delete",
@@ -49,7 +45,6 @@ def make_siderbar():
                 pills=True,
                 style={"justifyContent": "center"},
             ),
-            dup_tooltip,
             delete_tooltip,
             clear_tooltip,
         ],
@@ -2325,6 +2320,10 @@ def msa_overview_layout():
                                     id="duplicate-button",
                                     n_clicks=0,
                                     className="button-component button-primary",
+                                ),
+                                dbc.Tooltip(
+                                    "Duplicate the current MSA and store it in a new MSA with the name '..._N' where N is the next available number.",
+                                    target="duplicate-button",
                                 ),
                             ],
                             className="shaded-bordered",
