@@ -134,9 +134,9 @@ write_a3m(chain_a, "A.a3m"); write_a3m(chain_b, "B.a3m")
 combine_unpaired_a3m(["A.a3m", "B.a3m"], "complex.a3m")   # input order = chains A, B, ...
 ```
 
-Two things to check before doing this, both detailed in `download.md`: chains of
-unequal depth are **silently truncated to the shortest**, and combine → split
-round-trips duplicate the query row unless you pass `add_anchor=False`.
+Chains may differ in depth — each keeps all of its sequences. One thing to know,
+detailed in `download.md`: a combine → split round-trip duplicates the query row
+unless you pass `add_anchor=False`.
 
 ## Working habits
 

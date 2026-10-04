@@ -167,16 +167,18 @@ several editable MSAs.
 
 ## Pitfalls
 
-**Unequal depths are silently truncated.** `combine_unpaired_a3m` cuts every
-chain to the shortest one — combining a 5000-sequence chain with a
-200-sequence chain yields 200 rows per chain and discards the rest. It prints a
-`[WARN]` to stdout that nobody sees in the GUI. Check the depths first and say
-what will be lost:
+**Unequal depths are fine, but check your version.** Chains may differ in depth:
+each one keeps all of its sequences, and the splitter reads them back correctly.
+Earlier versions truncated every chain to the shallowest one — a 5000-sequence
+chain exported beside a 200-sequence partner lost 96% of its alignment, warning
+only with a `print()` to stdout that the GUI never showed. That block is
+commented out in `combine_unpaired_a3m` (`frankenmsa/utils/fileio.py`). If you
+are on a version where it is still active, the symptom is every chain coming
+back at the same depth:
 
 ```python
 depths = [len(c) for c in (chain_a, chain_b)]
-if min(depths) != max(depths):
-    print(f"chains will be truncated to {min(depths)} sequences (depths: {depths})")
+print(f"input depths: {depths}")   # compare against the exported file
 ```
 
 **The round-trip is not lossless.** Combining with the anchor and splitting again
