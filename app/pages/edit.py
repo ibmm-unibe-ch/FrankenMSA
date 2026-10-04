@@ -47,6 +47,11 @@ def make_siderbar():
             ),
             delete_tooltip,
             clear_tooltip,
+            dcc.ConfirmDialog(id="confirm-delete-msa"),
+            dcc.ConfirmDialog(
+                id="confirm-clear-msa",
+                message="Remove all MSAs and their associated data from the application? This cannot be undone.",
+            ),
         ],
         className="subnav",
     )
@@ -69,9 +74,31 @@ def layout():
 
 
 @callback(
+    Output("confirm-clear-msa", "displayed"),
+    Input("edit-clear", "n_clicks"),
+    prevent_initial_call=True,
+)
+def ask_clear_msa_data(n_clicks):
+    return (n_clicks or 0) > 0
+
+
+@callback(
+    Output("confirm-delete-msa", "displayed"),
+    Output("confirm-delete-msa", "message"),
+    Input("edit-delete", "n_clicks"),
+    State("select-main-msa", "value"),
+    prevent_initial_call=True,
+)
+def ask_delete_msa_data(n_clicks, msa_name):
+    if not (n_clicks or 0) > 0 or not msa_name:
+        return False, dash.no_update
+    return True, f"Delete the MSA '{msa_name}' and all its associated data? This cannot be undone."
+
+
+@callback(
     Output("main-msa", "data", allow_duplicate=True),
     Output("msa-data", "data", allow_duplicate=True),
-    Input("edit-clear", "n_clicks"),
+    Input("confirm-clear-msa", "submit_n_clicks"),
     State("main-msa", "data"),
     State("msa-data", "data"),
     prevent_initial_call=True,
@@ -86,7 +113,7 @@ def clear_msa_data(n_clicks, main_msa, msa_data):
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Output("main-msa", "data", allow_duplicate=True),
-    Input("edit-delete", "n_clicks"),
+    Input("confirm-delete-msa", "submit_n_clicks"),
     State("select-main-msa", "value"),
     State("main-msa", "data"),
     State("msa-data", "data"),
