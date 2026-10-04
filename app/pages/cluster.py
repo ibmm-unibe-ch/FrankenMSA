@@ -276,7 +276,7 @@ def afcluster_controls(_):
         id="epsilon",
         type="number",
         placeholder="Epsilon value for DBSCAN",
-        value=0.50,
+        value=10,
         min=0.01,
         max=1000.0,
         persistence=True,

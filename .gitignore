@@ -176,3 +176,6 @@ ProteinMPNN
 run.sh
 temp_file.a3m
 .DS_Store
+
+# Runtime log written to the repo root by frankenmsa.runtime
+log.txt
