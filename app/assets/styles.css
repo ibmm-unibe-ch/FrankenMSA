@@ -520,3 +520,9 @@ label + input {
     border-color: var(--fm-accent-dark);
     box-shadow: 0 0 0 4px rgba(0, 158, 111, 0.2);
 }
+
+.subnav .nav-link.active,
+.subnav .nav-pills .nav-link.active {
+    color: white;
+    background-color: var(--fm-accent);
+}

@@ -10,6 +10,15 @@ dash.register_page(
 )
 
 
+# Tool tabs in the Edit sub-navigation, by component id
+EDIT_TABS = {
+    "edit-filter": "Filter",
+    "edit-sort": "Sort & Shuffle",
+    "edit-crop": "Slice & Crop",
+    "edit-sequences": "Edit Sequences",
+}
+
+
 def make_siderbar():
 
     delete_tooltip = dbc.Tooltip(
@@ -24,20 +33,18 @@ def make_siderbar():
         [
             dbc.Nav(
                 [
-                    dbc.NavLink("Filter", id="edit-filter", active="exact"),
-                    dbc.NavLink("Sort & Shuffle", id="edit-sort", active="exact"),
-                    dbc.NavLink("Slice & Crop", id="edit-crop", active="exact"),
-                    dbc.NavLink("Edit Sequences", id="edit-sequences", active="exact"),
+                    *[
+                        dbc.NavLink(label, id=tab_id, active=False)
+                        for tab_id, label in EDIT_TABS.items()
+                    ],
                     dbc.NavLink(
                         "Delete MSA",
                         id="edit-delete",
-                        active="exact",
                         className="text-danger",
                     ),
                     dbc.NavLink(
                         "Clear All MSA Data",
                         id="edit-clear",
-                        active="exact",
                         className="text-danger",
                     ),
                 ],
@@ -71,6 +78,15 @@ def layout():
             ),
         ]
     )
+
+
+@callback(
+    [Output(tab_id, "active") for tab_id in EDIT_TABS],
+    [Input(tab_id, "n_clicks") for tab_id in EDIT_TABS],
+    prevent_initial_call=True,
+)
+def highlight_active_edit_tab(*_):
+    return [tab_id == dash.ctx.triggered_id for tab_id in EDIT_TABS]
 
 
 @callback(
