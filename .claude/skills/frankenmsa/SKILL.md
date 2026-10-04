@@ -32,7 +32,8 @@ write_a3m(msa, "output.a3m")
 
 A3M and FASTA keep only header and sequence. **CSV is the only format that
 preserves added columns**, so export clustering results to CSV and send A3M to
-folding models.
+folding models. `references/download.md` covers the readers and writers,
+including multimer files.
 
 ## Which reference to read
 
@@ -46,6 +47,7 @@ Read the one that matches the task. Each is self-contained.
 | A pseudo-MSA for an orphan sequence (GhostFold) | `references/augment.md` |
 | Splitting an MSA into clusters (AFCluster, KMeans, Ward) | `references/cluster.md` |
 | Filtering, sorting, shuffling, slicing, depth, editing residues, combining | `references/edit.md` |
+| Reading and writing files; **building a multimer MSA** | `references/download.md` |
 
 ## Check plugin availability before running
 
@@ -109,6 +111,33 @@ for name, data in store.items():
     write_a3m(pd.DataFrame(data), f"{name}.a3m")
 ```
 
+## Multimers
+
+A multimer MSA describes a complex of several chains. Which route to take
+depends on whether the chains need to be *paired* — matched row by row across
+chains, usually by species:
+
+- **Paired**: one MMseqs2 query with the chains joined by `:` and a pairing mode
+  of `"greedy"` or `"complete"`. Co-evolutionary signal between the chains
+  survives, which is what AlphaFold-Multimer benefits from. See `align.md`.
+- **Unpaired**: align each chain separately, then stack the per-chain MSAs with
+  `combine_unpaired_a3m` (or `build_multimer_csv`). Simpler, and the only option
+  when the chains were searched independently. See `download.md`.
+- **Fused into one chain**: horizontal concatenation on the Combine page makes a
+  single longer sequence — a chimera, not a complex. See `edit.md`.
+
+```python
+from frankenmsa.utils import write_a3m
+from frankenmsa.utils.fileio import combine_unpaired_a3m
+
+write_a3m(chain_a, "A.a3m"); write_a3m(chain_b, "B.a3m")
+combine_unpaired_a3m(["A.a3m", "B.a3m"], "complex.a3m")   # input order = chains A, B, ...
+```
+
+Two things to check before doing this, both detailed in `download.md`: chains of
+unequal depth are **silently truncated to the shortest**, and combine → split
+round-trips duplicate the query row unless you pass `add_anchor=False`.
+
 ## Working habits
 
 **Editing overwrites.** The GUI writes every edit back over the current MSA, and
@@ -127,10 +156,8 @@ it look hung.
 
 ## Still missing from this skill
 
-Not yet covered, in rough order of how often it comes up: the Visualize page
-(alignment chart, gap/conservation/identity profiles in `frankenmsa.visual`),
-multimer file handling on the Files page (`split_multimer_a3m_file`,
-`combine_unpaired_a3m`, `build_multimer_csv`), and the Colab notebook as an
-entry point. A bundled `scripts/` helper for the align → cluster → save
-pipeline would also save rewriting the same twenty lines; see the end of
-`references/cluster.md` for what that script would contain.
+Not yet covered: the Visualize page (alignment chart, gap/conservation/identity
+profiles in `frankenmsa.visual`) and the Colab notebook as an entry point. A
+bundled `scripts/` helper for the align → cluster → save pipeline would also
+save rewriting the same twenty lines; see the end of `references/cluster.md` for
+what that script would contain.
