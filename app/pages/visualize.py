@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 import pandas as pd
+from helpers.layout import page
 
 
 dash.register_page(
@@ -45,44 +46,42 @@ def layout():
         persistence_type="memory",
     )
 
-    visualise_controls = dbc.Row(
-        [
-            dbc.Col(visualise_aignment_checkbox),
-            dbc.Col(visualise_gaps_checkbox),
-            dbc.Col(visualise_conservation_checkbox),
-            dbc.Col(visualise_identity_checkbox),
-        ],
+    visualise_controls = html.Div(
+        html.Div(
+            [
+                visualise_aignment_checkbox,
+                visualise_gaps_checkbox,
+                visualise_conservation_checkbox,
+                visualise_identity_checkbox,
+            ],
+            className="control-row",
+            style={"gap": "40px", "margin": 0},
+        ),
         className="shaded-bordered",
-        style={"width": "100%"},
+        style={"padding": "16px 28px"},
     )
-    return html.Div(
-        [
-            visualise_controls,
-            dcc.Loading(
-                id="loading",
-                color="white",
-                type="circle",
-                children=[
-                    html.Div(
-                        [
-                            dbc.Row(id="visual-gaps-container"),
-                            dbc.Row(id="visual-conservation-container"),
-                            dbc.Row(id="visual-identity-container"),
-                            dbc.Row(id="visual-alignment-container"),
-                        ],
-                        id="plotly-visualisation",
-                        className="shaded-bordered",
-                        style={
-                            "height": "100%",
-                            "width": "100%",
-                            "overflow": "hidden",
-                        },
-                    ),
-                ],
-            ),
-        ],
-        className="gradient-background",
-        style={"width": "100%"},
+    return page(
+        "Visualize",
+        "Inspect the alignment of the selected MSA together with per-position gap, conservation and identity profiles.",
+        visualise_controls,
+        dcc.Loading(
+            id="loading",
+            color="#009e6f",
+            type="circle",
+            children=[
+                html.Div(
+                    [
+                        dbc.Row(id="visual-gaps-container"),
+                        dbc.Row(id="visual-conservation-container"),
+                        dbc.Row(id="visual-identity-container"),
+                        dbc.Row(id="visual-alignment-container"),
+                    ],
+                    id="plotly-visualisation",
+                    className="shaded-bordered",
+                    style={"overflow": "hidden"},
+                ),
+            ],
+        ),
     )
 
 
@@ -150,7 +149,11 @@ def update_visual_identity(visualise_identity, main, data):
 def update_visual_alignment(visualise_alignment, main, data):
     if visualise_alignment == True:
         if not data:
-            return html.Div()
+            return html.P(
+                "Upload or select an MSA to visualise it here.",
+                className="text-muted",
+                style={"margin": 0},
+            )
         msa = data[main]
         msa = pd.DataFrame.from_dict(msa)
         alignment = show_alignment(msa)

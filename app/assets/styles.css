@@ -1,211 +1,522 @@
+/* =====================================================================
+   FrankenMSA design tokens
+   ===================================================================== */
+:root {
+    --fm-dark: #2C2C2C;           /* Anthracite: header, footer, sub-nav */
+    --fm-dark-hover: #3a3a3a;
+    --fm-accent: #009e6f;         /* Brand green (links, buttons, focus) */
+    --fm-accent-dark: #00744f;
+    --fm-accent-soft: #e5f5ef;
+    --fm-bg: #f3f5f4;             /* Page background */
+    --fm-surface: #ffffff;        /* Card background */
+    --fm-surface-alt: #f8faf9;    /* Nested card background */
+    --fm-border: #dde3e0;
+    --fm-input-border: #c9d1cd;
+    --fm-text: #2C2C2C;
+    --fm-muted: #6b7570;
+    --fm-danger: #c0392b;
+    --fm-radius: 10px;
+    --fm-radius-sm: 6px;
+    --fm-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
 body {
     -webkit-text-size-adjust: 100%; /* Prevent font scaling on mobile devices */
     text-size-adjust: 100%;
-    font-size: 16px; /* Set a base font size */
+    font-size: 16px;
+    background-color: var(--fm-bg);
+    color: var(--fm-text);
 }
 
+a {
+    color: var(--fm-accent);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--fm-accent-dark);
+    text-decoration: underline;
+}
+
+/* =====================================================================
+   Header (top navigation) and footer
+   ===================================================================== */
 .header {
-    background-color: #2C2C2C; /* Anthracite color */
-    color: white;
-    display: flex;
-    min-height: 60px;;
-    align-items: center;
-    text-align: center;
-    justify-content: space-between; /* Distribute children evenly across the available width */
-}
-
-.footer{
-    background-color: #2C2C2C; /* Anthracite color */
+    background-color: var(--fm-dark);
     color: white;
     display: flex;
     min-height: 60px;
     align-items: center;
-    text-align: center;
-    justify-content: center; /* Center the footer content */
-    
+    justify-content: space-between;
+    padding: 0 16px;
+    gap: 8px;
 }
 
-.header-icon {
-    align-items: center; /* Vertically center the icon */
-    text-align: center;
-    justify-content: center; /* Horizontally center the icon */
-    margin: 0.5%; 
-    min-width: 50px; /* Minimum width for the icon */
-    width: 4%;
-}
-
-.logo-main {
-    display: inline-block;
-    align-items: center;
-    margin: 0.5%; 
-    min-width: 200px; /* Minimum width for the logo */
-    width: 20%;
-}
-
-.gradient-background {
-    /* background: white linear-gradient(87deg,#eaeaea,#e0fff7,#ebfffa); */
-    background-size: 180% 180%;
-    animation: gradient-animation 21s ease infinite;
-    align-items: center;
-    text-align: center;
-    padding: 5%; /* Add some padding for better spacing */
-    min-height: 100vh; /* Ensure it takes full height */
-}
-  
-  @keyframes gradient-animation {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-
-.gradient-background h1, h2, h3, h4, h5, h6, p, label {
-    color: #2C2C2C;
-    margin: 0;
-    padding: 0;
-    align-items: center;
-    text-align: center;
-}
-
-.horizontal-align {
-    display: flex;
-    justify-content: center; /* Center the content horizontally */
-    align-items: center; /* Center the content vertically */
-    text-align: center;
-    margin-left: auto;
-}
-
-.shaded-bordered {
-    /* line-height: 60px; */
-    border-width: 2px;
-    border-style: solid;
-    border-radius: 5px;
-    text-align: center;
-    border-color: #ffffff;
-    color: #2c2c2c;
-    font-weight: bold;
-    margin: 10px;
-    background-color: #ffffff7d;
-}
-
-.shaded-bordered h1, h2 {
-    line-height: 50px;
-    margin-bottom: 20px;
-}
-
-.shaded-bordered p, label {
-    margin: 0; /* Remove default margin */
-    padding: 10px; /* Remove default padding */
-    line-height: normal;
-    margin-bottom: 10px;
-}
-
-.upload-component {
-    /* width: 100%; */
-    height: 60px;
-    /* line-height: 60px; */
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 5px;
-    text-align: center;
+.header-link {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-color: #CCCCCC;
-    color: #2C2C2C;
-    font-weight: bold;
-    margin: 10px;
-    background-color: #F8F8F8; /* Light background for the file upload area */
-    cursor: pointer; /* Change cursor to pointer on hover */
-    transition: background-color 0.3s; /* Smooth transition for background color */
-}
-
-.dropdown-component {
-    width: 100%;
     height: 60px;
-    text-align: center;
-    margin: 10px;
-    color:#009d76;
-    cursor: pointer; /* Change cursor to pointer on hover */
-    transition: background-color 0.3s; /* Smooth transition for background color */
+    padding: 0 10px;
+    border-bottom: 3px solid transparent;
+    border-top: 3px solid transparent;
+    transition: background-color 0.2s, border-color 0.2s;
 }
 
-.dropdown-component option {
-    
-    background-color: #F8F8F8; /* Light background for the dropdown area */
+.header-link:hover {
+    background-color: var(--fm-dark-hover);
 }
 
-.button-component {
-    /* width: 100%; */
-    height: 60px;
-    line-height: normal;
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 5px;
-    text-align: center;
-    border-color: #CCCCCC;
-    color: #2C2C2C;
-    text-align: center;
-    margin: 10px;
-    background-color: #F8F8F8; /* Light background for the button area */
-    cursor: pointer; /* Change cursor to pointer on hover */
-    transition: background-color 0.3s; /* Smooth transition for background color */
-}
-.button-component:hover {
-    background-color: #CCCCCC; /* Change background color on hover */
-    color: #2C2C2C; /* Change text color on hover */
+.header-link.active {
+    border-bottom-color: var(--fm-accent);
+    background-color: var(--fm-dark-hover);
 }
 
-.sidebar {
-    background-color: #2C2C2C; /* Anthracite color */
+.header-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.header-msa-select {
+    width: 260px;
+    flex-shrink: 0;
+}
+
+.header-msa-shape {
     color: white;
-    font-weight: bold;
-    font-size: normal;
-    /* width: 150px; */
-    height: 100%; /* Full height */
-    position: absolute; /* Position relative to the parent container */
-    
-    /*top: 0; /* Align to the top of the parent container */
-    left: 0; /* Align to the left of the parent container */
-    padding: 20px; 
-    padding-top: 5%;
-
+    font-weight: 600;
+    white-space: nowrap;
+    margin: 0 8px;
 }
 
-.main-next-to-sidebar {
-    /* margin-left: 150px; Leave space for the sidebar */
-    padding: 20px;
-    padding-top: 5%;
+.footer {
+    background-color: var(--fm-dark);
+    color: white;
+    display: flex;
+    min-height: 60px;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
 }
 
-input, textarea {
-    /* line-height: 60px; */
-    border-width: 1px;
-    border-style: solid;
-    border-radius: 5px;
+.footer a {
+    color: #bfe9d9;
+}
+
+.footer a:hover {
+    color: white;
+}
+
+/* Secondary navigation bar (e.g. the Edit page tools) */
+.subnav {
+    background-color: var(--fm-dark);
+    border-top: 1px solid #3d3d3d;
+    display: flex;
+    justify-content: center;
+    padding: 6px 16px;
+}
+
+.subnav .nav-link {
+    color: #d9e9e3;
+    font-weight: 600;
+    border-radius: var(--fm-radius-sm);
+    padding: 6px 16px;
+    cursor: pointer;
+}
+
+.subnav .nav-link:hover {
+    color: white;
+    background-color: var(--fm-dark-hover);
+}
+
+.subnav .nav-link.text-danger {
+    color: #ff8a7a !important;
+}
+
+/* =====================================================================
+   Page scaffold
+   ===================================================================== */
+.page-container {
+    position: relative;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 32px 40px 56px;
+    min-height: calc(100vh - 120px);
     text-align: center;
-    border-color: #CCCCCC;
-    color: #565656;
-    font-weight: bold;
-    margin: 10px;
-    background-color: #f0f0f0; /* Light background for the input area */
+}
+
+/* Narrow variant for single-tool pages */
+.page-container.page-narrow {
+    max-width: 1000px;
+}
+
+.page-header {
+    margin-bottom: 28px;
+}
+
+.page-container .page-header h1.page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0 0 8px;
+}
+
+.page-container .page-header p.page-lead {
+    color: var(--fm-muted);
+    font-size: 1.05rem;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.page-container h1,
+.page-container h2,
+.page-container h3,
+.page-container h4,
+.page-container h5,
+.page-container h6,
+.page-container p,
+.page-container label {
+    color: var(--fm-text);
+    text-align: center;
+}
+
+.page-container p {
+    line-height: 1.5;
+}
+
+.page-container .text-muted,
+.page-container small {
+    color: var(--fm-muted);
+}
+
+/* Rows whose cards should have the same height */
+.equal-height > [class*="col"] {
+    display: flex;
+    flex-direction: column;
+}
+
+.equal-height > [class*="col"] > .shaded-bordered {
+    flex: 1 1 auto;
+}
+
+/* =====================================================================
+   Cards
+   ===================================================================== */
+.shaded-bordered {
+    background-color: var(--fm-surface);
+    border: 1px solid var(--fm-border);
+    border-radius: var(--fm-radius);
+    box-shadow: var(--fm-shadow);
+    padding: 24px 28px;
+    margin: 0 0 24px 0;
+    color: var(--fm-text);
+    text-align: center;
+}
+
+/* Cards nested in cards are flatter */
+.shaded-bordered .shaded-bordered {
+    background-color: var(--fm-surface-alt);
+    box-shadow: none;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+}
+
+.shaded-bordered h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0 0 12px;
+}
+
+.shaded-bordered h2 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0 0 12px;
+}
+
+.shaded-bordered h4,
+.shaded-bordered h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+.shaded-bordered p {
+    margin: 0 0 12px;
+    padding: 0;
+}
+
+.shaded-bordered label {
+    font-weight: 600;
+    margin: 0 0 4px;
+}
+
+/* Hairline divider between sub-sections inside a card */
+.shaded-bordered hr {
+    border-color: var(--fm-border);
+    opacity: 1;
+    margin: 24px 0;
+}
+
+/* Label above a control */
+.field-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px !important;
+}
+
+/* Helper text below a control */
+.field-help {
+    display: block;
+    color: var(--fm-muted);
+    font-size: 0.85rem;
+    margin-top: 6px;
+}
+
+/* =====================================================================
+   Controls
+   ===================================================================== */
+.button-component {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 8px 20px;
+    margin: 6px;
+    border: 1px solid var(--fm-accent);
+    border-radius: var(--fm-radius-sm);
+    background-color: var(--fm-surface);
+    color: var(--fm-accent);
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.button-component:hover {
+    background-color: var(--fm-accent-soft);
+    color: var(--fm-accent-dark);
+}
+
+/* Primary action of a card ("Run ...", "Download", ...) */
+.button-primary {
+    background-color: var(--fm-accent);
+    color: white;
+}
+
+.button-primary:hover {
+    background-color: var(--fm-accent-dark);
+    border-color: var(--fm-accent-dark);
+    color: white;
+}
+
+.button-danger {
+    border-color: var(--fm-danger);
+    color: var(--fm-danger);
+}
+
+.button-danger:hover {
+    background-color: #fbeceb;
+    color: var(--fm-danger);
+}
+
+/* Full-width button, e.g. the main action at the bottom of a card */
+.button-block {
+    display: flex;
+    width: 100%;
+    margin: 12px 0 0;
+}
+
+/* Text-like toggle for collapsible sections */
+.collapse-toggle {
+    background: none;
+    border: none;
+    color: var(--fm-accent);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-bottom: 6px;
+}
+
+.collapse-toggle:hover {
+    color: var(--fm-accent-dark);
+}
+
+input[type="text"]:not(.form-control),
+input[type="number"]:not(.form-control),
+input:not([type]):not(.form-control),
+textarea {
+    border: 1px solid var(--fm-input-border);
+    border-radius: var(--fm-radius-sm);
+    padding: 6px 10px;
+    margin: 6px 0;
+    min-height: 38px;
+    background-color: var(--fm-surface);
+    color: var(--fm-text);
+    text-align: center;
 }
 
 textarea {
     text-align: left;
 }
 
-a {
-    color: #009e6f; /* Set the desired color for links */
-    text-decoration: none; /* Remove underline from links */
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--fm-accent) !important;
+    box-shadow: 0 0 0 3px rgba(0, 158, 111, 0.15);
 }
 
-a:hover {
-    color: #005540; /* Change color on hover */
-    text-decoration: underline; /* Add underline on hover */
+/* Monospace text area for pasting sequences */
+.sequence-input {
+    display: block;
+    width: 100%;
+    height: 130px;
+    padding: 12px 14px;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.upload-component {
+    min-height: 60px;
+    border: 2px dashed var(--fm-input-border);
+    border-radius: var(--fm-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    margin: 6px 0;
+    color: var(--fm-text);
+    font-weight: 600;
+    background-color: var(--fm-surface-alt);
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.upload-component:hover {
+    border-color: var(--fm-accent);
+    background-color: var(--fm-accent-soft);
+}
+
+.dropdown-component {
+    width: 100%;
+    margin: 6px 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dropdown-component .Select-control {
+    border-color: var(--fm-input-border);
+    border-radius: var(--fm-radius-sm);
+    min-height: 38px;
+}
+
+/* Tables (e.g. MSA overview) */
+.page-container .dash-table-container {
+    font-family: inherit;
+}
+
+/* Horizontal group of controls that wraps onto a new line when needed */
+.control-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 12px 0;
+}
+
+.control-row > .button-component {
+    margin: 0;
+}
+
+/* Inline radio / checklist options with even spacing */
+.inline-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 10px;
+    font-weight: normal;
+}
+
+/* =====================================================================
+   Home page
+   ===================================================================== */
+.logo-main {
+    display: inline-block;
+    width: 300px;
+    max-width: 60%;
+    margin: 8px 0 24px;
+}
+
+.home-intro {
+    max-width: 1000px;
+    margin: 0 auto 24px;
+}
+
+.home-intro p {
+    font-size: 1.05rem;
+    line-height: 1.65;
+}
+
+.runtime-indicator {
+    position: absolute;
+    top: 24px;
+    right: 40px;
+    z-index: 10;
+}
+
+/* Option labels of radio buttons / checklists are regular text */
+.shaded-bordered label:has(> input[type="radio"]),
+.shaded-bordered label:has(> input[type="checkbox"]),
+.shaded-bordered .form-check-label {
+    font-weight: normal;
+}
+
+label > input[type="radio"],
+label > input[type="checkbox"] {
+    margin-right: 6px;
+    accent-color: var(--fm-accent);
+}
+
+.form-check-input:checked {
+    background-color: var(--fm-accent);
+    border-color: var(--fm-accent);
+}
+
+/* A label followed directly by its input */
+label + input {
+    margin-left: 8px !important;
+}
+
+/* The search box inside dcc.Dropdown must not get the input styling */
+.Select input,
+.dash-dropdown input {
+    border: none !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Sliders in brand colours */
+.rc-slider-track {
+    background-color: var(--fm-accent);
+}
+
+.rc-slider-handle,
+.rc-slider-dot-active {
+    border-color: var(--fm-accent);
+}
+
+.rc-slider-handle:hover,
+.rc-slider-handle:active,
+.rc-slider-handle-click-focused:focus {
+    border-color: var(--fm-accent-dark);
+    box-shadow: 0 0 0 4px rgba(0, 158, 111, 0.2);
 }

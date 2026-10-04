@@ -4,6 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 from frankenmsa.augment import run_ghostfold_augmentation
 from frankenmsa.runtime import log_message
+from helpers.layout import page
 
 
 dash.register_page(
@@ -12,14 +13,19 @@ dash.register_page(
 
 
 def layout():
-    return html.Div([dbc.Row([ghostfold_layout()])], className="gradient-background")
+    return page(
+        "Augment",
+        "Generate a synthetic MSA for a single sequence.",
+        ghostfold_layout(),
+        narrow=True,
+    )
 
 
 def ghostfold_layout():
     return html.Div(
         [
             # 1. Title
-            html.H1("GhostFold", style={"marginBottom": "10px"}),
+            html.H1("GhostFold"),
             # 2. Citation Link
             html.Div(
                 [
@@ -31,23 +37,13 @@ def ghostfold_layout():
                     ),
                     html.Span("."),
                 ],
-                style={"marginBottom": "20px", "fontSize": "1.1rem"},
+                style={"marginBottom": "16px", "color": "var(--fm-muted)"},
             ),
             # 3. Input Area
             dcc.Textarea(
                 id="ghostfold-input",
                 placeholder="Enter sequence here...\nExample:\nACDEFGHIKLMNPQRSTVWY",
-                style={
-                    "width": "100%",
-                    "padding": "15px",
-                    "height": "120px",
-                    "width": "80%",
-                    "borderRadius": "8px",
-                    "border": "1px solid #ccc",
-                    "fontSize": "14px",
-                    "fontFamily": "monospace",
-                },
-                className="input-component",
+                className="sequence-input",
                 persistence=True,
                 persistence_type="memory",
             ),
@@ -56,31 +52,20 @@ def ghostfold_layout():
                 "Run GhostFold Augmentation",
                 id="ghostfold-run-button",
                 n_clicks=0,
-                className="button-component",
-                style={
-                    "width": "80%",
-                    "fontSize": "16px",
-                    "fontWeight": "bold",
-                    "padding": "12px",
-                },
+                className="button-component button-primary button-block",
             ),
             # 5. Output / Status spinner
             dcc.Loading(
                 html.Div(
                     id="ghostfold-output",
                     className="output-component",
-                    style={
-                        "marginTop": "20px",
-                        "width": "80%",
-                        "marginLeft": "auto",
-                        "marginRight": "auto",
-                    },
+                    style={"marginTop": "16px"},
                 ),
                 type="dot",
                 color="#333",
             ),
         ],
-        style={"textAlign": "center", "paddingBottom": "50px"},
+        className="shaded-bordered",
     )
 
 

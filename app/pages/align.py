@@ -16,6 +16,7 @@ from frankenmsa.align.workflows import (
     validate_similarity_cutoff,
 )
 from frankenmsa.runtime import log_message
+from helpers.layout import page
 
 dash.register_page(
     __name__,
@@ -27,9 +28,16 @@ dash.register_page(
 
 
 def layout():
-    return html.Div(
-        [dbc.Row([mmseqs_colab_layout(), plm_search_layout()])],
-        className="gradient-background",
+    return page(
+        "Align",
+        "Generate an MSA by searching sequence databases for homologs of your query.",
+        dbc.Row(
+            [
+                dbc.Col(mmseqs_colab_layout(), lg=6),
+                dbc.Col(plm_search_layout(), lg=6),
+            ],
+            className="equal-height",
+        ),
     )
 
 
@@ -38,7 +46,7 @@ def mmseqs_colab_layout():
     return html.Div(
         [
             # 1. Title
-            html.H1("MMseqs2 ColabFold", style={"marginBottom": "10px"}),
+            html.H1("MMseqs2 ColabFold"),
             # 2. Citation Link
             html.Div(
                 [
@@ -50,7 +58,7 @@ def mmseqs_colab_layout():
                     ),
                     html.Span("."),
                 ],
-                style={"marginBottom": "20px", "fontSize": "1.1rem"},
+                style={"marginBottom": "16px", "color": "var(--fm-muted)"},
             ),
             # 3. Instructions Section
             html.Div(
@@ -77,7 +85,7 @@ def mmseqs_colab_layout():
                                 "ℹ️ Click to learn about Pairing Modes (Greedy vs All)",
                                 style={
                                     "cursor": "pointer",
-                                    "color": "#56CCF2",
+                                    "color": "var(--fm-accent)",
                                     "fontSize": "0.9rem",
                                     "fontWeight": "500",
                                     "marginTop": "5px",
@@ -113,17 +121,7 @@ def mmseqs_colab_layout():
             dcc.Textarea(
                 id="mmseqs-input",
                 placeholder="Enter sequences here...\n\nExample Multimer: AAAAA:BBBBB\nExample Monomer: AAAAA",
-                style={
-                    "width": "100%",
-                    "padding": "15px",
-                    "height": "120px",
-                    "width": "80%",
-                    "borderRadius": "8px",
-                    "border": "1px solid #ccc",
-                    "fontSize": "14px",
-                    "fontFamily": "monospace",
-                },
-                className="input-component",
+                className="sequence-input",
                 persistence=True,
                 persistence_type="memory",
             ),
@@ -147,12 +145,12 @@ def mmseqs_colab_layout():
                                 persistence=True,
                                 persistence_type="memory",
                                 inline=True,
-                                inputStyle={"marginRight": "5px", "marginLeft": "10px"},
-                                labelStyle={"marginRight": "15px"},
+                                inputStyle={"marginRight": "5px"},
+                                labelStyle={"margin": "0 8px"},
                             ),
                             html.Small(
                                 [
-                                    html.Span("💡 Tip: ", style={"color": "#56CCF2"}),
+                                    html.Span("💡 Tip: ", style={"color": "var(--fm-accent)"}),
                                     html.Strong("All", style={"color": "#444"}),
                                     html.Span(
                                         " is recommended.", style={"color": "#666"}
@@ -165,7 +163,7 @@ def mmseqs_colab_layout():
                                 },
                             ),
                         ],
-                        width=6,
+                        width=7,
                         style={"textAlign": "center", "paddingRight": "20px"},
                     ),
                     dbc.Col(
@@ -184,8 +182,8 @@ def mmseqs_colab_layout():
                                 persistence=True,
                                 persistence_type="memory",
                                 inline=True,
-                                inputStyle={"marginRight": "5px", "marginLeft": "10px"},
-                                labelStyle={"marginRight": "15px"},
+                                inputStyle={"marginRight": "5px"},
+                                labelStyle={"margin": "0 8px"},
                             ),
                             html.Small(
                                 "Remove low-complexity regions.",
@@ -197,7 +195,7 @@ def mmseqs_colab_layout():
                                 },
                             ),
                         ],
-                        width=6,
+                        width=5,
                         style={
                             "textAlign": "center",
                             "borderLeft": "1px solid #ddd",
@@ -207,11 +205,8 @@ def mmseqs_colab_layout():
                 ],
                 className="g-0",
                 style={
-                    "marginTop": "30px",
-                    "marginBottom": "30px",
-                    "width": "80%",
-                    "marginLeft": "auto",
-                    "marginRight": "auto",
+                    "marginTop": "24px",
+                    "marginBottom": "8px",
                     "alignItems": "start",
                 },
             ),
@@ -220,13 +215,7 @@ def mmseqs_colab_layout():
                 "Run MMseqs2",
                 id="mmseqs-run-button",
                 n_clicks=0,
-                className="button-component",
-                style={
-                    "width": "80%",
-                    "fontSize": "16px",
-                    "fontWeight": "bold",
-                    "padding": "12px",
-                },
+                className="button-component button-primary button-block",
             ),
             html.Div(
                 html.Small(
@@ -240,18 +229,13 @@ def mmseqs_colab_layout():
                 html.Div(
                     id="mmseqs-output",
                     className="output-component",
-                    style={
-                        "marginTop": "10px",
-                        "width": "80%",
-                        "marginLeft": "auto",
-                        "marginRight": "auto",
-                    },
+                    style={"marginTop": "10px"},
                 ),
                 type="dot",
                 color="#333",
             ),
         ],
-        style={"textAlign": "center", "paddingBottom": "50px"},
+        className="shaded-bordered",
     )
 
 
@@ -259,7 +243,7 @@ def plm_search_layout():
     return html.Div(
         [
             # 1. Title
-            html.H1("PLM-Search", style={"marginBottom": "10px"}),
+            html.H1("PLM-Search"),
             # 2. Citation Link
             html.Div(
                 [
@@ -274,13 +258,7 @@ def plm_search_layout():
                         "Downloading sequences might take some time, we advise to use sensible cutoffs for similarity or max sequences per query."
                     ),
                 ],
-                style={
-                    "marginBottom": "20px",
-                    "fontSize": "1.1rem",
-                    "whiteSpace": "normal",
-                    "overflowWrap": "break-word",
-                    "wordBreak": "break-word",
-                },
+                style={"marginBottom": "16px", "color": "var(--fm-muted)"},
             ),
             # 3. Instructions Section
             html.Div(
@@ -299,17 +277,7 @@ def plm_search_layout():
             dcc.Textarea(
                 id="plm-input",
                 placeholder="Enter sequences here...\nExample:\n>seq1\nAAAA\n>seq2\nCCCCC",
-                style={
-                    "width": "100%",
-                    "padding": "15px",
-                    "height": "120px",
-                    "width": "80%",
-                    "borderRadius": "8px",
-                    "border": "1px solid #ccc",
-                    "fontSize": "14px",
-                    "fontFamily": "monospace",
-                },
-                className="input-component",
+                className="sequence-input",
                 persistence=True,
                 persistence_type="memory",
             ),
@@ -343,7 +311,7 @@ def plm_search_layout():
                                 },
                             ),
                         ],
-                        width=4,
+                        width=6,
                         style={"textAlign": "center", "paddingRight": "20px"},
                     ),
                     dbc.Col(
@@ -361,7 +329,7 @@ def plm_search_layout():
                                 value=0.9,
                                 persistence=True,
                                 persistence_type="memory",
-                                style={"width": "80%"},
+                                style={"width": "100%"},
                             ),
                             html.Small(
                                 "Minimum similarity to include in results.",
@@ -373,7 +341,7 @@ def plm_search_layout():
                                 },
                             ),
                         ],
-                        width=4,
+                        width=6,
                         style={
                             "textAlign": "center",
                             "borderLeft": "1px solid #ddd",
@@ -416,21 +384,19 @@ def plm_search_layout():
                                 },
                             ),
                         ],
-                        width=4,
+                        width=12,
                         style={
                             "textAlign": "center",
-                            "borderLeft": "1px solid #ddd",
-                            "paddingLeft": "20px",
+                            "borderTop": "1px solid #ddd",
+                            "paddingTop": "16px",
+                            "marginTop": "16px",
                         },
                     ),
                 ],
                 className="g-0",
                 style={
-                    "marginTop": "30px",
-                    "marginBottom": "30px",
-                    "width": "80%",
-                    "marginLeft": "auto",
-                    "marginRight": "auto",
+                    "marginTop": "24px",
+                    "marginBottom": "8px",
                     "alignItems": "start",
                 },
             ),
@@ -439,31 +405,20 @@ def plm_search_layout():
                 "Run PLM-Search",
                 id="plm-run-button",
                 n_clicks=0,
-                className="button-component",
-                style={
-                    "width": "80%",
-                    "fontSize": "16px",
-                    "fontWeight": "bold",
-                    "padding": "12px",
-                },
+                className="button-component button-primary button-block",
             ),
             # 7. Output / Status
             dcc.Loading(
                 html.Div(
                     id="plm-output",
                     className="output-component",
-                    style={
-                        "marginTop": "10px",
-                        "width": "80%",
-                        "marginLeft": "auto",
-                        "marginRight": "auto",
-                    },
+                    style={"marginTop": "10px"},
                 ),
                 type="dot",
                 color="#333",
             ),
         ],
-        style={"textAlign": "center", "paddingBottom": "50px"},
+        className="shaded-bordered",
     )
 
 

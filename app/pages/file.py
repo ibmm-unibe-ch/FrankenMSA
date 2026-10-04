@@ -4,6 +4,7 @@ from pathlib import Path
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
+from helpers.layout import page
 from frankenmsa.utils.fileio import (
     build_multimer_csv,
     chain_label,
@@ -19,14 +20,16 @@ dash.register_page(
 
 
 def layout():
-    return html.Div(
+    return page(
+        "Files",
+        "Upload MSAs into the session and export them as A3M or CSV files.",
         dbc.Row(
             [
-                dbc.Col(file_upload_layout()),
-                dbc.Col(html.Div([file_download_layout()])),
-            ]
+                dbc.Col(file_upload_layout(), lg=6),
+                dbc.Col(file_download_layout(), lg=6),
+            ],
+            className="equal-height",
         ),
-        className="gradient-background",
     )
 
 
@@ -42,12 +45,12 @@ def file_upload_layout():
         multiple=False,
         accept=".a3m,.fasta,.fa,.csv",
         max_size=52428800,
-        style={"position": "relative", "zIndex": 10, "cursor": "pointer"},
+        style={"position": "relative", "zIndex": 10},
     )
 
     return html.Div(
         [
-            html.H1("Upload an existing MSA"),
+            html.H1("Upload MSA"),
             html.P(
                 "You can upload an existing MSA file in the following formats: .fasta, .a3m, and .csv"
             ),
@@ -261,7 +264,7 @@ def file_download_layout():
         persistence=True,
         persistence_type="memory",
         className="dropdown-component",
-        style={"marginTop": "7px"},
+        style={"width": "110px"},
     )
 
     # Single-select dropdown + add button (to support duplicates/homomers)
@@ -271,7 +274,7 @@ def file_download_layout():
         multi=False,
         placeholder="Select an MSA",
         className="dropdown-component",
-        style={"minWidth": "260px", "flex": 1},
+        style={"flex": 1, "minWidth": "220px"},
     )
 
     add_button = html.Button(
@@ -279,7 +282,6 @@ def file_download_layout():
         id="add-chain-button",
         n_clicks=0,
         className="button-component",
-        style={"marginLeft": "10px", "marginTop": "-30px"},
     )
 
     # Display selected chains
@@ -298,7 +300,7 @@ def file_download_layout():
         id="download-filename",
         type="text",
         placeholder="filename (auto-generated if blank)",
-        style={"width": "65%", "marginRight": "12px"},
+        style={"flex": 1, "minWidth": "220px"},
         className="input-component",
         persistence=True,
         persistence_type="memory",
@@ -320,40 +322,20 @@ def file_download_layout():
                 "Select an MSA and click 'Add to Export' to build your download. "
                 "You can add multiple MSAs to create multimers."
             ),
-            html.Div(
-                [msa_selector, add_button],
-                className="horizontal-align",
-                style={
-                    "marginTop": "10px",
-                    "alignItems": "center",
-                    "justifyContent": "center",
-                },
-            ),
+            html.Div([msa_selector, add_button], className="control-row"),
             chain_list_display,
-            html.Div(
-                [
-                    download_filename,
-                    download_format,
-                ],
-                className="horizontal-align",
-                style={
-                    "marginTop": "10px",
-                    "alignItems": "center",
-                    "justifyContent": "center",
-                },
-            ),
+            html.Div([download_filename, download_format], className="control-row"),
             html.Button(
                 "Download",
                 id="download-button",
                 n_clicks=0,
-                className="button-component",
+                className="button-component button-primary button-block",
             ),
             download_component,
             selected_chains_store,
             status_div,
         ],
         className="shaded-bordered",
-        style={"maxWidth": "700px", "margin": "0 auto"},
     )
     return body
 

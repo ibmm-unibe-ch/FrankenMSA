@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from helpers.constants import COLAB_LINK, ON_COLAB, UPLOAD_DIR
 from frankenmsa.utils.fileio import decode_a3m
+from helpers.layout import page
 
 dash.register_page(
     __name__,
@@ -14,7 +15,12 @@ dash.register_page(
 
 
 def layout():
-    return html.Div(proteinmpnn_layout(), className="gradient-background")
+    return page(
+        "Inverse Folding",
+        "Generate sequences that fold into a given protein structure.",
+        proteinmpnn_layout(),
+        narrow=True,
+    )
 
 
 def proteinmpnn_layout():
@@ -22,7 +28,10 @@ def proteinmpnn_layout():
         [
             dbc.Col(
                 [
-                    html.P("Sampling Temperature (higher values = more diversity)"),
+                    html.P(
+                        "Sampling Temperature (higher values = more diversity)",
+                        className="field-label",
+                    ),
                     html.Div(
                         dcc.Slider(
                             id="proteinmpnn-sampling-temperature",
@@ -40,7 +49,7 @@ def proteinmpnn_layout():
             ),
             dbc.Col(
                 [
-                    html.P("Number of sequences to generate"),
+                    html.P("Number of sequences to generate", className="field-label"),
                     dcc.Input(
                         id="proteinmpnn-sequence-count",
                         type="number",
@@ -67,15 +76,10 @@ def proteinmpnn_layout():
     structure = html.Div(
         [
             html.Div(
-                html.H5(
+                html.P(
                     "Provide structure: upload a file or enter a PDB code",
-                    style={
-                        "textAlign": "center",
-                        "fontWeight": 700,
-                        "fontSize": "1.05rem",
-                        "opacity": 0.9,
-                        "margin": "6px 0 8px 0",
-                    },
+                    className="field-label",
+                    style={"marginTop": "8px"},
                 ),
                 style={"width": "100%"},
             ),
@@ -103,20 +107,8 @@ def proteinmpnn_layout():
                                 ),
                                 multiple=False,
                                 accept=".pdb,.ent,.cif,.mmcif,.gz,.bz2,.txt",
-                                style={
-                                    "border": "1px dashed #bbb",
-                                    "padding": "6px 10px",
-                                    "marginTop": "6px",
-                                    "textAlign": "center",
-                                    "borderRadius": "8px",
-                                    "opacity": 0.9,
-                                    "cursor": "pointer",
-                                    "minHeight": "40px",
-                                    "width": "90%",
-                                    "marginLeft": "auto",
-                                    "marginRight": "auto",
-                                    "backgroundColor": "rgba(255,255,255,0.35)",
-                                },
+                                className="upload-component",
+                                style={"minHeight": "38px"},
                             ),
                             html.Small(
                                 id="pdb-upload-status",
@@ -243,18 +235,13 @@ def proteinmpnn_layout():
 
     advanced_collapse = html.Div(
         [
-            html.Hr(style={"margin": "6px 0 12px 0"}),
+            html.Hr(style={"margin": "12px 0"}),
             html.Div(
                 html.Button(
                     "Chain options ▼",
                     id="toggle-advanced",
                     n_clicks=0,
-                    style={
-                        "background": "none",
-                        "border": "none",
-                        "fontWeight": 700,
-                        "fontSize": "1.2rem",
-                    },
+                    className="collapse-toggle",
                 ),
                 style={"textAlign": "center", "marginBottom": "10px"},
             ),
@@ -269,8 +256,7 @@ def proteinmpnn_layout():
 
     page_container = html.Div(
         [
-            html.H1("Inverse Fold with ProteinMPNN"),
-            html.Div(style={"height": "32px"}),
+            html.H1("ProteinMPNN"),
             html.P(
                 [
                     "You can run inverse folding using ",
@@ -299,8 +285,7 @@ def proteinmpnn_layout():
                         "Run ProteinMPNN",
                         id="open-proteinmpnn-colab",
                         n_clicks=0,
-                        className="button-component",
-                        style={"width": "100%", "fontWeight": 700},
+                        className="button-component button-primary button-block",
                     ),
                     html.Div(
                         [
@@ -348,21 +333,16 @@ def proteinmpnn_layout():
                     html.Div(id="colab-launch-dummy", style={"display": "none"}),
                 ],
                 style={
-                    "width": "56%",
                     "maxWidth": "620px",
-                    "marginTop": "12px",
-                    "margin": "20px auto",
+                    "margin": "8px auto 0",
                     "textAlign": "center",
                 },
             ),
         ],
-        style={"width": "80%", "maxWidth": "1000px"},
+        className="shaded-bordered",
     )
 
-    return html.Div(
-        [page_container],
-        style={"display": "flex", "justifyContent": "center", "width": "100%"},
-    )
+    return page_container
 
 
 @callback(

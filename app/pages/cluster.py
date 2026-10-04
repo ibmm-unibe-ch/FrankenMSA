@@ -10,6 +10,7 @@ from frankenmsa.cluster import numeric_column_options
 from frankenmsa.cluster import run_ward_centroid_merge
 from frankenmsa.cluster import save_cluster_subsets
 from frankenmsa.runtime import log_message
+from helpers.layout import page
 
 
 dash.register_page(
@@ -18,210 +19,122 @@ dash.register_page(
 
 
 def layout():
-    return html.Div(
-        [
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            dbc.Row(afcluster_layout()),
-                            dbc.Row(kmeans_layout()),
-                        ],
-                    ),
-                    dbc.Col(
-                        [
-                            dcc.Loading(
-                                html.Div(
-                                    id="cluster-visual-container",
-                                    className="shaded-bordered",
-                                ),
-                                color="white",
-                            ),
-                            dbc.Row(
-                                dcc.Loading(
-                                    html.Div(
-                                        id="afcluster-status",
-                                        style={"marginTop": "10px"},
-                                    ),
-                                    type="dot",
-                                    color="#333",
-                                ),
-                                style={"marginTop": "10px"},
-                            ),
-                            dbc.Row(
-                                dcc.Loading(
-                                    html.Div(
-                                        id="kmeans-status",
-                                        style={"marginTop": "10px"},
-                                    ),
-                                    type="dot",
-                                    color="#333",
-                                ),
-                                style={"marginTop": "10px"},
-                            ),
+    return page(
+        "Cluster",
+        "Group the sequences of the selected MSA and save individual clusters as new MSAs.",
+        dbc.Row(
+            [
+                dbc.Col(
+                    [afcluster_layout(), kmeans_layout()],
+                    lg=6,
+                ),
+                dbc.Col(
+                    [
+                        dcc.Loading(
                             html.Div(
-                                [
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="clusters-to-save-dropdown",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    className="dropdown-component",
-                                                    placeholder="Select clusters to save",
-                                                    style={
-                                                        "height": "44px",
-                                                        "alignSelf": "center",
-                                                        "width": "280px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width=True,
-                                            ),
-                                            dbc.Col(
-                                                html.Button(
-                                                    "Save AFCluster",
-                                                    id="save-afcluster-button",
-                                                    className="button-component",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "height": "44px",
-                                                        "lineHeight": "44px",
-                                                        "alignSelf": "center",
-                                                        "padding": "0 18px",
-                                                        "width": "240px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width="auto",
-                                            ),
-                                        ],
-                                        style={
-                                            "alignItems": "center",
-                                            "justifyContent": "center",
-                                            "display": "flex",
-                                            "gap": "8px",
-                                            "marginTop": "4px",
-                                            "marginBottom": "4px",
-                                        },
-                                    ),
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="ward-centroid-clusters-to-save-dropdown",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    className="dropdown-component",
-                                                    placeholder="Select centroid-merged clusters to save",
-                                                    style={
-                                                        "height": "44px",
-                                                        "alignSelf": "center",
-                                                        "width": "280px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width=True,
-                                            ),
-                                            dbc.Col(
-                                                html.Button(
-                                                    "Save Ward Centroid Merge",
-                                                    id="save-ward-centroid-selected-clusters-button",
-                                                    className="button-component",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "height": "44px",
-                                                        "lineHeight": "44px",
-                                                        "alignSelf": "center",
-                                                        "padding": "0 18px",
-                                                        "width": "240px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width="auto",
-                                            ),
-                                        ],
-                                        style={
-                                            "alignItems": "center",
-                                            "justifyContent": "center",
-                                            "display": "flex",
-                                            "gap": "8px",
-                                            "marginTop": "4px",
-                                            "marginBottom": "4px",
-                                        },
-                                    ),
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="kmeans-clusters-to-save-dropdown",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    className="dropdown-component",
-                                                    placeholder="Select kmeans clusters to save",
-                                                    style={
-                                                        "height": "44px",
-                                                        "alignSelf": "center",
-                                                        "width": "280px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width=True,
-                                            ),
-                                            dbc.Col(
-                                                html.Button(
-                                                    "Save KMeans",
-                                                    id="save-kmeans-clusters-button",
-                                                    className="button-component",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "height": "44px",
-                                                        "lineHeight": "44px",
-                                                        "alignSelf": "center",
-                                                        "padding": "0 18px",
-                                                        "width": "240px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width="auto",
-                                            ),
-                                        ],
-                                        style={
-                                            "alignItems": "center",
-                                            "justifyContent": "center",
-                                            "display": "flex",
-                                            "gap": "8px",
-                                            "marginTop": "4px",
-                                            "marginBottom": "4px",
-                                        },
-                                    ),
-                                ],
-                                id="save-clusters-container",
+                                id="cluster-visual-container",
                                 className="shaded-bordered",
                             ),
+                            color="#009e6f",
+                        ),
+                        dcc.Loading(
+                            html.Div(id="afcluster-status"),
+                            type="dot",
+                            color="#009e6f",
+                        ),
+                        dcc.Loading(
+                            html.Div(id="kmeans-status"),
+                            type="dot",
+                            color="#009e6f",
+                        ),
+                        html.Div(
+                            [
+                                html.H1("Save Clusters"),
+                                html.P(
+                                    "Select clusters and save each one as a new MSA."
+                                ),
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="clusters-to-save-dropdown",
+                                options=[],
+                                value=[],
+                                multi=True,
+                                className="dropdown-component",
+                                placeholder="Select clusters to save",
+                                style={"flex": 1, "minWidth": "200px"},
+                            ),
+                            html.Button(
+                                "Save AFCluster",
+                                id="save-afcluster-button",
+                                className="button-component",
+                                n_clicks=0,
+                                style={"width": "260px"},
+                            ),
                         ],
+                        className="control-row",
+                        style={"margin": "4px 0"},
                     ),
-                ]
-            )
-        ],
-        className="gradient-background",
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="ward-centroid-clusters-to-save-dropdown",
+                                options=[],
+                                value=[],
+                                multi=True,
+                                className="dropdown-component",
+                                placeholder="Select centroid-merged clusters to save",
+                                style={"flex": 1, "minWidth": "200px"},
+                            ),
+                            html.Button(
+                                "Save Ward Centroid Merge",
+                                id="save-ward-centroid-selected-clusters-button",
+                                className="button-component",
+                                n_clicks=0,
+                                style={"width": "260px"},
+                            ),
+                        ],
+                        className="control-row",
+                        style={"margin": "4px 0"},
+                    ),
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="kmeans-clusters-to-save-dropdown",
+                                options=[],
+                                value=[],
+                                multi=True,
+                                className="dropdown-component",
+                                placeholder="Select kmeans clusters to save",
+                                style={"flex": 1, "minWidth": "200px"},
+                            ),
+                            html.Button(
+                                "Save KMeans",
+                                id="save-kmeans-clusters-button",
+                                className="button-component",
+                                n_clicks=0,
+                                style={"width": "260px"},
+                            ),
+                        ],
+                        className="control-row",
+                        style={"margin": "4px 0"},
+                    ),
+                            ],
+                            id="save-clusters-container",
+                            className="shaded-bordered",
+                        ),
+                    ],
+                    lg=6,
+                ),
+            ]
+        ),
     )
 
 
 def afcluster_layout():
     return html.Div(
         [
-            html.H1("Cluster Sequences with AFCluster"),
+            html.H1("AFCluster"),
             dcc.Markdown(
                 "Cluster sequences based on their similarity using `DBSCAN` as done by [Wayment-Steele et al. (2024)](https://www.nature.com/articles/s41586-023-06832-9) in `AF-Cluster`. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
             ),
@@ -314,7 +227,7 @@ def ward_controls_layout():
             ),
         ],
         style={
-            "margin": "20px",
+            "margin": "16px 0",
             "alignItems": "center",
             "justifyContent": "center",
             "display": "flex",
@@ -323,14 +236,11 @@ def ward_controls_layout():
     )
 
     # big button below, full width (similar to Run AFCluster)
-    bottom_button = dbc.Row(
-        html.Button(
-            "Run Ward Centroid Merge",
-            id="run-ward-centroid-merge-button",
-            className="button-component",
-            n_clicks=0,
-        ),
-        style={"width": "100%"},
+    bottom_button = html.Button(
+        "Run Ward Centroid Merge",
+        id="run-ward-centroid-merge-button",
+        className="button-component button-primary button-block",
+        n_clicks=0,
     )
 
     return html.Div([html.Hr(), header, explain, top_controls, bottom_button])
@@ -434,8 +344,7 @@ def afcluster_controls(_):
     run_button = html.Button(
         "Run AFCluster",
         id="run-afcluster-button",
-        className="button-component",
-        style={"margin-top": "20px"},
+        className="button-component button-primary button-block",
         n_clicks=0,
     )
 
@@ -476,12 +385,13 @@ def afcluster_controls(_):
                     other_columns_to_include_tooltip,
                     other_columns_to_include,
                 ],
+                width=12,
             ),
         ],
         style={
-            "margin": "20px",
-            "align-items": "bottom",
-            "justify-contents": "center",
+            "margin": "16px 0",
+            "align-items": "flex-end",
+            "justify-content": "center",
             "display": "flex",
             "flex-direction": "row",
             "flex-wrap": "wrap",
@@ -511,17 +421,14 @@ def afcluster_controls(_):
             ),
         ],
         style={
-            "margin": "20px",
+            "margin": "16px 0",
             "align-items": "center",
-            "justify-contents": "center",
+            "justify-content": "center",
             "display": "flex",
             "flex-direction": "row",
         },
     )
-    bottomrow = dbc.Row(
-        run_button,
-        style={"width": "100%"},
-    )
+    bottomrow = run_button
     return html.Div(
         [toprow, midrow, bottomrow],
     )
@@ -642,7 +549,11 @@ def run_afcluster(
 )
 def visualise_clusters(msa_data, main_msa, encoding=None):
     if not msa_data or not main_msa:
-        return html.Div()
+        return html.P(
+            "Upload or select an MSA to see its clusters here.",
+            className="text-muted",
+            style={"margin": 0},
+        )
     df = pd.DataFrame.from_dict(msa_data[main_msa])
     if "cluster_id" not in df.columns:
         return dbc.Alert("No clusters found. Please run clustering first.")
@@ -833,7 +744,7 @@ def update_other_columns_options(msa_data, main_msa):
 def kmeans_layout():
     return html.Div(
         [
-            html.H1("Cluster Sequences with KMeans"),
+            html.H1("KMeans"),
             dcc.Markdown(
                 "Cluster sequences using [KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) of [one hot encoding](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html) or using [ESM3 C](https://github.com/evolutionaryscale/esm?tab=readme-ov-file#esm-c-)-embeddings, similar to [VC-MSA](https://pubmed.ncbi.nlm.nih.gov/37414576/)"
             ),
@@ -883,8 +794,7 @@ def kmeans_controls(_):
     run_button = html.Button(
         "Run KMeans",
         id="run-kmeans-button",
-        className="button-component",
-        style={"margin-top": "20px"},
+        className="button-component button-primary button-block",
         n_clicks=0,
     )
 
@@ -943,21 +853,19 @@ def kmeans_controls(_):
                     other_columns_to_include_tooltip,
                     other_columns_to_include,
                 ],
+                width=12,
             ),
         ],
         style={
-            "margin": "20px",
-            "align-items": "bottom",
-            "justify-contents": "center",
+            "margin": "16px 0",
+            "align-items": "flex-end",
+            "justify-content": "center",
             "display": "flex",
             "flex-direction": "row",
             "flex-wrap": "wrap",
         },
     )
-    bottom_row = dbc.Row(
-        run_button,
-        style={"width": "100%"},
-    )
+    bottom_row = run_button
     return html.Div(
         [top_row, bottom_row],
     )

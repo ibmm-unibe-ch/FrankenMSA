@@ -3,6 +3,7 @@ from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 from pandas import DataFrame
+from helpers.layout import page
 
 dash.register_page(
     __name__,
@@ -46,55 +47,30 @@ def make_siderbar():
                 ],
                 vertical=False,
                 pills=True,
-                style={"width": "100%"},
+                style={"justifyContent": "center"},
             ),
             dup_tooltip,
             delete_tooltip,
             clear_tooltip,
         ],
-        className="header",
-        style={
-            "height": "50px",
-            "margin-top": "0px",
-        },
+        className="subnav",
     )
     return sidebar
 
 
 def layout():
     sidebar = make_siderbar()
-    body = html.Div(
-        msa_overview_layout(), id="edit-main-content", className="main-next-to-sidebar"
-    )
-
-    layout = html.Div(
+    body = html.Div(msa_overview_layout(), id="edit-main-content")
+    return html.Div(
         [
-            dbc.Row([sidebar]),
-            html.Div(
-                # className="header",
-                style={
-                    "position": "absolute",
-                    "top": "00px",
-                    "left": "0",
-                    "right": "0",
-                    "height": "60px",
-                    "width": "100vw",
-                    "backgroundColor": "#2c2c2c",
-                    "marginLeft": "calc(-50vw + 50%)",
-                    "zIndex": "-1",
-                },
+            sidebar,
+            page(
+                "Edit MSA",
+                "Inspect the selected MSA, or pick a tool from the bar above to filter, sort, slice or edit it.",
+                body,
             ),
-            dbc.Row(body),
-        ],
-        className="gradient-background",
-        style={
-            "display": "flex",
-            "flex-direction": "column",
-            "padding-top": "0px",
-            "position": "relative",
-        },
+        ]
     )
-    return layout
 
 
 @callback(
@@ -193,20 +169,15 @@ def filter_layout():
         [
             dbc.Col(
                 [
-                    dbc.Row(gapsfilter_layout()),
-                    dbc.Row(regex_filter_layout()),
-                    dbc.Row(free_query_filter_layout()),
+                    gapsfilter_layout(),
+                    regex_filter_layout(),
+                    free_query_filter_layout(),
                 ],
-                style={
-                    "display": "flex",
-                    "flex-direction": "column",
-                    "align-items": "stretch",
-                    "justify-content": "space-between",
-                    "width": "100%",
-                },
+                lg=6,
             ),
             dbc.Col(
                 hhfilter_layout(),
+                lg=6,
             ),
         ],
     )
@@ -249,7 +220,7 @@ def gapsfilter_layout():
         "Filter MSA",
         id="gapsfilter-button",
         n_clicks=0,
-        className="button-component",  # "btn btn-primary",
+        className="button-component button-primary",  # "btn btn-primary",
     )
     filter_status = html.Div(
         [
@@ -280,7 +251,6 @@ def gapsfilter_layout():
 
     layout = html.Div(
         [title, gap_input_label, gap_input, bottom_row],
-        style={"padding": "20px"},
         className="shaded-bordered",
     )
     return layout
@@ -457,7 +427,7 @@ You can find more information about the parameters in the [HHFilter documentatio
         "Filter MSA",
         id="hhfilter-button",
         n_clicks=0,
-        className="button-component",  # "btn btn-primary",
+        className="button-component button-primary",  # "btn btn-primary",
     )
     filter_status = dcc.Loading(
         [
@@ -563,7 +533,6 @@ You can find more information about the parameters in the [HHFilter documentatio
             sliders,
             bottom_row,
         ],
-        style={"padding": "20px"},
         className="shaded-bordered",
     )
     return layout
@@ -617,7 +586,6 @@ def regex_filter_layout():
                 style={"marginTop": "12px"},
             ),
         ],
-        style={"padding": "20px"},
     )
     lower = html.Div(
         [
@@ -631,7 +599,7 @@ def regex_filter_layout():
                 "Filter by Regex",
                 id="regex-filter-button",
                 n_clicks=0,
-                className="button-component",
+                className="button-component button-primary",
             ),
         ],
         style={
@@ -645,7 +613,6 @@ def regex_filter_layout():
             upper,
             lower,
         ],
-        style={"padding": "20px"},
         className="shaded-bordered",
     )
 
@@ -710,7 +677,6 @@ def free_query_filter_layout():
                 style={"width": "100%"},
             ),
         ],
-        style={"padding": "20px"},
     )
     lower = html.Div(
         [
@@ -724,7 +690,7 @@ def free_query_filter_layout():
                 "Filter MSA",
                 id="free-query-filter-button",
                 n_clicks=0,
-                className="button-component",
+                className="button-component button-primary",
             ),
         ],
         style={
@@ -738,7 +704,6 @@ def free_query_filter_layout():
             upper,
             lower,
         ],
-        style={"padding": "20px"},
         className="shaded-bordered",
     )
 
@@ -940,7 +905,11 @@ def sort_special_layout():
                                 className="button-component",
                             ),
                         ],
-                        style={"display": "flex", "gap": "8px"},
+                        style={
+                            "display": "flex",
+                            "flexWrap": "wrap",
+                            "justifyContent": "center",
+                        },
                     ),
                     dcc.RadioItems(
                         id="sort-special-order-radio",
@@ -949,16 +918,16 @@ def sort_special_layout():
                             {"label": "Descending", "value": "desc"},
                         ],
                         value="desc",
-                        labelStyle={"display": "block"},
-                        style={"margin-left": "20px"},
+                        labelStyle={"display": "block", "textAlign": "left"},
                     ),
                 ],
                 style={
                     "display": "flex",
                     "flex-direction": "row",
+                    "flex-wrap": "wrap",
                     "align-items": "center",
                     "justify-content": "center",
-                    "gap": "40px",
+                    "gap": "16px",
                 },
             ),
         ],
@@ -1010,14 +979,7 @@ def shuffle_columns_layout():
         "Advanced (optional) ▼",
         id="toggle-seed-btn",
         n_clicks=0,
-        style={
-            "background": "none",
-            "border": "none",
-            "fontWeight": "bold",
-            "fontSize": "1rem",
-            "cursor": "pointer",
-            "marginBottom": "6px",
-        },
+        className="collapse-toggle",
     )
     seed_collapse = dbc.Collapse(
         html.Div(
@@ -1042,19 +1004,14 @@ def shuffle_columns_layout():
         "Apply Column Shuffle",
         id="apply-shuffle-button",
         n_clicks=0,
-        className="button-component",
-        style={
-            "marginTop": "16px",
-            "fontSize": "1.25rem",
-            "fontWeight": 600,
-            "padding": "14px 40px",
-            "borderRadius": "8px",
-            "boxShadow": "0 2px 8px rgba(43,124,255,0.08)",
-        },
+        className="button-component button-primary",
     )
     return html.Div(
         [
-            html.H1("Column-wise Shuffle", className="section-title"),
+            html.H1("Column-wise Shuffle"),
+            html.P(
+                "Shuffle the residues within each column of the selected range independently."
+            ),
             html.Div(
                 [
                     start_input,
@@ -1151,9 +1108,14 @@ def toggle_seed(n):
 def sort_by_layout():
     return html.Div(
         [
-            sort_special_layout(),
+            dbc.Row(
+                [
+                    dbc.Col(sort_special_layout(), lg=6),
+                    dbc.Col(sort_by_column_layout(), lg=6),
+                ],
+                className="equal-height",
+            ),
             shuffle_columns_layout(),
-            sort_by_column_layout(),
         ],
     )
 
@@ -1204,281 +1166,162 @@ def parse_indices_input(input_str: str) -> list[int]:
     return sorted(list(indices))
 
 
-def edit_sequences_layout():
+def _simple_action_card(title, description, button_text, button_id):
     return html.Div(
         [
-            html.H1("Edit Sequences"),
-            dbc.Row(
+            html.H5(title),
+            html.P(description),
+            html.Button(
+                button_text,
+                id=button_id,
+                n_clicks=0,
+                className="button-component",
+            ),
+        ],
+        className="shaded-bordered",
+    )
+
+
+def _position_edit_card(title, description, prefix, index_label, query_label, query_default, button_text):
+    return html.Div(
+        [
+            html.H5(title),
+            html.P(description),
+            dcc.Input(
+                id=f"{prefix}-sequence",
+                type="text",
+                placeholder="sequence to insert e.g. ACGT",
+                className="input-component",
+                style={"width": "100%"},
+            ),
+            html.Div(
                 [
-                    dbc.Col(
-                        [
-                            html.H5("Separate Query Sequence"),
-                            html.P(
-                                "Remove the first sequence from the MSA and store it in a separate singleton MSA named '_query'."
-                            ),
-                            html.Button(
-                                "Separate Query",
-                                id="edit-separate-query",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    html.Label(index_label, style={"margin": 0}),
+                    dcc.Input(
+                        id=f"{prefix}-index",
+                        type="number",
+                        placeholder="0",
+                        min=0,
+                        className="input-component",
+                        style={"width": "120px"},
                     ),
-                    dbc.Col(
-                        [
-                            html.H5("Insertions to Gaps"),
-                            html.P(
-                                "Replace all insertions (lowercase characters) with gaps ('-') in the MSA."
-                            ),
-                            html.Button(
-                                "Convert Insertions to Gaps",
-                                id="edit-insertions-to-gaps",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
+                ],
+                className="control-row",
+            ),
+            dcc.Checklist(
+                id=f"{prefix}-include-query",
+                options=[{"label": query_label, "value": "include"}],
+                value=query_default,
+                className="inline-options",
+            ),
+            html.Button(
+                button_text,
+                id=f"{prefix}-button",
+                n_clicks=0,
+                className="button-component button-primary",
+                style={"marginTop": "12px"},
+            ),
+        ],
+        className="shaded-bordered",
+    )
+
+
+def edit_sequences_layout():
+    simple_actions = [
+        _simple_action_card(
+            "Separate Query Sequence",
+            "Remove the first sequence from the MSA and store it in a separate singleton MSA named '_query'.",
+            "Separate Query",
+            "edit-separate-query",
+        ),
+        _simple_action_card(
+            "Insertions to Gaps",
+            "Replace all insertions (lowercase characters) with gaps ('-') in the MSA.",
+            "Convert Insertions to Gaps",
+            "edit-insertions-to-gaps",
+        ),
+        _simple_action_card(
+            "Unknown to Gaps",
+            "Replace all unknown residues ('X') with gaps ('-') in the MSA.",
+            "Convert Unknown to Gaps",
+            "edit-unknown-to-gaps",
+        ),
+        _simple_action_card(
+            "Uppercase Sequences",
+            "Convert all sequence characters in the MSA to uppercase.",
+            "Uppercase Sequences",
+            "edit-uppercase-sequences",
+        ),
+        _simple_action_card(
+            "Lowercase Sequences",
+            "Convert all sequence characters in the MSA to lowercase.",
+            "Lowercase Sequences",
+            "edit-lowercase-sequences",
+        ),
+    ]
+    return html.Div(
+        [
+            dbc.Row(
+                [dbc.Col(card, md=6, xl=4) for card in simple_actions],
+                className="equal-height",
             ),
             dbc.Row(
                 [
                     dbc.Col(
-                        [
-                            html.H5("Unknown to Gaps"),
-                            html.P(
-                                "Replace all unknown residues ('X') with gaps ('-') in the MSA."
-                            ),
-                            html.Button(
-                                "Convert Unknown to Gaps",
-                                id="edit-unknown-to-gaps",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                        _position_edit_card(
+                            "Replace at Position",
+                            "Replace a substring in all sequences at a specified position with a new sequence.",
+                            "replace-at",
+                            "Position Index (start):",
+                            "Also replace in query sequence",
+                            [],
+                            "Replace",
+                        ),
+                        lg=6,
                     ),
-                ]
+                    dbc.Col(
+                        _position_edit_card(
+                            "Insert at Position",
+                            "Insert a sequence at a specified position in all sequences, shifting existing residues.",
+                            "insert-at",
+                            "Position Index (insert at):",
+                            "Also insert in query sequence",
+                            ["include"],
+                            "Insert",
+                        ),
+                        lg=6,
+                    ),
+                ],
+                className="equal-height",
             ),
-            dbc.Row(
+            html.Div(
                 [
-                    dbc.Col(
-                        [
-                            html.H5("Uppercase Sequences"),
-                            html.P(
-                                "Convert all sequence characters in the MSA to uppercase."
-                            ),
-                            html.Button(
-                                "Uppercase Sequences",
-                                id="edit-uppercase-sequences",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                    html.H5("Fix Positions to Query"),
+                    html.P(
+                        "Propagate residues from the query sequence to all other sequences at specified positions. These can be specified as a comma-separated list of indices or ranges; e.g., '0, 5, 10-15' would fix positions 0, 5, and all positions from 10 to 15 inclusive."
                     ),
-                    dbc.Col(
+                    html.Div(
                         [
-                            html.H5("Lowercase Sequences"),
-                            html.P(
-                                "Convert all sequence characters in the MSA to lowercase."
-                            ),
-                            html.Button(
-                                "Lowercase Sequences",
-                                id="edit-lowercase-sequences",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=6,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Replace at Position"),
-                            html.P(
-                                "Replace a substring in all sequences at a specified position with a new sequence."
-                            ),
-                            dcc.Input(
-                                id="replace-at-sequence",
-                                type="text",
-                                placeholder="sequence to insert e.g. ACGT",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "10px"},
-                            ),
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        [
-                                            html.Label("Position Index (start):"),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Input(
-                                                id="replace-at-index",
-                                                type="number",
-                                                placeholder="0",
-                                                min=0,
-                                                className="input-component",
-                                                style={"width": "100%"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Checklist(
-                                                id="replace-at-include-query",
-                                                options=[
-                                                    {
-                                                        "label": "Also replace in query sequence",
-                                                        "value": "include",
-                                                    }
-                                                ],
-                                                value=[],
-                                                style={"marginTop": "5px"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                ],
-                                style={"marginBottom": "15px"},
-                            ),
-                            html.Div(
-                                html.Button(
-                                    "Replace",
-                                    id="replace-at-button",
-                                    n_clicks=0,
-                                    className="button-component",
-                                ),
-                                style={"textAlign": "right"},
-                            ),
-                        ],
-                        width=12,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Insert at Position"),
-                            html.P(
-                                "Insert a sequence at a specified position in all sequences, shifting existing residues."
-                            ),
-                            dcc.Input(
-                                id="insert-at-sequence",
-                                type="text",
-                                placeholder="sequence to insert e.g. ACGT",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "10px"},
-                            ),
-                            dbc.Row(
-                                [
-                                    dbc.Col(
-                                        [
-                                            html.Label("Position Index (insert at):"),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Input(
-                                                id="insert-at-index",
-                                                type="number",
-                                                placeholder="0",
-                                                min=0,
-                                                className="input-component",
-                                                style={"width": "100%"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                    dbc.Col(
-                                        [
-                                            dcc.Checklist(
-                                                id="insert-at-include-query",
-                                                options=[
-                                                    {
-                                                        "label": "Also insert in query sequence",
-                                                        "value": "include",
-                                                    }
-                                                ],
-                                                value=["include"],
-                                                style={"marginTop": "5px"},
-                                            ),
-                                        ],
-                                        width=4,
-                                    ),
-                                ],
-                                style={"marginBottom": "15px"},
-                            ),
-                            html.Div(
-                                html.Button(
-                                    "Insert",
-                                    id="insert-at-button",
-                                    n_clicks=0,
-                                    className="button-component",
-                                ),
-                                style={"textAlign": "right"},
-                            ),
-                        ],
-                        width=12,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
-                    ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.H5("Fix Positions to Query"),
-                            html.P(
-                                "Propagate residues from the query sequence to all other sequences at specified positions. These can be specified as a comma-separated list of indices or ranges; e.g., '0, 5, 10-15' would fix positions 0, 5, and all positions from 10 to 15 inclusive."
-                            ),
                             dcc.Input(
                                 id="fix-at-indices",
                                 type="text",
                                 placeholder="Positions to fix e.g., 0, 5, 10-15",
                                 className="input-component",
-                                style={"width": "100%", "marginBottom": "15px"},
+                                style={"flex": 1, "maxWidth": "600px"},
                             ),
-                            html.Div(
-                                html.Button(
-                                    "Fix Positions",
-                                    id="fix-at-button",
-                                    n_clicks=0,
-                                    className="button-component",
-                                ),
-                                style={"textAlign": "right"},
+                            html.Button(
+                                "Fix Positions",
+                                id="fix-at-button",
+                                n_clicks=0,
+                                className="button-component button-primary",
                             ),
                         ],
-                        width=12,
-                        className="shaded-bordered",
-                        style={"padding": "15px", "marginBottom": "15px"},
+                        className="control-row",
                     ),
-                ]
+                ],
+                className="shaded-bordered",
             ),
-        ],
+        ]
     )
 
 
@@ -1548,7 +1391,7 @@ def sort_by_column_layout():
                         options=[],  # needs to come from callback
                         placeholder="Select a column to sort by",
                         className="dropdown-component",
-                        style={"flex": "1", "margin-right": "10px"},
+                        style={"flex": "1", "minWidth": "200px"},
                     ),
                     dcc.RadioItems(
                         id="sort-order-radio",
@@ -1557,24 +1400,17 @@ def sort_by_column_layout():
                             {"label": "Descending", "value": "desc"},
                         ],
                         value="desc",
-                        labelStyle={"display": "block"},
-                        style={"flex": "1", "margin-right": "10px"},
+                        labelStyle={"display": "block", "textAlign": "left"},
                     ),
                     html.Button(
                         "Sort MSA",
                         id="sort-button",
                         n_clicks=0,
-                        className="button-component",
-                        style={"flex": "1"},
+                        className="button-component button-primary",
                     ),
                 ],
-                style={
-                    "display": "flex",
-                    "flex-direction": "row",
-                    "align-items": "center",
-                    "justify-content": "space-between",
-                    "width": "100%",
-                },
+                className="control-row",
+                style={"gap": "20px"},
             ),
         ],
         className="shaded-bordered",
@@ -1745,22 +1581,18 @@ def apply_column_shuffle(n_clicks, start, end, preserve_vals, main_msa, msa_data
 
 
 def slice_crop_layout():
-    top = dbc.Row(
+    return html.Div(
         [
             dbc.Row(
-                [dbc.Col(set_depth_layout()), dbc.Col(set_sequence_length_layout())],
+                [
+                    dbc.Col(set_depth_layout(), lg=6),
+                    dbc.Col(set_sequence_length_layout(), lg=6),
+                ],
+                className="equal-height",
             ),
-            dbc.Row([slice_msa_layout()], style={"width": "100%"}),
-        ],
-        style={
-            "display": "flex",
-            "flex-direction": "row",
-            "align-items": "stretch",
-            "justify-content": "space-between",
-            "width": "100%",
-        },
+            slice_msa_layout(),
+        ]
     )
-    return top
 
 
 def slice_msa_layout():
@@ -1787,7 +1619,7 @@ def slice_msa_layout():
         value=0,
         min=0,
         step=1,
-        style={"width": "60px"},
+        style={"width": "90px"},
     )
 
     slice_end_input = dcc.Input(
@@ -1796,14 +1628,14 @@ def slice_msa_layout():
         value=0,
         min=0,
         step=1,
-        style={"width": "60px"},
+        style={"width": "90px"},
     )
 
     slice_button = html.Button(
         "Slice MSA",
         id="slice-button",
         n_clicks=0,
-        className="button-component",
+        className="button-component button-primary",
     )
 
     slice_copy_button = html.Button(
@@ -1854,7 +1686,6 @@ def slice_msa_layout():
                 },
             ),
         ],
-        style={"padding": "20px"},
         className="shaded-bordered",
     )
     return layout
@@ -2004,18 +1835,23 @@ def set_depth_layout():
             html.P(
                 "Set the depth of the MSA to a specific value. This will either increase the MSA by duplicating entries (if MSA is currently smaller) or drop entries (if MSA is currently larger) to achieve the desired depth."
             ),
-            dcc.Input(
-                id="set-depth-input",
-                type="number",
-                placeholder="Enter depth",
-                className="input-component",
-                style={"width": "50%"},
-            ),
-            html.Button(
-                "Set Depth",
-                id="set-depth-button",
-                n_clicks=0,
-                className="button-component",
+            html.Div(
+                [
+                    dcc.Input(
+                        id="set-depth-input",
+                        type="number",
+                        placeholder="Enter depth",
+                        className="input-component",
+                        style={"width": "200px"},
+                    ),
+                    html.Button(
+                        "Set Depth",
+                        id="set-depth-button",
+                        n_clicks=0,
+                        className="button-component button-primary",
+                    ),
+                ],
+                className="control-row",
             ),
         ],
         className="shaded-bordered",
@@ -2076,12 +1912,7 @@ def set_sequence_length_layout():
                         className="button-component",
                     ),
                 ],
-                style={
-                    "display": "flex",
-                    "justify-content": "space-between",
-                    "gap": "10px",
-                    "width": "50%",
-                },
+                className="control-row",
             ),
         ],
         className="shaded-bordered",
@@ -2418,80 +2249,105 @@ def msa_overview_layout():
             dbc.Row(
                 [
                     dbc.Col(
-                        [
-                            dash_table.DataTable(
-                                id="msa-overview-table",
-                                columns=[
-                                    {"name": "", "id": "column"},
-                                    {"name": "", "id": "value"},
-                                ],
-                                data=[
-                                    {"column": "Number of sequences", "value": 0},
-                                    {"column": "Max. sequence length", "value": 0},
-                                    {"column": "Min. sequence length", "value": 0},
-                                    {"column": "Avg. sequence length", "value": 0},
-                                    {"column": "Number of gaps", "value": 0},
-                                ],
-                                style_table={"overflowX": "auto"},
-                            ),
-                        ],
-                        width=4,
+                        html.Div(
+                            [
+                                html.H5("Overview"),
+                                dash_table.DataTable(
+                                    id="msa-overview-table",
+                                    columns=[
+                                        {"name": "", "id": "column"},
+                                        {"name": "", "id": "value"},
+                                    ],
+                                    data=[
+                                        {"column": "Number of sequences", "value": 0},
+                                        {"column": "Max. sequence length", "value": 0},
+                                        {"column": "Min. sequence length", "value": 0},
+                                        {"column": "Avg. sequence length", "value": 0},
+                                        {"column": "Number of gaps", "value": 0},
+                                    ],
+                                    style_table={"overflowX": "auto"},
+                                    style_header={"display": "none"},
+                                    style_cell={
+                                        "fontFamily": "inherit",
+                                        "padding": "6px 12px",
+                                        "border": "none",
+                                        "borderBottom": "1px solid #dde3e0",
+                                    },
+                                    style_cell_conditional=[
+                                        {"if": {"column_id": "column"}, "textAlign": "left"},
+                                        {
+                                            "if": {"column_id": "value"},
+                                            "textAlign": "right",
+                                            "fontWeight": 600,
+                                        },
+                                    ],
+                                ),
+                            ],
+                            className="shaded-bordered",
+                        ),
+                        lg=4,
                     ),
                     dbc.Col(
-                        [
-                            html.H5("Rename MSA"),
-                            dcc.Input(
-                                id="rename-input",
-                                type="text",
-                                placeholder="New Name",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "10px"},
-                            ),
-                            html.Button(
-                                "Rename",
-                                id="rename-button",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=4,
-                        style={"paddingLeft": "20px"},
+                        html.Div(
+                            [
+                                html.H5("Rename MSA"),
+                                dcc.Input(
+                                    id="rename-input",
+                                    type="text",
+                                    placeholder="New Name",
+                                    className="input-component",
+                                    style={"width": "100%"},
+                                ),
+                                html.Button(
+                                    "Rename",
+                                    id="rename-button",
+                                    n_clicks=0,
+                                    className="button-component button-primary",
+                                ),
+                            ],
+                            className="shaded-bordered",
+                        ),
+                        lg=4,
                     ),
                     dbc.Col(
-                        [
-                            html.H5("Duplicate MSA"),
-                            dcc.Input(
-                                id="duplicate-name-input",
-                                type="text",
-                                placeholder="New Name (optional)",
-                                className="input-component",
-                                style={"width": "100%", "marginBottom": "10px"},
-                            ),
-                            html.Button(
-                                "Duplicate",
-                                id="duplicate-button",
-                                n_clicks=0,
-                                className="button-component",
-                            ),
-                        ],
-                        width=4,
-                        style={"paddingLeft": "20px"},
+                        html.Div(
+                            [
+                                html.H5("Duplicate MSA"),
+                                dcc.Input(
+                                    id="duplicate-name-input",
+                                    type="text",
+                                    placeholder="New Name (optional)",
+                                    className="input-component",
+                                    style={"width": "100%"},
+                                ),
+                                html.Button(
+                                    "Duplicate",
+                                    id="duplicate-button",
+                                    n_clicks=0,
+                                    className="button-component button-primary",
+                                ),
+                            ],
+                            className="shaded-bordered",
+                        ),
+                        lg=4,
                     ),
                 ],
-                style={"marginBottom": "20px"},
+                className="equal-height",
             ),
-            html.H2("Consensus Sequence"),
-            html.P(
-                "query sequence",
-                id="msa-consensus-seq",
+            html.Div(
+                [
+                    html.H5("Consensus Sequence"),
+                    html.P(
+                        "query sequence",
+                        id="msa-consensus-seq",
+                        style={
+                            "fontFamily": "monospace",
+                            "overflowWrap": "anywhere",
+                            "margin": 0,
+                        },
+                    ),
+                ],
                 className="shaded-bordered",
-                style={
-                    "display": "inline-block",
-                    "textAlign": "center",
-                    "maxWidth": "1000px",
-                    "width": "100%",
-                    "overflow-wrap": "anywhere",
-                },
             ),
         ],
     )
