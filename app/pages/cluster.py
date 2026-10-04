@@ -683,6 +683,9 @@ def pca_plot(
     return dcc.Graph(id=graph_id, figure=fig)
 
 
+# DEAD CODE: no component with id "save-clusters-button" exists in any layout,
+# so this callback never fires. Saving is handled by the save-*-button
+# callbacks further below.
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Output("cluster-save-container", "children"),

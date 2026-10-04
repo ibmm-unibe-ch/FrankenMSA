@@ -290,6 +290,8 @@ def update_vertical_index_range(min_value, max_value):
     return (min_value, max_value)
 
 
+# NOTE: reuses the name update_vertical_index_range of an earlier callback. Both are
+# registered, but the module-level name now only refers to this one.
 @callback(
     Output(
         {"type": "combine-msa-vertical-index-start", "index": MATCH},
@@ -308,6 +310,8 @@ def update_vertical_index_range(range_value):
     return range_value
 
 
+# NOTE: reuses the name update_horizontal_index_range of an earlier callback. Both are
+# registered, but the module-level name now only refers to this one.
 @callback(
     Output(
         {"type": "combine-msa-horizontal-index-start", "index": MATCH},
@@ -376,6 +380,8 @@ def combine_msas(
     return msa_data, name, dash.no_update
 
 
+# DEAD CODE: extract_block_components and has_path_ending_in are not called
+# anywhere in the app.
 def extract_block_components(block):
     raw_components = block["props"]["children"][0]["props"]["children"]
     components = []

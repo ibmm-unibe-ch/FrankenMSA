@@ -141,6 +141,8 @@ def update_edit_content(
         return html.Div("Please select an option from the sidebar to edit the MSA.")
 
 
+# REDUNDANT: update_edit_content above already shows filter_layout() when the
+# "Filter" tab is clicked, so this callback duplicates that work.
 @callback(
     Output("edit-main-content", "children", allow_duplicate=True),
     Input("edit-filter", "n_clicks"),
