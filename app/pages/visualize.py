@@ -85,6 +85,13 @@ def layout():
     )
 
 
+def _selected_msa(main, data):
+    """Return the selected MSA as a DataFrame, or None if nothing valid is selected."""
+    if not data or main not in data:
+        return None
+    return pd.DataFrame.from_dict(data[main])
+
+
 @callback(
     Output("visual-gaps-container", "children"),
     Input("visualise-gaps", "value"),
@@ -94,10 +101,9 @@ def layout():
 def update_visual_gaps(visualise_gaps, main, data):
 
     if visualise_gaps == True:
-        if not data:
+        msa = _selected_msa(main, data)
+        if msa is None:
             return html.Div()
-        msa = data[main]
-        msa = pd.DataFrame.from_dict(msa)
         gaps = show_gaps(msa)
         return gaps
     else:
@@ -112,10 +118,9 @@ def update_visual_gaps(visualise_gaps, main, data):
 )
 def update_visual_conservation(visualise_conservation, main, data):
     if visualise_conservation == True:
-        if not data:
+        msa = _selected_msa(main, data)
+        if msa is None:
             return html.Div()
-        msa = data[main]
-        msa = pd.DataFrame.from_dict(msa)
         conservation = show_conservation(msa)
         return conservation
     else:
@@ -130,10 +135,9 @@ def update_visual_conservation(visualise_conservation, main, data):
 )
 def update_visual_identity(visualise_identity, main, data):
     if visualise_identity == True:
-        if not data:
+        msa = _selected_msa(main, data)
+        if msa is None:
             return html.Div()
-        msa = data[main]
-        msa = pd.DataFrame.from_dict(msa)
         identity = show_query_identity(msa)
         return identity
     else:
@@ -148,14 +152,13 @@ def update_visual_identity(visualise_identity, main, data):
 )
 def update_visual_alignment(visualise_alignment, main, data):
     if visualise_alignment == True:
-        if not data:
+        msa = _selected_msa(main, data)
+        if msa is None:
             return html.P(
                 "Upload or select an MSA to visualise it here.",
                 className="text-muted",
                 style={"margin": 0},
             )
-        msa = data[main]
-        msa = pd.DataFrame.from_dict(msa)
         alignment = show_alignment(msa)
         return alignment
     else:
