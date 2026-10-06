@@ -391,3 +391,101 @@ Whichever route is taken, tell the user: padding keeps every sequence but
 dilutes the alignment with gaps, hhfilter keeps a diverse subset but discards
 sequences, and repeating inflates the depth without adding information. Those
 are different trade-offs and the choice should not be invisible.
+
+### Keeping one query when stacking MSAs vertically
+
+Every MSA carries its own query in row 0, and the columns of an MSA mean
+positions *of that query*. Stacking two MSAs with `pd.concat` or a vertical
+combine therefore does two things the user rarely wants: the combined MSA ends
+up with a second query row partway down, and if the two queries differ at all —
+a leading residue, a construct tag, a slightly different construct — every
+stacked row is offset against the columns it lands in.
+
+```
+query A   ACDEFGHIK          naive stack        ACDEFGHIK   <- qA
+query B    CDEFGHIKL                            ACDEFGHIR
+                                                CDEFGHIKL   <- qB, a second query
+                                                CDEFGHIKM   <- C now sits under A
+```
+
+So when combining MSAs of the same chain, ask which query should persist, align
+the other queries to it, and drop the duplicates. Report the choice, because the
+kept query defines the coordinates of everything downstream.
+
+```python
+import pandas as pd
+from Bio.Align import PairwiseAligner
+
+
+def to_query_columns(msa):
+    """Keep only the columns where this MSA's own query has a residue."""
+    query = msa["sequence"].iloc[0]
+    keep = [i for i, ch in enumerate(query) if ch != "-"]
+    out = msa.copy()
+    out["sequence"] = [
+        "".join(seq[i] if i < len(seq) else "-" for i in keep)
+        for seq in msa["sequence"]
+    ]
+    return out
+
+
+def query_position_map(kept_query, other_query):
+    """Map each position of other_query onto a position of kept_query."""
+    aligner = PairwiseAligner(mode="global", match_score=2, mismatch_score=-1,
+                              open_gap_score=-10, extend_gap_score=-0.5)
+    best = aligner.align(kept_query.upper(), other_query.upper())[0]
+    mapping = {}
+    for (k_start, k_end), (o_start, o_end) in zip(*best.aligned):
+        for offset in range(k_end - k_start):
+            mapping[o_start + offset] = k_start + offset
+    return mapping
+
+
+def stack_on_query(msas, keep=0):
+    """Stack MSAs vertically in the coordinate frame of msas[keep]'s query."""
+    msas = [to_query_columns(m) for m in msas]
+    anchor = msas[keep]
+    anchor_query = anchor["sequence"].iloc[0]
+    width = len(anchor_query)
+    frames = [anchor]
+
+    for i, msa in enumerate(msas):
+        if i == keep:
+            continue
+        other_query = msa["sequence"].iloc[0]
+        if other_query.upper() == anchor_query.upper():
+            print(f"MSA {i}: identical query, stacked directly")
+            frames.append(msa.iloc[1:])
+            continue
+
+        mapping = query_position_map(anchor_query, other_query)
+        print(f"MSA {i}: query differs, aligned to the kept query "
+              f"({len(mapping)}/{len(other_query)} positions matched)")
+        remapped = []
+        for seq in msa["sequence"]:
+            chars = ["-"] * width
+            for o_pos, k_pos in mapping.items():
+                if o_pos < len(seq):
+                    chars[k_pos] = seq[o_pos]
+            remapped.append("".join(chars))
+        shifted = msa.copy()
+        shifted["sequence"] = remapped
+        frames.append(shifted.iloc[1:])
+
+    print(f"kept the query of MSA {keep}; "
+          f"dropped {len(msas) - 1} duplicate query row(s)")
+    return pd.concat(frames, ignore_index=True)
+```
+
+On the example above, `stack_on_query([A, B], keep=0)` puts B's rows into A's
+frame — `CDEFGHIKM` becomes `-CDEFGHIK` — and leaves a single query at the top.
+Passing `keep=1` reframes everything into B's coordinates instead, which is how
+the user chooses whose numbering the result uses.
+
+`PairwiseAligner` comes from biopython, which the ProteinMPNN and GhostFold
+installers pull in; otherwise `pip install biopython`. The identical-query path
+needs no alignment, so MSAs built from the same query sequence stack without it.
+
+Positions of the other query that find no match are dropped, so check the
+reported match count: a low number means the two queries are not the same
+protein and stacking them is probably a mistake.
