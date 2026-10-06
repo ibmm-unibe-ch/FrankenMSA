@@ -64,9 +64,9 @@ that this is not a knob — then, if they need a specific depth, point at
 cloned `ghostfold.sh` (or the `ghostfold` CLI), and reads back
 `msa/*/pstMSA.a3m` from the project directory. Failures surface as:
 
-- `subprocess.CalledProcessError` — the script exited non-zero. stdout and
-  stderr go to the FrankenMSA log (`log.txt` at the repo root, or
-  `/content/app/log.txt` on Colab); that is where the real error is.
+- `subprocess.CalledProcessError` — the script exited non-zero. Its stdout and
+  stderr go to the FrankenMSA log (`log.txt` in the project root), which is
+  where the real error message is.
 - `FileNotFoundError: GhostFold did not produce a pseudoMSA under ...` — the run
   succeeded but wrote nothing, usually an input the tool could not handle.
 

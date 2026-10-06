@@ -21,7 +21,6 @@ result = run_proteinmpnn(
     model_name="v_48_020",
     use_soluble_model=False,
     ca_only=False,
-    runtime="local",          # "colab" provisions the checkout on the fly
     clean_workspace=False,
 )
 print(result["a3m"], result["num_sequences"], result["cuda_available"])
@@ -33,7 +32,7 @@ print(result["a3m"], result["num_sequences"], result["cuda_available"])
 `RuntimeError` asking for one, so resolve this with the user first.
 
 - `pdb_code` — a four-character RCSB code, downloaded with retries and cached in
-  `~/.frankenmsa/pdb_cache` (`/content` on Colab). Case-insensitive.
+  `~/.frankenmsa/pdb_cache`. Case-insensitive.
 - `pdb_path` — a local `.pdb` or `.cif`. The file is staged into the ProteinMPNN
   output directory before the run.
 
@@ -111,10 +110,9 @@ Load the result as an MSA with
 `frankenmsa.utils.read_a3m(result["a3m"])`, or
 `frankenmsa.utils.fileio.decode_a3m(result["a3m_text"])` to skip the file.
 
-## Runtime
+## Output location and cleanup
 
-`runtime="local"` expects an installed checkout and writes to `outputs_local`
-inside it. `runtime="colab"` provisions ProteinMPNN if missing, writes to
-`outputs_run`, and puts the ZIP in `/content`. Anything else raises
-`ValueError`. `clean_workspace=True` clears previous outputs first — useful
-between runs, destructive if earlier results have not been collected.
+Results are written to `outputs_local` inside the ProteinMPNN checkout, which
+`resolve_proteinmpnn_root()` locates. `clean_workspace=True` clears previous
+outputs before the run — useful between experiments, destructive if earlier
+results have not been collected yet.

@@ -56,14 +56,14 @@ clustered = clusterer.cluster(msa, eps=best_eps, min_samples=5)
 ```
 
 The class remembers the searched value, so `cluster(msa, eps=None)` after a
-search reuses it. Note the mismatch to watch for: the GUI's epsilon box defaults
-to `0.5` while its range slider spans 3-20 (the `gridsearch_eps` defaults). The
-right scale depends on the sequences, which is exactly why the sweep is worth
-running once per new MSA.
+search reuses it. There is no universally good default: the right scale depends
+on the sequences and their length, which is why the sweep is worth running once
+per new MSA rather than carrying a number over from a previous one.
 
 `consensus_sequence=True` and `levenshtein=True` add useful columns
 (`consensus_sequence`, `levenshtein_query`, `levenshtein_consensus`) for judging
-how far a cluster sits from the query, at some cost. The GUI leaves both off.
+how far a cluster sits from the query, at the cost of extra computation. Both
+default to off.
 
 ## KMeans
 
@@ -134,11 +134,10 @@ msa_data = save_cluster_subsets(
 )
 ```
 
-`selected=["all"]` expands to every cluster id present. The GUI uses three
-different name templates so the three methods do not overwrite each other:
-`{main}_selected_cluster_{cluster}` for AFCluster,
-`{main}_ward_cluster_{cluster}` for Ward, and the KMeans save uses its own.
-Pick a template that encodes the method when saving more than one.
+`selected=["all"]` expands to every cluster id present. When saving the results
+of more than one method, put the method into `name_template` — for example
+`"{main}_ward_cluster_{cluster}"` — so a later save does not overwrite an
+earlier one.
 
 To write clusters straight to disk instead of the store, the AFCluster object
 has `write_a3m(directory, prefix="cluster_")` and `write_cluster_table(...)`.
@@ -153,8 +152,9 @@ options = cluster_dropdown_options(clustered, cluster_column="cluster_id")
 ```
 
 `cluster_pca_projection` returns the projected sequences and the query point
-separately, which is what the GUI plots. `AFCluster` also carries its own
-`pca(...)` and `tsne(...)` plotting helpers for a quick matplotlib look.
+separately, so the query can be drawn differently from the rest. `AFCluster`
+also carries its own `pca(...)` and `tsne(...)` helpers for a quick matplotlib
+look.
 
 Before saving, it is worth reporting the cluster sizes — a clustering where one
 cluster holds 95% of the sequences is technically a success and practically

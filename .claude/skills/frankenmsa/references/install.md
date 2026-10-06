@@ -51,11 +51,10 @@ python scripts/installers/install_esm.py
 existing install. `install_proteinmpnn.py` takes `--ref` to pin a git ref and
 `--skip-weight-check` to skip the weight download.
 
-The ProteinMPNN default root is `/content/ProteinMPNN` on Colab and
-`./external/ProteinMPNN` otherwise. Since `--root` decides where it lands and
-the resolver searches a different set of paths, passing an explicit `--root` and
-then setting `FRANKENMSA_PROTEINMPNN_ROOT` to the same value is the least
-surprising combination.
+`install_proteinmpnn.py` defaults to `./external/ProteinMPNN`, which is not one
+of the directories the resolver searches. Pass an explicit `--root` and set
+`FRANKENMSA_PROTEINMPNN_ROOT` to the same path, or install into one of the
+locations listed below, so that the installer and the resolver agree.
 
 ## Pointing at an existing install
 
@@ -105,7 +104,6 @@ are large enough that the user should get to decide.
 ## Programmatic provisioning
 
 `frankenmsa.inverse_fold.provision_proteinmpnn(root=None, install_python_deps=True)`
-runs the installer as a subprocess and returns the resolved paths. `run_proteinmpnn`
-calls it automatically when `runtime="colab"` and the checkout is missing, which
-is how the Colab notebook bootstraps itself. On a local machine it does not
-auto-provision — install first.
+runs the installer as a subprocess and returns the resolved paths, which is handy
+for setting a machine up from a script. Nothing auto-provisions on your behalf:
+install ProteinMPNN before the first inverse-folding run.

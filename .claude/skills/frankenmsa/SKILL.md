@@ -11,9 +11,8 @@ folding model determines what it predicts, so deliberately reshaping the MSA —
 clustering it, filtering it, shuffling columns, replacing it with inverse-folded
 or synthetic sequences — steers the prediction.
 
-The Python library is the real interface. The Dash app in `app/` is a thin GUI
-whose callbacks call the same functions, so prefer the library: it is
-scriptable, and anything the GUI can do is reachable from Python.
+Work through the Python library. Everything below is a plain function call on a
+DataFrame, so steps chain together into a script without any UI in the way.
 
 ## The data model
 
@@ -140,9 +139,9 @@ unless you pass `add_anchor=False`.
 
 ## Working habits
 
-**Editing overwrites.** The GUI writes every edit back over the current MSA, and
-the library functions return a new frame. When scripting an exploration, keep
-the original so results stay comparable.
+**Keep the original.** Editing functions return a new frame rather than changing
+the one you passed in, so assign deliberately and hold on to the input when you
+want to compare before and after.
 
 **Report what happened.** Sequence counts before and after a filter, cluster
 sizes after clustering, `num_sequences` after inverse folding. A filter that
@@ -153,11 +152,3 @@ silently, and the count is what reveals it.
 embeddings on CPU, GhostFold, and PLM-Search with a low cutoff and a high
 `max_sequences` all take real time. Say so before starting rather than letting
 it look hung.
-
-## Still missing from this skill
-
-Not yet covered: the Visualize page (alignment chart, gap/conservation/identity
-profiles in `frankenmsa.visual`) and the Colab notebook as an entry point. A
-bundled `scripts/` helper for the align → cluster → save pipeline would also
-save rewriting the same twenty lines; see the end of `references/cluster.md` for
-what that script would contain.

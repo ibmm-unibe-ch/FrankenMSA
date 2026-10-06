@@ -46,14 +46,14 @@ The mode must agree with whether the sequence contains `:`, and
 |---|---|---|
 | `"none"` | monomer (no `:`) | no pairing |
 | `"greedy"` | multimer | one best match per species; strict, often returns empty from the public server |
-| `"complete"` | multimer | all matches per species; shown as "All" in the GUI, the better default |
+| `"complete"` | multimer | all matches per species; the better default for a complex |
 
 `AAAA:BBBB` is a two-chain complex. Mixing them up is the most common error:
 `:` with `"none"`, or no `:` with `"greedy"`/`"complete"`, both raise.
 
 ### Filtering
 
-`filter=True` (the GUI default) removes low-complexity regions. It applies only
+`filter=True` (the default) removes low-complexity regions. It applies only
 to the monomer path — the multimer endpoint does not take it.
 
 ### Splitting a multimer result
