@@ -5,6 +5,7 @@ from dash import callback, Input, Output, State
 from pandas import DataFrame
 from dash.dependencies import MATCH, ALL
 from helpers.layout import page
+from helpers.layout import slider_marks
 
 dash.register_page(
     __name__,
@@ -96,8 +97,8 @@ def combine_msa_block(msa_data, index):
         max=100,
         step=1,
         value=(0, 100),
-        marks={i: str(i) for i in range(0, 101, 10)},
-        tooltip={"placement": "bottom", "always_visible": True},
+        marks=slider_marks(0, 100),
+        tooltip={"placement": "bottom", "always_visible": False},
     )
     horizontal_index_start = dcc.Input(
         id={"type": "combine-msa-horizontal-index-start", "index": index},
@@ -124,8 +125,8 @@ def combine_msa_block(msa_data, index):
         max=100,
         step=1,
         value=(0, 100),
-        marks={i: str(i) for i in range(0, 101, 10)},
-        tooltip={"placement": "bottom", "always_visible": True},
+        marks=slider_marks(0, 100),
+        tooltip={"placement": "bottom", "always_visible": False},
     )
 
     vertical_index_start = dcc.Input(
@@ -235,7 +236,7 @@ def update_vertical_sliders(selected_msa, msa_data):
     msa = DataFrame.from_dict(msa)
 
     _max = len(msa)
-    marks = {i: str(i) for i in range(0, int(_max + 1), max(1, int(_max // 10)))}
+    marks = slider_marks(0, _max)
     return (0, _max), _max, marks, 0, _max
 
 
@@ -258,7 +259,7 @@ def update_horizontal_sliders(selected_msa, msa_data):
 
     sequence_length = msa["sequence"].str.len().max()
     _max = sequence_length
-    marks = {i: str(i) for i in range(0, int(_max + 1), max(1, int(_max // 10)))}
+    marks = slider_marks(0, _max)
     return (0, _max), _max, marks, 0, _max
 
 

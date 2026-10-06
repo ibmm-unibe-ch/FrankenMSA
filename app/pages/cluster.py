@@ -11,6 +11,7 @@ from frankenmsa.cluster import run_ward_centroid_merge
 from frankenmsa.cluster import save_cluster_subsets
 from frankenmsa.runtime import log_message
 from helpers.layout import page
+from helpers.layout import slider_marks
 
 
 dash.register_page(
@@ -166,73 +167,22 @@ def ward_controls_layout():
         "[Piomponi et al., 2025](https://pubs.acs.org/doi/10.1021/acs.jcim.5c01090)."
     )
 
-    # centered controls: label + slider with min/max display
-    top_controls = dbc.Row(
+    # One value to choose, so one control: a labelled slider whose upper bound
+    # follows the number of clusters AFCluster actually found.
+    top_controls = html.Div(
         [
-            dbc.Col(
-                dcc.Input(
-                    id="ward-centroid-n-clusters-min-box",
-                    type="number",
-                    value=2,
-                    min=2,
-                    max=100,
-                    style={"width": "80px"},
-                ),
-                width="auto",
-            ),
-            dbc.Col(
-                [
-                    html.Label(
-                        "Final number of clusters",
-                        style={
-                            "textAlign": "center",
-                            "display": "block",
-                            "marginBottom": "6px",
-                            "fontWeight": "600",
-                        },
-                    ),
-                    dcc.Slider(
-                        id="ward-centroid-n-clusters-slider",
-                        min=2,
-                        max=15,
-                        step=1,
-                        value=3,
-                        marks={2: "2", 50: "50", 100: "100"},
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    dcc.Input(
-                        id="ward-centroid-n-clusters",
-                        type="number",
-                        value=3,
-                        min=2,
-                        max=15,
-                        step=1,
-                        style={"marginTop": "8px", "width": "100px"},
-                    ),
-                ],
-                width=True,
-            ),
-            dbc.Col(
-                dcc.Input(
-                    id="ward-centroid-n-clusters-max-box",
-                    type="number",
-                    value=15,
-                    min=3,
-                    max=200,
-                    # allow user to edit max so slider bounds follow both boxes
-                    disabled=False,
-                    style={"width": "80px"},
-                ),
-                width="auto",
+            html.P("Final number of clusters", className="field-label"),
+            dcc.Slider(
+                id="ward-centroid-n-clusters-slider",
+                min=2,
+                max=15,
+                step=1,
+                value=3,
+                marks=slider_marks(2, 15),
+                tooltip={"placement": "bottom", "always_visible": True},
             ),
         ],
-        style={
-            "margin": "16px 0",
-            "alignItems": "center",
-            "justifyContent": "center",
-            "display": "flex",
-            "gap": "12px",
-        },
+        style={"margin": "16px 0 24px"},
     )
 
     # big button below, full width (similar to Run AFCluster)
@@ -293,11 +243,11 @@ def afcluster_controls(_):
     )
     search_epsilon_value_range_slider = dcc.Slider(
         id="search-epsilon-value-range",
-        min=1,
-        max=100,
+        min=3,
+        max=20,
         step=0.5,
         value=3,
-        marks={i: str(i) for i in range(1, 101, 10)},
+        marks=slider_marks(3, 20),
         persistence=True,
         persistence_type="memory",
         tooltip={"placement": "bottom", "always_visible": True},
@@ -459,6 +409,7 @@ def update_search_epsilon_value_range(new_start, new_end, current_value):
 @callback(
     Output("search-epsilon-value-range", "min"),
     Output("search-epsilon-value-range", "max"),
+    Output("search-epsilon-value-range", "marks"),
     Input("search-epsilon-value-range-start", "value"),
     Input("search-epsilon-value-range-end", "value"),
 )
@@ -467,12 +418,18 @@ def update_search_epsilon_value_range_min_max(
     search_epsilon_value_range_end,
 ):
     if not search_epsilon_value_range_start or not search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
 
     if search_epsilon_value_range_start >= search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
 
-    return search_epsilon_value_range_start, search_epsilon_value_range_end
+    return (
+        search_epsilon_value_range_start,
+        search_epsilon_value_range_end,
+        slider_marks(
+            search_epsilon_value_range_start, search_epsilon_value_range_end
+        ),
+    )
 
 
 @callback(
@@ -586,7 +543,7 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("run-ward-centroid-merge-button", "n_clicks"),
-    State("ward-centroid-n-clusters", "value"),
+    State("ward-centroid-n-clusters-slider", "value"),
     State("msa-data", "data"),
     State("main-msa", "data"),
     prevent_initial_call=True,
@@ -1067,65 +1024,23 @@ def save_ward_centroid_selected_clusters(n_clicks, selected, main_msa, msa_data)
     )
 
 
-# sync ward-centroid-n-clusters-slider to hidden input for compatibility
+# The slider's upper bound follows the data: you cannot merge AFCluster's
+# clusters into more groups than it produced.
 @callback(
-    Output("ward-centroid-n-clusters", "value"),
-    Input("ward-centroid-n-clusters-slider", "value"),
-    prevent_initial_call=True,
-)
-def _sync_ward_centroid_slider_to_input(val):
-    return val
-
-
-# sync ward-centroid-n-clusters input to slider
-@callback(
-    Output("ward-centroid-n-clusters-slider", "value"),
-    Input("ward-centroid-n-clusters", "value"),
-    State("ward-centroid-n-clusters-min-box", "value"),
-    State("ward-centroid-n-clusters-max-box", "value"),
-    prevent_initial_call=True,
-)
-def _sync_ward_centroid_input_to_slider(val, min_box, max_box):
-    # Validate using the dynamic min/max from the boxes
-    if val is None:
-        return dash.no_update
-    try:
-        v = int(val)
-    except Exception:
-        return dash.no_update
-
-    # fall back to sensible defaults if boxes are missing
-    try:
-        min_v = int(min_box) if min_box is not None else 2
-    except Exception:
-        min_v = 2
-    try:
-        max_v = int(max_box) if max_box is not None else 100
-    except Exception:
-        max_v = 100
-
-    if v < min_v or v > max_v:
-        return dash.no_update
-    return v
-
-
-@callback(
-    Output("ward-centroid-n-clusters-slider", "min"),
     Output("ward-centroid-n-clusters-slider", "max"),
-    Output("ward-centroid-n-clusters", "min"),
-    Output("ward-centroid-n-clusters", "max"),
-    Input("ward-centroid-n-clusters-min-box", "value"),
-    Input("ward-centroid-n-clusters-max-box", "value"),
+    Output("ward-centroid-n-clusters-slider", "marks"),
+    Output("ward-centroid-n-clusters-slider", "value"),
+    Input("msa-data", "data"),
+    Input("main-msa", "data"),
+    State("ward-centroid-n-clusters-slider", "value"),
 )
-def update_ward_centroid_slider_min_max(min_box, max_box):
-    # Ensure both boxes are present and form a valid range
-    if min_box is None or max_box is None:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    try:
-        min_v = int(min_box)
-        max_v = int(max_box)
-    except Exception:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    if min_v >= max_v:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    return min_v, max_v, min_v, max_v
+def update_ward_centroid_slider_bounds(msa_data, main_msa, current_value):
+    upper = 15
+    if msa_data and main_msa in (msa_data or {}):
+        df = pd.DataFrame.from_dict(msa_data[main_msa])
+        if "cluster_id" in df.columns:
+            labels = [c for c in df["cluster_id"].dropna().unique() if c != -1]
+            upper = max(2, len(labels))
+
+    value = min(current_value or 3, upper)
+    return upper, slider_marks(2, upper), max(2, value)
