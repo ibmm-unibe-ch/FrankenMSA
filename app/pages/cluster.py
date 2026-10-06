@@ -11,7 +11,6 @@ from frankenmsa.cluster import run_ward_centroid_merge
 from frankenmsa.cluster import save_cluster_subsets
 from frankenmsa.runtime import log_message
 from helpers.layout import page
-from helpers.layout import slider_marks
 
 
 dash.register_page(
@@ -167,22 +166,28 @@ def ward_controls_layout():
         "[Piomponi et al., 2025](https://pubs.acs.org/doi/10.1021/acs.jcim.5c01090)."
     )
 
-    # One value to choose, so one control: a labelled slider whose upper bound
-    # follows the number of clusters AFCluster actually found.
+    n_clusters_tooltip = dbc.Tooltip(
+        "How many groups to merge the existing AFCluster clusters into. Cannot exceed the number of clusters AFCluster found.",
+        target="ward-centroid-n-clusters",
+        placement="bottom",
+    )
     top_controls = html.Div(
         [
-            html.P("Final number of clusters", className="field-label"),
-            dcc.Slider(
-                id="ward-centroid-n-clusters-slider",
-                min=2,
-                max=15,
-                step=1,
+            n_clusters_tooltip,
+            html.Label("Final number of clusters"),
+            dcc.Input(
+                id="ward-centroid-n-clusters",
+                type="number",
+                placeholder="Number of clusters",
                 value=3,
-                marks=slider_marks(2, 15),
-                tooltip={"placement": "bottom", "always_visible": True},
+                min=2,
+                max=1000,
+                step=1,
+                persistence=True,
+                persistence_type="memory",
             ),
         ],
-        style={"margin": "16px 0 24px"},
+        className="control-row",
     )
 
     # big button below, full width (similar to Run AFCluster)
@@ -233,7 +238,7 @@ def afcluster_controls(_):
         persistence_type="memory",
     )
     epsilon_tooltip = dbc.Tooltip(
-        "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood. The range slider below can be used to set this value as well.",
+        "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood.",
         target="epsilon",
         placement="bottom",
     )
@@ -241,56 +246,6 @@ def afcluster_controls(_):
         "Epsilon",
         id="epsilon-label",
     )
-    search_epsilon_value_range_slider = dcc.Slider(
-        id="search-epsilon-value-range",
-        min=3,
-        max=20,
-        step=0.5,
-        value=3,
-        marks=slider_marks(3, 20),
-        persistence=True,
-        persistence_type="memory",
-        tooltip={"placement": "bottom", "always_visible": True},
-    )
-
-    search_epsilon_value_range_label = html.Label(
-        "Epsilon value range",
-        id="search-epsilon-value-range-label",
-        style={"margin-left": "10px"},
-    )
-    search_epsilon_value_range_start_input = dcc.Input(
-        id="search-epsilon-value-range-start",
-        type="number",
-        placeholder="Epsilon value start",
-        value=3,
-        min=1,
-        max=100,
-        step=0.5,
-        persistence=True,
-        persistence_type="memory",
-    )
-    search_epsilon_value_range_start_tooltip = dbc.Tooltip(
-        "Start value of the epsilon range slider.",
-        target="search-epsilon-value-range-start",
-        placement="bottom",
-    )
-    search_epsilon_value_range_end_input = dcc.Input(
-        id="search-epsilon-value-range-end",
-        type="number",
-        placeholder="Epsilon value end",
-        value=20,
-        min=1,
-        max=100,
-        step=0.5,
-        persistence=True,
-        persistence_type="memory",
-    )
-    search_epsilon_value_range_end_tooltip = dbc.Tooltip(
-        "End value of the epsilon range slider.",
-        target="search-epsilon-value-range-end",
-        placement="bottom",
-    )
-
     run_button = html.Button(
         "Run AFCluster",
         id="run-afcluster-button",
@@ -347,98 +302,10 @@ def afcluster_controls(_):
             "flex-wrap": "wrap",
         },
     )
-    midrow = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    search_epsilon_value_range_start_tooltip,
-                    search_epsilon_value_range_start_input,
-                ],
-                width="auto",
-            ),
-            dbc.Col(
-                [
-                    search_epsilon_value_range_label,
-                    search_epsilon_value_range_slider,
-                ],
-            ),
-            dbc.Col(
-                [
-                    search_epsilon_value_range_end_tooltip,
-                    search_epsilon_value_range_end_input,
-                ],
-                width="auto",
-            ),
-        ],
-        style={
-            "margin": "16px 0",
-            "align-items": "center",
-            "justify-content": "center",
-            "display": "flex",
-            "flex-direction": "row",
-        },
-    )
     bottomrow = run_button
     return html.Div(
-        [toprow, midrow, bottomrow],
+        [toprow, bottomrow],
     )
-
-
-@callback(
-    Output("search-epsilon-value-range", "value"),
-    Input("search-epsilon-value-range-start", "value"),
-    Input("search-epsilon-value-range-end", "value"),
-    State("search-epsilon-value-range", "value"),
-)
-def update_search_epsilon_value_range(new_start, new_end, current_value):
-    if not new_start or not new_end:
-        return dash.no_update
-
-    if new_start >= new_end:
-        return dash.no_update
-
-    if current_value is None:
-        return (new_start + new_end) / 2
-
-    if current_value < new_start or current_value > new_end:
-        return (new_start + new_end) / 2
-
-    return dash.no_update
-
-
-@callback(
-    Output("search-epsilon-value-range", "min"),
-    Output("search-epsilon-value-range", "max"),
-    Output("search-epsilon-value-range", "marks"),
-    Input("search-epsilon-value-range-start", "value"),
-    Input("search-epsilon-value-range-end", "value"),
-)
-def update_search_epsilon_value_range_min_max(
-    search_epsilon_value_range_start,
-    search_epsilon_value_range_end,
-):
-    if not search_epsilon_value_range_start or not search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update, dash.no_update
-
-    if search_epsilon_value_range_start >= search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update, dash.no_update
-
-    return (
-        search_epsilon_value_range_start,
-        search_epsilon_value_range_end,
-        slider_marks(
-            search_epsilon_value_range_start, search_epsilon_value_range_end
-        ),
-    )
-
-
-@callback(
-    Output("epsilon", "value"),
-    Input("search-epsilon-value-range", "value"),
-    prevent_initial_call=True,
-)
-def update_epsilon_value_from_slider(search_epsilon_value_range):
-    return search_epsilon_value_range
 
 
 @callback(
@@ -543,7 +410,7 @@ def visualise_clusters(msa_data, main_msa, encoding=None):
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Input("run-ward-centroid-merge-button", "n_clicks"),
-    State("ward-centroid-n-clusters-slider", "value"),
+    State("ward-centroid-n-clusters", "value"),
     State("msa-data", "data"),
     State("main-msa", "data"),
     prevent_initial_call=True,
@@ -1024,18 +891,17 @@ def save_ward_centroid_selected_clusters(n_clicks, selected, main_msa, msa_data)
     )
 
 
-# The slider's upper bound follows the data: you cannot merge AFCluster's
-# clusters into more groups than it produced.
+# The upper bound follows the data: you cannot merge AFCluster's clusters into
+# more groups than it produced.
 @callback(
-    Output("ward-centroid-n-clusters-slider", "max"),
-    Output("ward-centroid-n-clusters-slider", "marks"),
-    Output("ward-centroid-n-clusters-slider", "value"),
+    Output("ward-centroid-n-clusters", "max"),
+    Output("ward-centroid-n-clusters", "value"),
     Input("msa-data", "data"),
     Input("main-msa", "data"),
-    State("ward-centroid-n-clusters-slider", "value"),
+    State("ward-centroid-n-clusters", "value"),
 )
-def update_ward_centroid_slider_bounds(msa_data, main_msa, current_value):
-    upper = 15
+def update_ward_centroid_bounds(msa_data, main_msa, current_value):
+    upper = 1000
     if msa_data and main_msa in (msa_data or {}):
         df = pd.DataFrame.from_dict(msa_data[main_msa])
         if "cluster_id" in df.columns:
@@ -1043,4 +909,4 @@ def update_ward_centroid_slider_bounds(msa_data, main_msa, current_value):
             upper = max(2, len(labels))
 
     value = min(current_value or 3, upper)
-    return upper, slider_marks(2, upper), max(2, value)
+    return upper, max(2, value)
