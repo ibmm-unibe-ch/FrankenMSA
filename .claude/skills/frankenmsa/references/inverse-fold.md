@@ -36,8 +36,10 @@ print(result["a3m"], result["num_sequences"], result["cuda_available"])
 - `pdb_path` — a local `.pdb` or `.cif`. The file is staged into the ProteinMPNN
   output directory before the run.
 
-`download_pdb_by_code(code, target_dir=None)` is available separately if you just
-want the file.
+To fetch the file yourself first, either
+`frankenmsa.utils.download_pdb(pdb_id, output_dir)` (writes where you say) or
+`download_pdb_by_code(code, target_dir=None)` (retries, caches in
+`~/.frankenmsa/pdb_cache`) will do it; see `download.md`.
 
 ## Chains
 

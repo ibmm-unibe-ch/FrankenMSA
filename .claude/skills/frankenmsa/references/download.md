@@ -5,12 +5,58 @@ re-exported from `frankenmsa.utils`.
 
 ## Contents
 
+- [Fetching from RCSB](#fetching-from-rcsb)
 - [Choosing a format](#choosing-a-format)
 - [Reading](#reading)
 - [Writing](#writing)
 - [Building a multimer MSA](#building-a-multimer-msa)
 - [The multimer A3M format](#the-multimer-a3m-format)
 - [Splitting a multimer into chains](#splitting-a-multimer-into-chains)
+
+## Fetching from RCSB
+
+Two helpers pull a structure or its sequences straight from the PDB, which is
+usually how a session starts when the user names a PDB ID rather than pasting a
+sequence.
+
+```python
+from frankenmsa.utils import download_pdb, download_fasta
+
+pdb_path = download_pdb("2NNC", "structures")     # -> structures/2NNC.pdb
+fasta_path = download_fasta("2NNC", "sequences")  # -> sequences/2NNC.fasta
+```
+
+Both create `output_dir` if it does not exist, return the path they wrote, and
+raise `Exception` with the HTTP status code when the download fails — a wrong or
+obsolete ID gives a 404 here rather than an empty file.
+
+They connect the two ends of a workflow:
+
+- `download_fasta` gives the query sequence to feed MMseqs2 or PLM-Search
+  (`align.md`), via `read_fasta` on the file's text when you need the records
+  split out.
+- `download_pdb` gives the structure to feed ProteinMPNN (`inverse-fold.md`).
+  Inverse folding can also fetch it for you — `run_proteinmpnn(pdb_code="2NNC")`
+  downloads into `~/.frankenmsa/pdb_cache` with retries — so reach for
+  `download_pdb` when you want the file in a known place, and leave it to
+  `run_proteinmpnn` otherwise.
+
+A whole chain from an ID to an aligned MSA is then:
+
+```python
+from frankenmsa.utils import download_fasta, read_fasta, write_a3m
+from frankenmsa.align import MMSeqs2Colab
+
+sequences, descriptions = read_fasta(open(download_fasta("2NNC", "sequences")).read())
+msa = MMSeqs2Colab("my-job").align([sequences[0]], True, True, None)
+write_a3m(msa, "2NNC.a3m")
+```
+
+An RCSB FASTA holds one record per *distinct* sequence and groups identical
+chains together, so `2NNC` comes back as a single record headed
+`2NNC_1|Chains A, B|...` while a heteromer yields one record per different
+chain. Pick the record you want, or join several with `:` for a paired multimer
+search.
 
 ## Choosing a format
 

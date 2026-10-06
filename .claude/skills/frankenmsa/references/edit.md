@@ -71,6 +71,47 @@ This shells out to the `hhfilter` binary, so check `has_hhsuite()` first and
 point the user at hh-suite (`conda install -c bioconda hhsuite`) if it is
 missing. `diff` is the knob that most directly controls how much survives.
 
+### Reaching an exact depth
+
+`diff` is a **diversity target, not a row cap**. hhfilter keeps adding
+sequences until the alignment is diverse enough, so the result routinely
+overshoots: on 40 unrelated sequences, `diff=3` returns 39 rows. It can also
+undershoot, when the input simply does not hold that many distinct sequences.
+
+When the user asked for a specific depth, correct the result afterwards and say
+what happened — silently returning 39 sequences for a request of 3, or 4 for a
+request of 6, is the kind of thing that goes unnoticed until much later.
+
+```python
+from frankenmsa.filter.hhsuite import hhfilter, has_hhsuite
+from frankenmsa.utils.msatools import adjust_depth
+
+def to_depth(msa, depth, label="MSA"):
+    """Reach exactly `depth` rows, reporting which route was taken."""
+    if has_hhsuite():
+        out = hhfilter(msa.copy(), diff=depth)
+        route = f"hhfilter(diff={depth})"
+    else:
+        out, route = msa.copy(), "no hh-suite, trimming/repeating only"
+
+    if len(out) > depth:
+        out = out.iloc[:depth].reset_index(drop=True)
+        route += f", kept the first {depth}"
+    elif len(out) < depth:
+        print(f"{label}: only {len(out)} sequences available for a depth of "
+              f"{depth}; repeating sequences to fill")
+        out = adjust_depth(out, depth)
+        route += ", repeated to fill"
+
+    print(f"{label}: {route} -> {len(out)} rows")
+    return out
+```
+
+`adjust_depth` is the fallback for both directions on its own: it keeps the
+first `depth` rows when the MSA is deeper, and repeats from the top when it is
+shallower. Repeating adds no new information, which is exactly why it is worth
+telling the user it happened.
+
 ### Regex
 
 ```python
@@ -303,3 +344,50 @@ it".
 
 `build_combined_msa_name(msa_data, name)` generates a non-clashing name when you
 are keeping several MSAs in a dict.
+
+### Matching depths before a horizontal combine
+
+A horizontal combine glues sequences together row by row, so the inputs need the
+same number of rows. If they differ, `combine_msa_operations` quietly calls
+`adjust_depth` on the later MSA to match the first one — trimming or repeating
+without saying so. Decide the strategy yourself instead, and report it.
+
+**No target depth given** — pad the shallower MSAs with all-gap rows. Every real
+sequence survives, and the padding is visibly empty rather than a duplicate
+pretending to be data:
+
+```python
+import pandas as pd
+
+def pad_with_gap_rows(msa, depth):
+    """Grow an MSA to `depth` rows by appending all-gap rows."""
+    missing = depth - len(msa)
+    if missing <= 0:
+        return msa.reset_index(drop=True)
+    width = int(msa["sequence"].str.len().max())
+    filler = pd.DataFrame({
+        "header": [f"gap_padding_{i + 1}" for i in range(missing)],
+        "sequence": ["-" * width] * missing,
+    })
+    return pd.concat([msa, filler], ignore_index=True)
+
+depth = max(len(m) for m in msas)
+msas = [pad_with_gap_rows(m, depth) for m in msas]
+print(f"no depth given: padded every MSA to {depth} rows with gap-only rows")
+```
+
+**A target depth given** — put each MSA through `to_depth` from the HHfilter
+section above, which uses hhfilter to pick a diverse subset and then corrects
+the overshoot or shortfall:
+
+```python
+msas = [to_depth(m, depth, label=name) for name, m in zip(names, msas)]
+```
+
+**Without hh-suite** — `to_depth` already falls back to keeping the first
+`depth` rows, or repeating to fill, and says which it did.
+
+Whichever route is taken, tell the user: padding keeps every sequence but
+dilutes the alignment with gaps, hhfilter keeps a diverse subset but discards
+sequences, and repeating inflates the depth without adding information. Those
+are different trade-offs and the choice should not be invisible.

@@ -11,6 +11,9 @@ different questions:
 
 Both hit public servers, so they need network access and can fail or rate-limit.
 
+When the user names a PDB ID instead of pasting a sequence, pull the query from
+RCSB first with `frankenmsa.utils.download_fasta` — see `download.md`.
+
 ## MMseqs2
 
 ```python
