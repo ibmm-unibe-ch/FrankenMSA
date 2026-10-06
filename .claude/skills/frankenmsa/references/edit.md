@@ -342,6 +342,16 @@ producing a deeper MSA. The ranges apply per input before combining, so a single
 call covers "take the first 100 columns of A and glue the first 80 of B onto
 it".
 
+The two axes fail in different ways, and both failures are silent:
+
+- **Horizontal** needs the inputs to have the same number of rows, and needs the
+  column ranges to mean the same positions in every input. See
+  [matching depths](#matching-depths-before-a-horizontal-combine) and
+  [splicing segments](#splicing-segments-from-several-msas).
+- **Vertical** needs one query to win, and needs the stacked rows to land in that
+  query's columns. See
+  [keeping one query](#keeping-one-query-when-stacking-msas-vertically).
+
 `build_combined_msa_name(msa_data, name)` generates a non-clashing name when you
 are keeping several MSAs in a dict.
 
@@ -392,7 +402,113 @@ dilutes the alignment with gaps, hhfilter keeps a diverse subset but discards
 sequences, and repeating inflates the depth without adding information. Those
 are different trade-offs and the choice should not be invisible.
 
+### Splicing segments from several MSAs
+
+The common way to build a chimera is to take successive stretches of one chain
+from different MSAs: positions 0-10 from MSA A, 11-26 from MSA B, 26-60 from A
+again. The ranges are positions of **one shared query**, so each MSA has to be
+read in that query's numbering rather than its own.
+
+That is where it goes wrong. An MSA's columns are positions of *its own* query,
+and two MSAs of the same protein rarely agree: a construct tag, a leading
+methionine or a slightly different construct shifts one against the other.
+Slicing each MSA by the raw index then takes the wrong residues:
+
+```
+reference query  ACDEFGHIKL        positions 4-6 are FGH
+MSA B's query   XACDEFGHIKL        its own columns 4-6 are EFG   <- off by one
+```
+
+So fix a reference query, map every other MSA onto it, and cut the ranges in
+that frame. Equalise depths first — a horizontal splice joins row *i* of each
+segment, so the segments need the same number of rows; see the section above.
+
+```python
+import pandas as pd
+from Bio.Align import PairwiseAligner
+
+
+def reference_to_msa_map(ref_query, msa_query):
+    """Reference query position -> column of this MSA."""
+    aligner = PairwiseAligner(mode="global", match_score=2, mismatch_score=-1,
+                              open_gap_score=-10, extend_gap_score=-0.5)
+    best = aligner.align(ref_query.upper(), msa_query.upper())[0]
+    mapping = {}
+    for (r_start, r_end), (m_start, m_end) in zip(*best.aligned):
+        for off in range(r_end - r_start):
+            mapping[r_start + off] = m_start + off
+    return mapping
+
+
+def stitch_segments(segments, reference=None, depth=None):
+    """Splice column ranges of several MSAs into one chimeric chain.
+
+    segments  : list of (msa, start, end); ranges are positions of the
+                reference query, end exclusive.
+    reference : MSA whose query numbering the ranges use (default: the first).
+    """
+    prepared = [(to_query_columns(m), start, end) for m, start, end in segments]
+    ref = to_query_columns(reference) if reference is not None else prepared[0][0]
+    ref_query = ref["sequence"].iloc[0]
+
+    if depth is None:
+        depth = max(len(m) for m, _, _ in prepared)
+        print(f"no depth given: padding every segment to {depth} rows with gap-only rows")
+    prepared = [(pad_with_gap_rows(m, depth), s, e) for m, s, e in prepared]
+
+    columns = []
+    print("stitched in the reference query's numbering:")
+    for i, (msa, start, end) in enumerate(prepared):
+        msa_query = msa["sequence"].iloc[0]
+        if msa_query.upper() == ref_query.upper():
+            mapping, how = {p: p for p in range(len(ref_query))}, "same query"
+        else:
+            mapping = reference_to_msa_map(ref_query, msa_query)
+            identity = mapped_identity(ref_query, msa_query, mapping)
+            how = (f"aligned to the reference "
+                   f"({len(mapping)}/{len(ref_query)} positions mapped, "
+                   f"{identity:.0%} identical)")
+
+        unmapped = [p for p in range(start, end) if p not in mapping]
+        columns.append([
+            "".join(seq[mapping[p]] if p in mapping and mapping[p] < len(seq) else "-"
+                    for p in range(start, end))
+            for seq in msa["sequence"]
+        ])
+        print(f"  [{start}:{end}) from segment {i} - {how}"
+              + (f", {len(unmapped)} position(s) unmapped -> gaps" if unmapped else ""))
+
+    out = prepared[0][0].iloc[:depth].reset_index(drop=True).copy()
+    out["sequence"] = ["".join(parts) for parts in zip(*columns)]
+    return out
+```
+
+`to_query_columns`, `pad_with_gap_rows` and `mapped_identity` are the helpers
+from the sections above. Calling it on the example:
+
+```python
+stitch_segments([(A, 0, 4), (B, 4, 7), (A, 7, 10)])
+```
+
+takes `ACDE` from A, then B's residues at reference positions 4-6 — B's own
+columns 5-7, not 4-6 — then `IKL` from A, so the query row comes out as the
+intended `ACDEFGHIKL` and every homolog row is cut at the same boundaries.
+
+Ranges may revisit the same MSA as often as needed, and each segment keeps the
+residues of the MSA it came from, which is the point of a chimera: positions
+4-6 carry B's sequence, read in A's numbering.
+
+Report the layout, and read the per-segment **identity** rather than the number
+of mapped positions. A global alignment maps two unrelated sequences of the same
+length end to end, so coverage alone looks perfect either way; identity is what
+reveals that a segment is being cut from the wrong protein.
+
 ### Keeping one query when stacking MSAs vertically
+
+**This section is for vertical stacking only** — making one MSA deeper by
+putting the sequences of another underneath it. To build a longer chimeric
+chain out of column ranges, see
+[splicing segments](#splicing-segments-from-several-msas) instead.
 
 Every MSA carries its own query in row 0, and the columns of an MSA mean
 positions *of that query*. Stacking two MSAs with `pd.concat` or a vertical
@@ -441,6 +557,23 @@ def query_position_map(kept_query, other_query):
     return mapping
 
 
+def mapped_identity(key_seq, value_seq, mapping):
+    """Fraction of mapped positions where the two queries agree.
+
+    `mapping` sends positions of `key_seq` to positions of `value_seq`, so pass
+    the two sequences in that order.
+
+    A global aligner lines up any two sequences of similar length, so the number
+    of mapped positions says nothing about whether they are the same protein.
+    Identity does.
+    """
+    if not mapping:
+        return 0.0
+    same = sum(key_seq[k].upper() == value_seq[v].upper()
+               for k, v in mapping.items())
+    return same / len(mapping)
+
+
 def stack_on_query(msas, keep=0):
     """Stack MSAs vertically in the coordinate frame of msas[keep]'s query."""
     msas = [to_query_columns(m) for m in msas]
@@ -459,8 +592,10 @@ def stack_on_query(msas, keep=0):
             continue
 
         mapping = query_position_map(anchor_query, other_query)
+        identity = mapped_identity(other_query, anchor_query, mapping)
         print(f"MSA {i}: query differs, aligned to the kept query "
-              f"({len(mapping)}/{len(other_query)} positions matched)")
+              f"({len(mapping)}/{len(other_query)} positions mapped, "
+              f"{identity:.0%} identical)")
         remapped = []
         for seq in msa["sequence"]:
             chars = ["-"] * width
@@ -486,6 +621,8 @@ the user chooses whose numbering the result uses.
 installers pull in; otherwise `pip install biopython`. The identical-query path
 needs no alignment, so MSAs built from the same query sequence stack without it.
 
-Positions of the other query that find no match are dropped, so check the
-reported match count: a low number means the two queries are not the same
-protein and stacking them is probably a mistake.
+Positions of the other query that find no match are dropped. Watch the reported
+**identity**, not the number of mapped positions: a global alignment lines up
+any two sequences of similar length, so two unrelated queries still map
+end to end. Identity near 100% means the same protein with a shift; a low
+identity means stacking them is probably a mistake.
