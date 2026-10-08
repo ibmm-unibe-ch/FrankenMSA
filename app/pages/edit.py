@@ -2382,8 +2382,18 @@ def msa_overview_layout():
                 [
                     html.H5("Consensus Sequence"),
                     html.P(
-                        "query sequence",
+                        "No consensus sequence available.",
                         id="msa-consensus-seq",
+                        style={
+                            "fontFamily": "monospace",
+                            "overflowWrap": "anywhere",
+                            "margin": "0 0 1rem",
+                        },
+                    ),
+                    html.H5("Query Sequence"),
+                    html.P(
+                        "No query sequence available.",
+                        id="msa-query-seq",
                         style={
                             "fontFamily": "monospace",
                             "overflowWrap": "anywhere",
@@ -2400,12 +2410,13 @@ def msa_overview_layout():
 @callback(
     Output("msa-overview-table", "data"),
     Output("msa-consensus-seq", "children"),
+    Output("msa-query-seq", "children"),
     Input("main-msa", "data"),
     Input("msa-data", "data"),
 )
 def update_msa_overview(main_msa, msa_data):
     if not msa_data or not main_msa:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
 
     from pandas import DataFrame
 
@@ -2413,7 +2424,11 @@ def update_msa_overview(main_msa, msa_data):
     msa = DataFrame.from_dict(msa)
 
     if msa.empty:
-        return dash.no_update, "No query sequence available."
+        return (
+            dash.no_update,
+            "No consensus sequence available.",
+            "No query sequence available.",
+        )
 
     from frankenmsa.utils.seqtools import consensus_sequence
 
@@ -2435,7 +2450,7 @@ def update_msa_overview(main_msa, msa_data):
         {"column": "Number of gaps", "value": num_gaps},
     ]
 
-    return overview_data, consensus
+    return overview_data, consensus, msa["sequence"].iloc[0]
 
 
 @callback(
