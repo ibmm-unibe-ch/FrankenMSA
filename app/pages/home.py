@@ -22,7 +22,7 @@ except Exception:
 def _runtime_badge_config():
     base = "colab" if ON_COLAB else "local"
     gpu_state = "gpu" if HAS_GPU else "no_gpu"
-    icon_src = f"assets/icon_{base}_{gpu_state}.png"
+    icon_src = dash.get_asset_url(f"icon_{base}_{gpu_state}.png")
     runtime_label = "on Google Colab" if ON_COLAB else "in a Local Environment"
     gpu_label = "with GPU available" if HAS_GPU else "but no GPU was detected"
     if not HAS_TORCH:
@@ -57,8 +57,6 @@ The frankenMSA library is available on PyPI and can be freely installed.
                     "width": "54px",
                     "height": "54px",
                     "cursor": "pointer",
-                    "maxWidth": "100%",
-                    "maxHeight": "100%",
                     "objectFit": "contain",
                     "display": "block",
                 },
@@ -71,28 +69,26 @@ The frankenMSA library is available on PyPI and can be freely installed.
                 placement="left",
             ),
         ],
-        style={
-            "position": "absolute",
-            "top": "24px",
-            "right": "30px",
-            "zIndex": 10,
-        },
+        className="runtime-indicator",
     )
 
-    # Add a class to the Div to apply the animated background
     return html.Div(
-        className="gradient-background",
-        style={"position": "relative"},
+        className="page-container",
         children=[
             runtime_indicator,
             html.Img(
-                src="assets/frankenmsa_colored_v1.png",
+                src=dash.get_asset_url("frankenmsa_colored_v1.png"),
                 className="logo-main",
             ),
-            html.P(main_text, style={"margin-top": "4%"}),
-            html.H5(
-                "To get started, check out the icons at the top of the page to navigate to the different parts of the application.",
-                style={"margin-top": "3%"},
+            html.Div(
+                [
+                    html.P(main_text.strip()),
+                    html.H5(
+                        "To get started, use the icons at the top of the page to navigate to the different parts of the application.",
+                        style={"marginTop": "16px", "marginBottom": "0"},
+                    ),
+                ],
+                className="shaded-bordered home-intro",
             ),
         ],
     )

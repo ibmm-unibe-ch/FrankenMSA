@@ -4,6 +4,8 @@ import dash_bootstrap_components as dbc
 from dash import callback, Input, Output, State
 from pandas import DataFrame
 from dash.dependencies import MATCH, ALL
+from helpers.layout import page
+from helpers.layout import slider_marks
 
 dash.register_page(
     __name__,
@@ -11,76 +13,58 @@ dash.register_page(
 
 
 def layout():
-    return html.Div(
-        [
-            dbc.Tooltip(
-                "Add a new operation for combining MSAs.",
-                target="add-combine-msa-block-button",
-            ),
-            dbc.Tooltip(
-                "Combine the selected MSAs into a single MSA.",
-                target="combine-msas-button",
-            ),
-            dbc.Tooltip(
-                "Remove the last added operation for combining MSAs.",
-                target="remove-combine-msa-block-button",
-            ),
-            html.H1("Combine multiple MSAs"),
-            html.P(
-                "MSAs can be combined by either concatenating them vertically or horizontally."
-            ),
-            html.Div(
-                [
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                [
-                                    html.Button(
-                                        "Add",
-                                        id="add-combine-msa-block-button",
-                                        className="button-component",
-                                    ),
-                                    html.Button(
-                                        "Remove",
-                                        id="remove-combine-msa-block-button",
-                                        className="button-component",
-                                    ),
-                                ]
-                            ),
-                            dbc.Col(
-                                dbc.Input(
-                                    id="combine-msa-name",
-                                    placeholder="Name of the combined MSA",
-                                    type="text",
-                                ),
-                            ),
-                            dbc.Col(
-                                [
-                                    html.Button(
-                                        "Combine",
-                                        id="combine-msas-button",
-                                        className="button-component",
-                                    ),
-                                ]
-                            ),
-                        ],
-                        style={"margin": "10px", "align-items": "center"},
-                    ),
-                    dbc.Row(
-                        [],
-                        id="combine-msa-blocks-container",
-                        style={
-                            "margin": "10px",
-                            "align-items": "center",
-                            "width": "95%",
-                        },
-                    ),
-                ],
-                id="combine-msa-main",
-                className="shaded-bordered",
-            ),
-        ],
-        className="gradient-background",
+    return page(
+        "Combine MSAs",
+        "Combine MSAs by concatenating them vertically (more sequences) or horizontally (longer sequences).",
+        dbc.Tooltip(
+            "Add a new operation for combining MSAs.",
+            target="add-combine-msa-block-button",
+        ),
+        dbc.Tooltip(
+            "Combine the selected MSAs into a single MSA.",
+            target="combine-msas-button",
+        ),
+        dbc.Tooltip(
+            "Remove the last added operation for combining MSAs.",
+            target="remove-combine-msa-block-button",
+        ),
+        html.Div(
+            [
+                html.Div(
+                    [
+                        html.Button(
+                            "Add",
+                            id="add-combine-msa-block-button",
+                            className="button-component",
+                        ),
+                        html.Button(
+                            "Remove",
+                            id="remove-combine-msa-block-button",
+                            className="button-component",
+                        ),
+                        dbc.Input(
+                            id="combine-msa-name",
+                            placeholder="Name of the combined MSA",
+                            type="text",
+                            style={"maxWidth": "360px"},
+                        ),
+                        html.Button(
+                            "Combine",
+                            id="combine-msas-button",
+                            className="button-component button-primary",
+                        ),
+                    ],
+                    className="control-row",
+                ),
+                html.Div(
+                    [],
+                    id="combine-msa-blocks-container",
+                    style={"marginTop": "16px"},
+                ),
+            ],
+            id="combine-msa-main",
+            className="shaded-bordered",
+        ),
     )
 
 
@@ -113,8 +97,8 @@ def combine_msa_block(msa_data, index):
         max=100,
         step=1,
         value=(0, 100),
-        marks={i: str(i) for i in range(0, 101, 10)},
-        tooltip={"placement": "bottom", "always_visible": True},
+        marks=slider_marks(0, 100),
+        tooltip={"placement": "bottom", "always_visible": False},
     )
     horizontal_index_start = dcc.Input(
         id={"type": "combine-msa-horizontal-index-start", "index": index},
@@ -122,7 +106,7 @@ def combine_msa_block(msa_data, index):
         value=0,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "80px"},
     )
     horizontal_index_end = dcc.Input(
         id={"type": "combine-msa-horizontal-index-end", "index": index},
@@ -130,7 +114,7 @@ def combine_msa_block(msa_data, index):
         value=100,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "80px"},
     )
     vertical_index_tooltip = html.P(
         "Optionally select a specific range of row indices to add a slice of the MSA vertically.",
@@ -141,8 +125,8 @@ def combine_msa_block(msa_data, index):
         max=100,
         step=1,
         value=(0, 100),
-        marks={i: str(i) for i in range(0, 101, 10)},
-        tooltip={"placement": "bottom", "always_visible": True},
+        marks=slider_marks(0, 100),
+        tooltip={"placement": "bottom", "always_visible": False},
     )
 
     vertical_index_start = dcc.Input(
@@ -151,7 +135,7 @@ def combine_msa_block(msa_data, index):
         value=0,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "80px"},
     )
     vertical_index_end = dcc.Input(
         id={"type": "combine-msa-vertical-index-end", "index": index},
@@ -159,7 +143,7 @@ def combine_msa_block(msa_data, index):
         value=100,
         min=0,
         step=1,
-        style={"width": "50px"},
+        style={"width": "80px"},
     )
 
     block = html.Div(
@@ -187,20 +171,16 @@ def combine_msa_block(msa_data, index):
                                 align="stretch",
                             ),
                         ],
-                        style={
-                            "margin-bottom": "20px",
-                            "line-height": "1.5",
-                        },
                     ),
                     dbc.Col(
-                        [add_direction], width="auto", style={"align-items": "left"}
+                        [add_direction],
+                        width="auto",
+                        style={"textAlign": "left", "alignSelf": "center"},
                     ),
                 ],
-                style={"margin": "10px"},
             ),
         ],
         className="shaded-bordered",
-        style={"margin": "10px", "align-items": "center", "width": "95%"},
     )
     return block
 
@@ -256,7 +236,7 @@ def update_vertical_sliders(selected_msa, msa_data):
     msa = DataFrame.from_dict(msa)
 
     _max = len(msa)
-    marks = {i: str(i) for i in range(0, int(_max + 1), max(1, int(_max // 10)))}
+    marks = slider_marks(0, _max)
     return (0, _max), _max, marks, 0, _max
 
 
@@ -279,7 +259,7 @@ def update_horizontal_sliders(selected_msa, msa_data):
 
     sequence_length = msa["sequence"].str.len().max()
     _max = sequence_length
-    marks = {i: str(i) for i in range(0, int(_max + 1), max(1, int(_max // 10)))}
+    marks = slider_marks(0, _max)
     return (0, _max), _max, marks, 0, _max
 
 
@@ -311,6 +291,8 @@ def update_vertical_index_range(min_value, max_value):
     return (min_value, max_value)
 
 
+# NOTE: reuses the name update_vertical_index_range of an earlier callback. Both are
+# registered, but the module-level name now only refers to this one.
 @callback(
     Output(
         {"type": "combine-msa-vertical-index-start", "index": MATCH},
@@ -329,6 +311,8 @@ def update_vertical_index_range(range_value):
     return range_value
 
 
+# NOTE: reuses the name update_horizontal_index_range of an earlier callback. Both are
+# registered, but the module-level name now only refers to this one.
 @callback(
     Output(
         {"type": "combine-msa-horizontal-index-start", "index": MATCH},
@@ -397,6 +381,8 @@ def combine_msas(
     return msa_data, name, dash.no_update
 
 
+# DEAD CODE: extract_block_components and has_path_ending_in are not called
+# anywhere in the app.
 def extract_block_components(block):
     raw_components = block["props"]["children"][0]["props"]["children"]
     components = []

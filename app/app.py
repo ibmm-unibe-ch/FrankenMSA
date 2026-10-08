@@ -59,17 +59,17 @@ def serve_proteinmpnn_download(fname):
 # --- end download route ---
 
 
-def icon_link(icon, href, tooltip_text):
+def icon_link(icon, href, tooltip_text, label=None):
+    content = [html.Img(src=app.get_asset_url(f"{icon}.png"), className="header-icon")]
+    if label:
+        content.append(html.Span(label, className="header-label"))
     return html.Div(
         [
             dcc.Link(
-                html.Div(
-                    html.Img(
-                        src=f"assets/{icon}.png",
-                        className="header-icon",
-                    ),
-                ),
+                content,
                 href=href,
+                className="header-link",
+                id=f"{icon}-link",
             ),
             dbc.Tooltip(
                 tooltip_text,
@@ -81,41 +81,68 @@ def icon_link(icon, href, tooltip_text):
     )
 
 
+# Header icons that link to app pages, used to highlight the active page
+NAV_PAGES = {
+    "icon_main_white_transparent": "/",
+    "icon_files_white_transparent": "/file",
+    "icon_edit_white_transparent": "/edit",
+    "icon_combine_white_transparent": "/combine",
+    "icon_align_white_transparent": "/align",
+    "icon_inverse_fold_white_transparent": "/inversefold",
+    "icon_augment_white_transparent": "/augment",
+    "icon_cluster_white_transparent": "/cluster",
+    "icon_visual_white_transparent": "/visualize",
+}
+
+
 def make_header():
-    home_icon = icon_link("icon_main_white_transparent", "/", "Go to the home page")
+    home_icon = icon_link(
+        "icon_main_white_transparent", "/", "Go to the home page", label="Home"
+    )
     files_icon = icon_link(
-        "icon_files_white_transparent", "/file", "Upload and download MSA files"
+        "icon_files_white_transparent",
+        "/file",
+        "Upload and download MSA files",
+        label="Files",
     )
     edit_icon = icon_link(
         "icon_edit_white_transparent",
         "/edit",
         "Perform basic operations to edit the MSA",
+        label="Edit",
     )
     combine_icon = icon_link(
         "icon_combine_white_transparent",
         "/combine",
         "Combine multiple MSAs into a single MSA",
+        label="Combine",
     )
     align_icon = icon_link(
         "icon_align_white_transparent",
         "/align",
         "Perform sequence alignment to generate an MSA",
+        label="Align",
     )
     inverse_fold_icon = icon_link(
         "icon_inverse_fold_white_transparent",
         "/inversefold",
         "Perform inverse folding to generate sequences from a given protein structure",
+        label="Inverse Fold",
     )
     ghostfold_icon = icon_link(
         "icon_augment_white_transparent",
         "/augment",
         "Perform GhostFold augmentation",
+        label="Augment",
     )
     cluster_icon = icon_link(
-        "icon_cluster_white_transparent", "/cluster", "Cluster the MSA"
+        "icon_cluster_white_transparent", "/cluster", "Cluster the MSA", label="Cluster"
     )
     visualize_icon = icon_link(
-        "icon_visual_white_transparent", "/visualize", "Visualize the MSA"
+        "icon_visual_white_transparent",
+        "/visualize",
+        "Visualize the MSA",
+        label="Visualize",
     )
 
     unibe_icon = icon_link(
@@ -132,18 +159,12 @@ def make_header():
         id="select-main-msa",
         persistence=True,
         persistence_type="memory",
-        style={"width": "20%"},
+        className="header-msa-select",
     )
     main_msa_shape = html.Span(
         "shape: -",
         id="main-msa-shape",
-        style={
-            "color": "white",
-            "fontWeight": "bold",
-            "whiteSpace": "nowrap",
-            "marginLeft": "8px",
-            "marginRight": "12px",
-        },
+        className="header-msa-shape",
     )
 
     header = html.Div(
@@ -166,6 +187,18 @@ def make_header():
     )
 
     return header
+
+
+@callback(
+    [Output(f"{icon}-link", "className") for icon in NAV_PAGES],
+    Input("url", "pathname"),
+)
+def highlight_active_page(pathname):
+    pathname = (pathname or "/").rstrip("/") or "/"
+    return [
+        "header-link active" if href == pathname else "header-link"
+        for href in NAV_PAGES.values()
+    ]
 
 
 @callback(
@@ -217,29 +250,24 @@ def make_footer():
                 "About",
                 href="https://www.ibmm.unibe.ch/research/group_lemmin/index_eng.html",
                 className="footer-link",
-                style={"margin-right": "20px"},
             ),
             html.A(
                 "GitHub Repository",
                 href="https://github.com/ibmm-unibe-ch/FrankenMSA",
                 className="footer-link",
-                style={"margin-right": "20px"},
             ),
             html.A(
                 "Found an issue?",
                 href="https://github.com/ibmm-unibe-ch/FrankenMSA/issues/new",
                 className="footer-link",
-                style={"margin-right": "20px"},
             ),
             html.A(
                 "Contact Us",
                 href="mailto:jannik.gut@unibe.ch",
                 className="footer-link",
-                style={"margin-right": "20px"},
             ),
         ],
         className="footer",
-        style={"display": "flex", "align-items": "center", "height": "50px"},
     )
     return footer
 

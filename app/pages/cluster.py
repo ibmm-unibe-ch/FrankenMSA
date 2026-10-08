@@ -10,6 +10,7 @@ from frankenmsa.cluster import numeric_column_options
 from frankenmsa.cluster import run_ward_centroid_merge
 from frankenmsa.cluster import save_cluster_subsets
 from frankenmsa.runtime import log_message
+from helpers.layout import page
 
 
 dash.register_page(
@@ -18,210 +19,122 @@ dash.register_page(
 
 
 def layout():
-    return html.Div(
-        [
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            dbc.Row(afcluster_layout()),
-                            dbc.Row(kmeans_layout()),
-                        ],
-                    ),
-                    dbc.Col(
-                        [
-                            dcc.Loading(
-                                html.Div(
-                                    id="cluster-visual-container",
-                                    className="shaded-bordered",
-                                ),
-                                color="white",
-                            ),
-                            dbc.Row(
-                                dcc.Loading(
-                                    html.Div(
-                                        id="afcluster-status",
-                                        style={"marginTop": "10px"},
-                                    ),
-                                    type="dot",
-                                    color="#333",
-                                ),
-                                style={"marginTop": "10px"},
-                            ),
-                            dbc.Row(
-                                dcc.Loading(
-                                    html.Div(
-                                        id="kmeans-status",
-                                        style={"marginTop": "10px"},
-                                    ),
-                                    type="dot",
-                                    color="#333",
-                                ),
-                                style={"marginTop": "10px"},
-                            ),
+    return page(
+        "Cluster",
+        "Group the sequences of the selected MSA and save individual clusters as new MSAs.",
+        dbc.Row(
+            [
+                dbc.Col(
+                    [afcluster_layout(), kmeans_layout()],
+                    lg=6,
+                ),
+                dbc.Col(
+                    [
+                        dcc.Loading(
                             html.Div(
-                                [
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="clusters-to-save-dropdown",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    className="dropdown-component",
-                                                    placeholder="Select clusters to save",
-                                                    style={
-                                                        "height": "44px",
-                                                        "alignSelf": "center",
-                                                        "width": "280px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width=True,
-                                            ),
-                                            dbc.Col(
-                                                html.Button(
-                                                    "Save AFCluster",
-                                                    id="save-afcluster-button",
-                                                    className="button-component",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "height": "44px",
-                                                        "lineHeight": "44px",
-                                                        "alignSelf": "center",
-                                                        "padding": "0 18px",
-                                                        "width": "240px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width="auto",
-                                            ),
-                                        ],
-                                        style={
-                                            "alignItems": "center",
-                                            "justifyContent": "center",
-                                            "display": "flex",
-                                            "gap": "8px",
-                                            "marginTop": "4px",
-                                            "marginBottom": "4px",
-                                        },
-                                    ),
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="ward-centroid-clusters-to-save-dropdown",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    className="dropdown-component",
-                                                    placeholder="Select centroid-merged clusters to save",
-                                                    style={
-                                                        "height": "44px",
-                                                        "alignSelf": "center",
-                                                        "width": "280px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width=True,
-                                            ),
-                                            dbc.Col(
-                                                html.Button(
-                                                    "Save Ward Centroid Merge",
-                                                    id="save-ward-centroid-selected-clusters-button",
-                                                    className="button-component",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "height": "44px",
-                                                        "lineHeight": "44px",
-                                                        "alignSelf": "center",
-                                                        "padding": "0 18px",
-                                                        "width": "240px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width="auto",
-                                            ),
-                                        ],
-                                        style={
-                                            "alignItems": "center",
-                                            "justifyContent": "center",
-                                            "display": "flex",
-                                            "gap": "8px",
-                                            "marginTop": "4px",
-                                            "marginBottom": "4px",
-                                        },
-                                    ),
-                                    dbc.Row(
-                                        [
-                                            dbc.Col(
-                                                dcc.Dropdown(
-                                                    id="kmeans-clusters-to-save-dropdown",
-                                                    options=[],
-                                                    value=[],
-                                                    multi=True,
-                                                    className="dropdown-component",
-                                                    placeholder="Select kmeans clusters to save",
-                                                    style={
-                                                        "height": "44px",
-                                                        "alignSelf": "center",
-                                                        "width": "280px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width=True,
-                                            ),
-                                            dbc.Col(
-                                                html.Button(
-                                                    "Save KMeans",
-                                                    id="save-kmeans-clusters-button",
-                                                    className="button-component",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "height": "44px",
-                                                        "lineHeight": "44px",
-                                                        "alignSelf": "center",
-                                                        "padding": "0 18px",
-                                                        "width": "240px",
-                                                        "margin": "0",
-                                                        "boxSizing": "border-box",
-                                                    },
-                                                ),
-                                                width="auto",
-                                            ),
-                                        ],
-                                        style={
-                                            "alignItems": "center",
-                                            "justifyContent": "center",
-                                            "display": "flex",
-                                            "gap": "8px",
-                                            "marginTop": "4px",
-                                            "marginBottom": "4px",
-                                        },
-                                    ),
-                                ],
-                                id="save-clusters-container",
+                                id="cluster-visual-container",
                                 className="shaded-bordered",
                             ),
+                            color="#009e6f",
+                        ),
+                        dcc.Loading(
+                            html.Div(id="afcluster-status"),
+                            type="dot",
+                            color="#009e6f",
+                        ),
+                        dcc.Loading(
+                            html.Div(id="kmeans-status"),
+                            type="dot",
+                            color="#009e6f",
+                        ),
+                        html.Div(
+                            [
+                                html.H1("Save Clusters"),
+                                html.P(
+                                    "Select clusters and save each one as a new MSA."
+                                ),
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="clusters-to-save-dropdown",
+                                options=[],
+                                value=[],
+                                multi=True,
+                                className="dropdown-component",
+                                placeholder="Select clusters to save",
+                                style={"flex": 1, "minWidth": "200px"},
+                            ),
+                            html.Button(
+                                "Save AFCluster",
+                                id="save-afcluster-button",
+                                className="button-component",
+                                n_clicks=0,
+                                style={"width": "260px"},
+                            ),
                         ],
+                        className="control-row",
+                        style={"margin": "4px 0"},
                     ),
-                ]
-            )
-        ],
-        className="gradient-background",
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="ward-centroid-clusters-to-save-dropdown",
+                                options=[],
+                                value=[],
+                                multi=True,
+                                className="dropdown-component",
+                                placeholder="Select centroid-merged clusters to save",
+                                style={"flex": 1, "minWidth": "200px"},
+                            ),
+                            html.Button(
+                                "Save Ward Centroid Merge",
+                                id="save-ward-centroid-selected-clusters-button",
+                                className="button-component",
+                                n_clicks=0,
+                                style={"width": "260px"},
+                            ),
+                        ],
+                        className="control-row",
+                        style={"margin": "4px 0"},
+                    ),
+                    html.Div(
+                        [
+                            dcc.Dropdown(
+                                id="kmeans-clusters-to-save-dropdown",
+                                options=[],
+                                value=[],
+                                multi=True,
+                                className="dropdown-component",
+                                placeholder="Select kmeans clusters to save",
+                                style={"flex": 1, "minWidth": "200px"},
+                            ),
+                            html.Button(
+                                "Save KMeans",
+                                id="save-kmeans-clusters-button",
+                                className="button-component",
+                                n_clicks=0,
+                                style={"width": "260px"},
+                            ),
+                        ],
+                        className="control-row",
+                        style={"margin": "4px 0"},
+                    ),
+                            ],
+                            id="save-clusters-container",
+                            className="shaded-bordered",
+                        ),
+                    ],
+                    lg=6,
+                ),
+            ]
+        ),
     )
 
 
 def afcluster_layout():
     return html.Div(
         [
-            html.H1("Cluster Sequences with AFCluster"),
+            html.H1("AFCluster"),
             dcc.Markdown(
                 "Cluster sequences based on their similarity using `DBSCAN` as done by [Wayment-Steele et al. (2024)](https://www.nature.com/articles/s41586-023-06832-9) in `AF-Cluster`. Clusters can be saved as new MSAs to be used in downstream tasks. Once clustering is performed a 'cluster_id' column is added to the current MSA which can be obtained by downloading the MSA as CSV."
             ),
@@ -253,84 +166,36 @@ def ward_controls_layout():
         "[Piomponi et al., 2025](https://pubs.acs.org/doi/10.1021/acs.jcim.5c01090)."
     )
 
-    # centered controls: label + slider with min/max display
-    top_controls = dbc.Row(
+    n_clusters_tooltip = dbc.Tooltip(
+        "How many groups to merge the existing AFCluster clusters into. Cannot exceed the number of clusters AFCluster found.",
+        target="ward-centroid-n-clusters",
+        placement="bottom",
+    )
+    top_controls = html.Div(
         [
-            dbc.Col(
-                dcc.Input(
-                    id="ward-centroid-n-clusters-min-box",
-                    type="number",
-                    value=2,
-                    min=2,
-                    max=100,
-                    style={"width": "80px"},
-                ),
-                width="auto",
-            ),
-            dbc.Col(
-                [
-                    html.Label(
-                        "Final number of clusters",
-                        style={
-                            "textAlign": "center",
-                            "display": "block",
-                            "marginBottom": "6px",
-                            "fontWeight": "600",
-                        },
-                    ),
-                    dcc.Slider(
-                        id="ward-centroid-n-clusters-slider",
-                        min=2,
-                        max=15,
-                        step=1,
-                        value=3,
-                        marks={2: "2", 50: "50", 100: "100"},
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    dcc.Input(
-                        id="ward-centroid-n-clusters",
-                        type="number",
-                        value=3,
-                        min=2,
-                        max=15,
-                        step=1,
-                        style={"marginTop": "8px", "width": "100px"},
-                    ),
-                ],
-                width=True,
-            ),
-            dbc.Col(
-                dcc.Input(
-                    id="ward-centroid-n-clusters-max-box",
-                    type="number",
-                    value=15,
-                    min=3,
-                    max=200,
-                    # allow user to edit max so slider bounds follow both boxes
-                    disabled=False,
-                    style={"width": "80px"},
-                ),
-                width="auto",
+            n_clusters_tooltip,
+            html.Label("Final number of clusters"),
+            dcc.Input(
+                id="ward-centroid-n-clusters",
+                type="number",
+                placeholder="Number of clusters",
+                value=3,
+                min=2,
+                max=1000,
+                step=1,
+                persistence=True,
+                persistence_type="memory",
             ),
         ],
-        style={
-            "margin": "20px",
-            "alignItems": "center",
-            "justifyContent": "center",
-            "display": "flex",
-            "gap": "12px",
-        },
+        className="control-row",
     )
 
     # big button below, full width (similar to Run AFCluster)
-    bottom_button = dbc.Row(
-        html.Button(
-            "Run Ward Centroid Merge",
-            id="run-ward-centroid-merge-button",
-            className="button-component",
-            n_clicks=0,
-        ),
-        style={"width": "100%"},
+    bottom_button = html.Button(
+        "Run Ward Centroid Merge",
+        id="run-ward-centroid-merge-button",
+        className="button-component button-primary button-block",
+        n_clicks=0,
     )
 
     return html.Div([html.Hr(), header, explain, top_controls, bottom_button])
@@ -366,14 +231,14 @@ def afcluster_controls(_):
         id="epsilon",
         type="number",
         placeholder="Epsilon value for DBSCAN",
-        value=0.50,
+        value=10,
         min=0.01,
         max=1000.0,
         persistence=True,
         persistence_type="memory",
     )
     epsilon_tooltip = dbc.Tooltip(
-        "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood. The range slider below can be used to set this value as well.",
+        "Epsilon value for DBSCAN. The maximum distance between two samples for them to be considered as in the same neighborhood.",
         target="epsilon",
         placement="bottom",
     )
@@ -381,61 +246,10 @@ def afcluster_controls(_):
         "Epsilon",
         id="epsilon-label",
     )
-    search_epsilon_value_range_slider = dcc.Slider(
-        id="search-epsilon-value-range",
-        min=1,
-        max=100,
-        step=0.5,
-        value=3,
-        marks={i: str(i) for i in range(1, 101, 10)},
-        persistence=True,
-        persistence_type="memory",
-        tooltip={"placement": "bottom", "always_visible": True},
-    )
-
-    search_epsilon_value_range_label = html.Label(
-        "Epsilon value range",
-        id="search-epsilon-value-range-label",
-        style={"margin-left": "10px"},
-    )
-    search_epsilon_value_range_start_input = dcc.Input(
-        id="search-epsilon-value-range-start",
-        type="number",
-        placeholder="Epsilon value start",
-        value=3,
-        min=1,
-        max=100,
-        step=0.5,
-        persistence=True,
-        persistence_type="memory",
-    )
-    search_epsilon_value_range_start_tooltip = dbc.Tooltip(
-        "Start value of the epsilon range slider.",
-        target="search-epsilon-value-range-start",
-        placement="bottom",
-    )
-    search_epsilon_value_range_end_input = dcc.Input(
-        id="search-epsilon-value-range-end",
-        type="number",
-        placeholder="Epsilon value end",
-        value=20,
-        min=1,
-        max=100,
-        step=0.5,
-        persistence=True,
-        persistence_type="memory",
-    )
-    search_epsilon_value_range_end_tooltip = dbc.Tooltip(
-        "End value of the epsilon range slider.",
-        target="search-epsilon-value-range-end",
-        placement="bottom",
-    )
-
     run_button = html.Button(
         "Run AFCluster",
         id="run-afcluster-button",
-        className="button-component",
-        style={"margin-top": "20px"},
+        className="button-component button-primary button-block",
         n_clicks=0,
     )
 
@@ -476,105 +290,22 @@ def afcluster_controls(_):
                     other_columns_to_include_tooltip,
                     other_columns_to_include,
                 ],
+                width=12,
             ),
         ],
         style={
-            "margin": "20px",
-            "align-items": "bottom",
-            "justify-contents": "center",
+            "margin": "16px 0",
+            "align-items": "flex-end",
+            "justify-content": "center",
             "display": "flex",
             "flex-direction": "row",
             "flex-wrap": "wrap",
         },
     )
-    midrow = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    search_epsilon_value_range_start_tooltip,
-                    search_epsilon_value_range_start_input,
-                ],
-                width="auto",
-            ),
-            dbc.Col(
-                [
-                    search_epsilon_value_range_label,
-                    search_epsilon_value_range_slider,
-                ],
-            ),
-            dbc.Col(
-                [
-                    search_epsilon_value_range_end_tooltip,
-                    search_epsilon_value_range_end_input,
-                ],
-                width="auto",
-            ),
-        ],
-        style={
-            "margin": "20px",
-            "align-items": "center",
-            "justify-contents": "center",
-            "display": "flex",
-            "flex-direction": "row",
-        },
-    )
-    bottomrow = dbc.Row(
-        run_button,
-        style={"width": "100%"},
-    )
+    bottomrow = run_button
     return html.Div(
-        [toprow, midrow, bottomrow],
+        [toprow, bottomrow],
     )
-
-
-@callback(
-    Output("search-epsilon-value-range", "value"),
-    Input("search-epsilon-value-range-start", "value"),
-    Input("search-epsilon-value-range-end", "value"),
-    State("search-epsilon-value-range", "value"),
-)
-def update_search_epsilon_value_range(new_start, new_end, current_value):
-    if not new_start or not new_end:
-        return dash.no_update
-
-    if new_start >= new_end:
-        return dash.no_update
-
-    if current_value is None:
-        return (new_start + new_end) / 2
-
-    if current_value < new_start or current_value > new_end:
-        return (new_start + new_end) / 2
-
-    return dash.no_update
-
-
-@callback(
-    Output("search-epsilon-value-range", "min"),
-    Output("search-epsilon-value-range", "max"),
-    Input("search-epsilon-value-range-start", "value"),
-    Input("search-epsilon-value-range-end", "value"),
-)
-def update_search_epsilon_value_range_min_max(
-    search_epsilon_value_range_start,
-    search_epsilon_value_range_end,
-):
-    if not search_epsilon_value_range_start or not search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update
-
-    if search_epsilon_value_range_start >= search_epsilon_value_range_end:
-        return dash.no_update, dash.no_update
-
-    return search_epsilon_value_range_start, search_epsilon_value_range_end
-
-
-@callback(
-    Output("epsilon", "value"),
-    Input("search-epsilon-value-range", "value"),
-    prevent_initial_call=True,
-)
-def update_epsilon_value_from_slider(search_epsilon_value_range):
-    return search_epsilon_value_range
 
 
 @callback(
@@ -642,7 +373,11 @@ def run_afcluster(
 )
 def visualise_clusters(msa_data, main_msa, encoding=None):
     if not msa_data or not main_msa:
-        return html.Div()
+        return html.P(
+            "Upload or select an MSA to see its clusters here.",
+            className="text-muted",
+            style={"margin": 0},
+        )
     df = pd.DataFrame.from_dict(msa_data[main_msa])
     if "cluster_id" not in df.columns:
         return dbc.Alert("No clusters found. Please run clustering first.")
@@ -772,6 +507,9 @@ def pca_plot(
     return dcc.Graph(id=graph_id, figure=fig)
 
 
+# DEAD CODE: no component with id "save-clusters-button" exists in any layout,
+# so this callback never fires. Saving is handled by the save-*-button
+# callbacks further below.
 @callback(
     Output("msa-data", "data", allow_duplicate=True),
     Output("cluster-save-container", "children"),
@@ -833,7 +571,7 @@ def update_other_columns_options(msa_data, main_msa):
 def kmeans_layout():
     return html.Div(
         [
-            html.H1("Cluster Sequences with KMeans"),
+            html.H1("KMeans"),
             dcc.Markdown(
                 "Cluster sequences using [KMeans](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) of [one hot encoding](https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html) or using [ESM3 C](https://github.com/evolutionaryscale/esm?tab=readme-ov-file#esm-c-)-embeddings, similar to [VC-MSA](https://pubmed.ncbi.nlm.nih.gov/37414576/)"
             ),
@@ -883,8 +621,7 @@ def kmeans_controls(_):
     run_button = html.Button(
         "Run KMeans",
         id="run-kmeans-button",
-        className="button-component",
-        style={"margin-top": "20px"},
+        className="button-component button-primary button-block",
         n_clicks=0,
     )
 
@@ -943,21 +680,19 @@ def kmeans_controls(_):
                     other_columns_to_include_tooltip,
                     other_columns_to_include,
                 ],
+                width=12,
             ),
         ],
         style={
-            "margin": "20px",
-            "align-items": "bottom",
-            "justify-contents": "center",
+            "margin": "16px 0",
+            "align-items": "flex-end",
+            "justify-content": "center",
             "display": "flex",
             "flex-direction": "row",
             "flex-wrap": "wrap",
         },
     )
-    bottom_row = dbc.Row(
-        run_button,
-        style={"width": "100%"},
-    )
+    bottom_row = run_button
     return html.Div(
         [top_row, bottom_row],
     )
@@ -1156,65 +891,22 @@ def save_ward_centroid_selected_clusters(n_clicks, selected, main_msa, msa_data)
     )
 
 
-# sync ward-centroid-n-clusters-slider to hidden input for compatibility
+# The upper bound follows the data: you cannot merge AFCluster's clusters into
+# more groups than it produced.
 @callback(
-    Output("ward-centroid-n-clusters", "value"),
-    Input("ward-centroid-n-clusters-slider", "value"),
-    prevent_initial_call=True,
-)
-def _sync_ward_centroid_slider_to_input(val):
-    return val
-
-
-# sync ward-centroid-n-clusters input to slider
-@callback(
-    Output("ward-centroid-n-clusters-slider", "value"),
-    Input("ward-centroid-n-clusters", "value"),
-    State("ward-centroid-n-clusters-min-box", "value"),
-    State("ward-centroid-n-clusters-max-box", "value"),
-    prevent_initial_call=True,
-)
-def _sync_ward_centroid_input_to_slider(val, min_box, max_box):
-    # Validate using the dynamic min/max from the boxes
-    if val is None:
-        return dash.no_update
-    try:
-        v = int(val)
-    except Exception:
-        return dash.no_update
-
-    # fall back to sensible defaults if boxes are missing
-    try:
-        min_v = int(min_box) if min_box is not None else 2
-    except Exception:
-        min_v = 2
-    try:
-        max_v = int(max_box) if max_box is not None else 100
-    except Exception:
-        max_v = 100
-
-    if v < min_v or v > max_v:
-        return dash.no_update
-    return v
-
-
-@callback(
-    Output("ward-centroid-n-clusters-slider", "min"),
-    Output("ward-centroid-n-clusters-slider", "max"),
-    Output("ward-centroid-n-clusters", "min"),
     Output("ward-centroid-n-clusters", "max"),
-    Input("ward-centroid-n-clusters-min-box", "value"),
-    Input("ward-centroid-n-clusters-max-box", "value"),
+    Output("ward-centroid-n-clusters", "value"),
+    Input("msa-data", "data"),
+    Input("main-msa", "data"),
+    State("ward-centroid-n-clusters", "value"),
 )
-def update_ward_centroid_slider_min_max(min_box, max_box):
-    # Ensure both boxes are present and form a valid range
-    if min_box is None or max_box is None:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    try:
-        min_v = int(min_box)
-        max_v = int(max_box)
-    except Exception:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    if min_v >= max_v:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-    return min_v, max_v, min_v, max_v
+def update_ward_centroid_bounds(msa_data, main_msa, current_value):
+    upper = 1000
+    if msa_data and main_msa in (msa_data or {}):
+        df = pd.DataFrame.from_dict(msa_data[main_msa])
+        if "cluster_id" in df.columns:
+            labels = [c for c in df["cluster_id"].dropna().unique() if c != -1]
+            upper = max(2, len(labels))
+
+    value = min(current_value or 3, upper)
+    return upper, max(2, value)

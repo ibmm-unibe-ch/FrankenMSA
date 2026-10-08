@@ -155,10 +155,25 @@ def combine_unpaired_a3m(
     if not all(len(chain) > 0 for chain in chains):
         raise ValueError("One or more A3M files are empty or invalid.")
 
-    min_rows = min(len(chain) for chain in chains)
-    if any(len(chain) != min_rows for chain in chains):
-        print(f"[WARN] Truncating chains to {min_rows} records to equalize row count.")
-        chains = [chain[:min_rows] for chain in chains]
+    # DISABLED: this truncated every chain to the depth of the shallowest one,
+    # which silently discarded most of a deep chain's alignment. Unequal depths
+    # are the normal case (a conserved chain returns thousands of homologs, a
+    # small partner a few hundred), so exporting such a pair lost almost all of
+    # the deeper MSA while the UI still reported success.
+    #
+    # The unpaired layout does not need equal depths: each chain occupies its own
+    # column block and is gap-padded elsewhere, so rows carry no correspondence
+    # across chains. An A3M with 4 rows for chain A and 2 for chain B reads back
+    # correctly through split_multimer_a3m_file, and build_multimer_csv never
+    # truncated either.
+    #
+    # Restore the block below if a downstream consumer turns out to require a
+    # rectangular file.
+    #
+    # min_rows = min(len(chain) for chain in chains)
+    # if any(len(chain) != min_rows for chain in chains):
+    #     print(f"[WARN] Truncating chains to {min_rows} records to equalize row count.")
+    #     chains = [chain[:min_rows] for chain in chains]
 
     def _pad(seq: str, target: int) -> str:
         return seq + ("-" * (target - len(seq))) if len(seq) < target else seq
