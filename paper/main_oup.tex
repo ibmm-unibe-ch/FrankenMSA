@@ -1,0 +1,180 @@
+%% FrankenMSA -- Application Note, based on the OUP authoring template
+%% (oup-authoring-template/oup-authoring-template.tex)
+%%
+%% Application Notes: up to 4 pages; approx. 2,600 words or 2,000 words plus one figure.
+%% Software must be freely available to non-commercial users; Availability and
+%% Implementation must be clearly stated; supplementary material must be referred
+%% to in the abstract; the application name must be in the title.
+%%
+%% The supplementary material is a separate document: supplementary.tex.
+%% Build order: supplementary.tex first, then main_oup.tex (cross-references to
+%% Supplementary Figs/Tables/Sections are read from supplementary.aux via xr).
+%% Running `latexmk` without arguments in this folder does this (see .latexmkrc).
+%%
+%% Markers:  \TODO{...}       red   -- missing information to be filled in
+%%           \citeNEW{...}    blue  -- citation newly added in this revision (check!)
+
+\documentclass[webpdf,contemporary,large]{oup-authoring-template}% numbered refs via oup-plain below (do NOT add the "numbered" option: with oup-plain it empties all citations)
+%\documentclass[webpdf,modern,large]{oup-authoring-template}
+%\documentclass[webpdf,traditional,large]{oup-authoring-template}
+
+%\onecolumn % for one column layouts
+
+\usepackage{subfig}
+\usepackage{booktabs}
+\usepackage{xr}
+\externaldocument[S-]{supplementary}
+
+\newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\suppl}{available as supplementary data at \textit{Bioinformatics} online}
+
+% line numbers (often requested for review)
+%\usepackage[right]{lineno}
+
+\begin{document}
+
+\journaltitle{Bioinformatics}
+\DOI{DOI added during production}
+\copyrightyear{2026}
+\pubyear{2026}
+\vol{XX}
+\issue{x}
+\access{Published: Date added during production}
+\appnotes{Application Note}
+
+\firstpage{1}
+
+\subtitle{Structural Bioinformatics}
+
+\title[FrankenMSA]{FrankenMSA: an interactive toolbox for engineering multiple sequence alignments}
+
+% TODO: authors and affiliations
+\author[1,$\ast$]{First Author}
+\author[1]{Second Author}
+
+\address[1]{\orgdiv{Department}, \orgname{Organization}, \orgaddress{\street{Street}, \postcode{Postcode}, \state{State}, \country{Country}}}
+
+\corresp[$\ast$]{Corresponding author. \href{email:email-id.com}{email-id.com}}
+
+\received{Date}{0}{Year}
+\revised{Date}{0}{Year}
+\accepted{Date}{0}{Year}
+
+%\editor{Associate Editor: Name}
+
+% Abstracts must stand alone: no citations, equations, etc.
+\abstract{
+\textbf{Motivation:} Deep-learning structure predictors such as AlphaFold2 draw much of their information from the multiple sequence alignment (MSA) supplied by using the the query sequence. Deliberately changing the content of this MSA can steer a predictor towards alternative conformations, improve predictions for proteins with few known homologues and make predictions more sensitive to point mutations. In practice, however, most users rely on a single default MSA pipeline, because engineering MSAs requires combining several tools, file formats and custom scripts.\\
+\textbf{Results:} We present FrankenMSA, a Python library and web application for building, editing and combining MSAs. FrankenMSA integrates homology search with MMseqs2 and with a protein-language-model-based search, generation of synthetic sequences by inverse folding and from shallow alignments, sequence clustering, filtering, slicing and concatenation, and visualisation. The resulting MSAs can be used with any MSA-based structure predictor. In two case studies, we use FrankenMSA to steer AlphaFold towards experimentally observed alternative conformations and to increase the correlation between AlphaFold2 confidence and experimental stability changes of point mutations.\\
+\textbf{Availability and implementation:} FrankenMSA is freely available under the MIT licence at \url{https://github.com/ibmm-unibe-ch/FrankenMSA/} and as a Google Colab notebook \url{https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/main/app/FrankenMSA_app_colab.ipynb}.\\
+\textbf{Contact:} \TODO{\href{mailto:name@email.com}{name@email.com}}\\
+\textbf{Supplementary information:} Supplementary data are available at \textit{Bioinformatics} online.}
+
+\keywords{multiple sequence alignment, protein structure prediction, AlphaFold, alternative conformations, protein stability}
+
+\maketitle
+
+\section{Introduction}
+Deep-learning methods have transformed protein structure prediction and now produce accurate models for most proteins \cite{alphafold2,alphafold3,rosettafold}. Important limitations remain, however. Accuracy drops for difficult targets with few known homologues \cite{casp,plmsearch_application}; proteins that switch between distinct folds or conformations are usually predicted in only one state \cite{fold-switching_protein,chakravarty_fold_switching}; and predicted structures respond only weakly and inconsistently to point mutations \cite{proteingym,alphafold_does_not_work_for_stability,alphafold_works_for_stability,big_af2_study}.
+
+Many of these limitations are tied to the input of the predictor. Some methods operate on the query sequence alone \cite{esm3,omegafold,chai}. Most, however, take a multiple sequence alignment (MSA) of homologous sequences, typically assembled by searching large sequence databases \cite{uniref,uniclust,mgnify} with tools such as HHblits, JackHMMER or MMseqs2 \cite{hhblits,jackhmmer,mmseqs2}. A single-sequence method offers no handle on the prediction: one sequence yields one structure. An MSA-based prediction, in contrast, depends strongly on which sequences the alignment contains. Subsampling or clustering the MSA can reveal alternative conformations \cite{random_cluster,af2_cluster,italian_clustering}, deeper and more carefully constructed alignments improve difficult targets \cite{deepmsa,casp_msa_engineering}, and alignments of synthetic sequences designed for a given structure bias the prediction towards that structure \cite{inverse_folding}. Such deliberate construction and modification of MSAs is referred to as \emph{MSA engineering}.
+
+Despite this potential, most predictions are run with the default MSA of a single pipeline, such as the MMseqs2 server of ColabFold \cite{colabfold}. For point mutations this is particularly limiting: the mutant differs from the wild type at a single position, the database search returns almost the same homologues for both, and the predictions barely differ. Engineering an MSA by hand currently means chaining search tools, generative models and clustering scripts, converting between file formats, and keeping track of where each sequence came from. General-purpose alignment editors such as Jalview \cite{jalview} are designed to inspect and annotate alignments rather than to prepare inputs for structure prediction.
+
+Here we present FrankenMSA, which brings these operations together in a Python library and an interactive web application. Users can generate MSAs by classical \cite{mmseqs2,colabfold} and protein-language-model-based \cite{plmsearch} homology search, add synthetic sequences inverse-folded from a structure \cite{proteinmpnn,inverse_folding} or generated from a shallow alignment \cite{ghostfold}, split MSAs into sub-alignments by clustering \cite{af2_cluster,italian_clustering}, and filter, slice, concatenate and visualise them. The engineered MSA can be exported and used with any MSA-based structure predictor \cite{alphafold2,alphafold3,chai,rosettafold} or other MSA-based model \cite{mutate_everything,msa_transformer}.
+
+\section{Implementation}
+
+FrankenMSA consists of a Python library, which implements all operations on MSAs, and a graphical web application built on top of it with Dash \cite{dash} (\autoref{S-fig:gui}, \suppl).
+The web application can be run locally or in Google Colab \url{https://colab.research.google.com/github/ibmm-unibe-ch/FrankenMSA/blob/main/app/FrankenMSA_app_colab.ipynb}.
+The library can be used in scripts for workflows that go beyond the graphical interface.
+All MSAs loaded or generated in a session are kept in a workspace, from which the input of each operation is selected; results are stored as new MSAs. MSAs can be exported in A3M, FASTA or CSV format as monomers and multimers.
+The local installation additionally provides Claude Code skills, which allow an AI agent to drive the library in an agentic workflow.
+Modules that rely on large neural networks, namely ESM3-based clustering and ProteinMPNN-based inverse folding, run substantially faster on a GPU and can be omitted during installation for a lighter set-up (\autoref{S-sec:install}, \suppl).
+The web application is organised into eight modules (\autoref{tab:modules}).
+%The \emph{Align} module generates MSAs with the ColabFold MMseqs2 server, including paired MSAs for multimers, or with PLMSearch \cite{plmsearch}, which detects remote homologues through protein language model embeddings. The \emph{Inverse Fold} and \emph{Augment} modules add synthetic sequences, either designed for a given structure with ProteinMPNN \cite{proteinmpnn,inverse_folding} or generated from a shallow MSA with GhostFold \cite{ghostfold}. The \emph{Cluster} module splits an MSA into sub-MSAs following AF-Cluster \cite{af2_cluster}, optionally merging clusters by Ward linkage \cite{italian_clustering}, with sequences represented by one-hot encodings or ESM3 embeddings \cite{esm3}. The remaining modules provide file handling, editing, combination and visualisation of MSAs.
+
+\begin{table}[!t]
+\caption{Modules of the FrankenMSA web application.\label{tab:modules}}
+\begin{tabular*}{\columnwidth}{@{\extracolsep\fill}p{0.2\columnwidth}p{0.74\columnwidth}@{}}
+Module & Functionality \\
+\midrule
+Files & Import and export of MSAs (A3M, FASTA, CSV) \\
+Edit & Filtering; sorting and shuffling; slicing and cropping; editing of sequences; renaming, duplicating and deleting MSAs \\
+Combine & Concatenation and merging of MSAs horizontally and vertically \\
+Align & Homology search with MMseqs2/ColabFold (unpaired or paired for multimers, optional low-complexity filtering) and PLMSearch (database, similarity cut-off, maximum hits per query) \\
+Inverse Fold & Synthetic sequences designed for an input structure with ProteinMPNN$^{\ast}$ \\
+Augment & Synthetic sequences generated from a shallow MSA with GhostFold \\
+Cluster & AF-Cluster with optional Ward merging; one-hot or ESM3$^{\ast}$ representations \\
+Visualize & Visualisation of MSAs \\
+\end{tabular*}
+\begin{tablenotes}%
+\item[$\ast$] GPU recommended; optional at installation.
+\end{tablenotes}
+\end{table}
+
+\section{Use cases}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth,height=0.7\textheight,keepaspectratio]{img/FrankenMSA_plots.png}
+\caption{\TODO{Run new example that is not self-plagiarism} Steering AlphaFold towards alternative conformations. Predictions with the default MMseqs2 MSA are shown in orange, predictions with an MSA engineered in FrankenMSA in green. The bar below each structure indicates the composition of the engineered MSA along the sequence: MMseqs2 sequences (light green) and synthetic sequences inverse-folded from the target conformation (dark green). \textbf{a} Pheromone-binding protein of \textit{Bombyx mori}, predicted with AlphaFold2: the default MSA yields the holo conformation (PDB 2P71), the engineered MSA the apo conformation (PDB 2FJY). \textbf{b} Fusion glycoprotein F0 of respiratory syncytial virus, predicted with AlphaFold3: the default MSA yields the post-fusion conformation (PDB 3RRR), the engineered MSA the pre-fusion conformation (PDB 5U68). MMseqs2 sequences were retained for a region that is not resolved in 5U68 and for the transmembrane domain.}
+\label{foldswitching}
+\end{figure}
+
+\subsection{Alternative conformations}
+With the default MMseqs2 MSA, AlphaFold typically predicts only one of the conformations a protein can adopt.
+We illustrate this with two proteins for which two conformations have been determined experimentally (\autoref{foldswitching}).
+For the pheromone-binding protein of \textit{Bombyx mori}, AlphaFold2 with the default MSA reproduced the holo conformation, and for the fusion glycoprotein F0 of respiratory syncytial virus, AlphaFold3 reproduced the post-fusion conformation \TODO{maybe TM-score/RMSD to both states in appendix}.
+We then used the Inverse Fold module to design sequences for the respective other conformation with ProteinMPNN and replaced selected regions of the MMseqs2 MSA with these synthetic sequences \cite{inverse_folding}.
+With the engineered MSAs, the predictions adopted the apo and the pre-fusion conformation, respectively \TODO{TM-score/RMSD to both states}. The construction of both MSAs is described in Supplementary \autoref{S-sec:altconf} (\suppl).
+
+This approach requires a structure of the target conformation, for example of a homologue or of a state that is to be modelled in a different context \TODO{maybe refine motivation?}.
+When no such structure is available, the Cluster module can be used to search for alternative states with AF-Cluster \cite{af2_cluster} or with Ward-merged clusters \cite{italian_clustering}, and engineered MSAs can also be passed to AlphaFold2 versions fine-tuned for alternative conformations \cite{bryant_fold_switching}.
+
+\subsection{Proteins with shallow MSAs}
+For orphan proteins and other targets with few detectable homologues, the default MSA is too shallow to inform an accurate prediction \cite{plmsearch_application}, and MSA construction has been a key ingredient of successful predictions in CASP \cite{casp,casp_msa_engineering}.
+FrankenMSA offers two routes to deeper alignments: remote homologues can be added with PLMSearch \cite{plmsearch}, and synthetic sequences can be generated from the shallow MSA with GhostFold \cite{ghostfold}.
+
+\begin{figure*}[!t]
+\centering
+\subfloat[Full MMseqs2 MSA]{\includegraphics[width=0.32\textwidth]{img/scatter_full_msa.png}}\hfill
+\subfloat[Single sequence]{\includegraphics[width=0.32\textwidth]{img/scatter_single_seq.png}}\hfill
+\subfloat[Narrow MSA]{\includegraphics[width=0.32\textwidth]{img/scatter_narrow_msa.png}}
+\caption{Change in local pLDDT upon mutation against the experimental stability change $\Delta\Delta G$ for the 669 mutations of the S669 dataset. Local pLDDT was predicted with AlphaFold2 for wild type and mutant using \textbf{a} the full MMseqs2 MSA, \textbf{b} the query sequence only and \textbf{c} the narrow MSA, which retains only sequences with the wild-type or the mutant residue at the mutated position. Positive $\Delta\Delta G$ denotes stabilising mutations.}
+\label{pointmutation}
+\end{figure*}
+
+\subsection{Point mutations}
+Because a point mutation changes the query at a single position, the MSA of the mutant is almost identical to that of the wild type, and so are the predicted structures and confidence scores \cite{alphafold_does_not_work_for_stability,big_af2_study}.
+We tested whether restricting the MSA to sequences that are informative about the mutated position makes AlphaFold2 more sensitive to mutations.
+For all 669 single-point mutations of the S669 dataset \cite{stability_dataset,stability_dataset_fixed}, we predicted the structures of wild type and mutant from three inputs:
+the query sequence alone, the full MSA from the ColabFold MMseqs2 server \cite{colabfold,mmseqs2}, and a \emph{narrow MSA}, obtained in FrankenMSA by filtering the full MSA for sequences that carry either the wild-type or the mutant residue at the mutated position.
+As a score \TODO{not sure if that is the right word?}, we used the difference in local pLDDT at the mutated position between mutant and wild type.
+Details are given in Supplementary \autoref{S-sec:mutations} (\suppl).
+
+With the full MSA, the local pLDDT hardly changes upon mutation and is only weakly related to the experimental $\Delta\Delta G$ (\autoref{pointmutation}a).
+The single-sequence input produces larger changes (\autoref{pointmutation}b), and the narrow MSA yields the strongest relation (\autoref{pointmutation}c; Spearman $\rho=$ \TODO{update}, compared with \TODO{update} for the full MSA).
+When mutations are classified as stabilising or destabilising ($|\Delta\Delta G| \geq 1$~kcal\,mol$^{-1}$), the narrow MSA achieves the highest balanced accuracy of the three AlphaFold2 inputs \TODO{update value}.
+This performance is comparable to that of the force-field-based FoldX \cite{FoldX_1,FoldX_2} but remains below that of the dedicated stability predictor MAESTRO \cite{maestro} (\autoref{S-fig:competitors} and \autoref{S-tab:ddg_classification}, \suppl).
+As AlphaFold2 is not trained to predict stability, the narrow MSA may be most useful as input to dedicated MSA-based stability predictors such as Mutate Everything \cite{mutate_everything}, which we leave for future work.
+
+\section{Conclusion}
+
+FrankenMSA makes MSA engineering accessible through a single interface that combines homology search, generation of synthetic sequences, clustering and editing of alignments.
+Our case studies show that engineered MSAs can steer AlphaFold towards alternative conformations and make its confidence scores more sensitive to point mutations.
+Because engineered MSAs deliberately bias the predictor, they can also produce plausible-looking structures that do not correspond to any state of the protein \cite{inverse_folding}.
+Such predictions should therefore be assessed with confidence metrics, consistency across random seeds, slight modifications to the MSA and, where possible, experimental data.
+
+\section*{Supplementary material}
+Supplementary material is available at \textit{Bioinformatics} online.
+
+\section*{Conflict of interest}
+None declared.
+
+\section*{Data availability}
+The source code of FrankenMSA is available at \url{https://github.com/ibmm-unibe-ch/FrankenMSA/}. The S669 dataset is publicly available \cite{stability_dataset,stability_dataset_fixed}.
+
+\bibliographystyle{oup-plain}
+\bibliography{biblio}
+
+\end{document}
